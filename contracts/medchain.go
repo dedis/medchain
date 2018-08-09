@@ -131,8 +131,8 @@ func ContractCreateQuery(cdb service.CollectionView, inst service.Instruction, c
 		if err := darc.EvalExprWithSigs(retrievedDarc.Rules[darc.Action("spawn:" + givenQueryType)], callback, inst.Signatures[0]); err != nil {
 			output = inst.Signatures[0].Signer.String() + " not authorized to create this query"
 		} else {
-			output = "Query " + givenQuery + " with type " + givenQueryType + " authorized to " +
-				inst.Signatures[0].Signer.String() + " for project " + string(retrievedDarc.Description[:])
+			output =  givenQuery + "......" + givenQueryType + "......" +
+				inst.Signatures[0].Signer.String() + "......" + string(retrievedDarc.Description[:])
 		}
 		return []service.StateChange{
 			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output)),

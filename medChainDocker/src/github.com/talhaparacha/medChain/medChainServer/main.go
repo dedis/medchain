@@ -38,6 +38,20 @@ var userProjectsMapInstanceID service.InstanceID
 var err error
 var systemStart = false
 
+type introspectionResponseQuery struct {
+	Active bool `json:"active"`
+	Query string `json:"query"`
+	QueryType string `json:"query_type"`
+	UserId string `json:"user_id"`
+	ProjectDesc string `json:"project_description"`
+}
+
+type introspectionResponseLogin struct {
+	Active bool `json:"active"`
+	ProjectsList string `json:"projects_list"`
+	User string `json:"user"`
+}
+
 func startSystem() {
 	// We need to load suitable keys to initialize the system DARCs as per our context
 	for i := 0; i < 3; i++ {
@@ -315,40 +329,85 @@ type Message struct {
 	Token   string  `json:"token"`
 }
 
-// Validate token through Omniledger client
-func tokenIntrospection(w http.ResponseWriter, r *http.Request) {
-	var isActive = false
-	var values [][]byte
-	var projectsList = ""
-	var user = ""
-
-	// Read the incoming token
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	var msg Message
-	err = json.Unmarshal(b, &msg)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Do validation
+func doMedChainValidation(msg Message) (bool, string) {
 	incomingTokenValue := msg.Token
 	instIDbytes, err := b64.StdEncoding.DecodeString(incomingTokenValue)
 	if err == nil && incomingTokenValue != "" {
 		instID := service.NewInstanceID(instIDbytes)
 		pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 		if err == nil && pr.InclusionProof.Match() == true {
-			values, err = pr.InclusionProof.RawValues()
+			values, err := pr.InclusionProof.RawValues()
 			if err == nil {
-				user = strings.SplitN(string(values[0][:]), "......", 2)[0]
-				projectsList = strings.SplitN(string(values[0][:]), "......", 2)[1]
-				isActive = true
+				return true, string(values[0][:])
 			}
 		}
+	}
+	return false, ""
+}
+
+func readToken(w http.ResponseWriter, r *http.Request) (*Message, error) {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	msg := new(Message)
+	err = json.Unmarshal(b, msg)
+	if err != nil {
+		return nil, err
+	}
+	return msg, err
+}
+
+// Validate token through Omniledger client
+func tokenIntrospectionQuery(w http.ResponseWriter, r *http.Request) {
+	// Read the incoming token
+	msg, err := readToken(w, r)
+	medChainUtils.Check(err)
+
+	// Do validation
+	isActive, data := doMedChainValidation(*msg)
+
+	// Retrieve data, if any
+	query := ""
+	queryType := ""
+	userId := ""
+	projectDesc := ""
+	if data != "" {
+		splitted := strings.Split(data, "......")
+		query = splitted[0]
+		queryType = splitted[1]
+		userId = splitted[2]
+		projectDesc = splitted[3]
+	}
+
+	// Respond according to the specs
+	response := introspectionResponseQuery{isActive, query, queryType, userId, projectDesc}
+	js, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+// Validate token through Omniledger client
+func tokenIntrospectionLogin(w http.ResponseWriter, r *http.Request) {
+	// Read the incoming token
+	msg, err := readToken(w, r)
+	medChainUtils.Check(err)
+
+	// Do validation
+	isActive, data := doMedChainValidation(*msg)
+
+
+	// Retrieve data, if any
+	user := ""
+	projectsList := ""
+	if data != "" {
+		splitted := strings.Split(data, "......")
+		user = splitted[0]
+		projectsList = splitted[1]
 	}
 
 	// Respond according to the specs
@@ -360,12 +419,6 @@ func tokenIntrospection(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
-}
-
-type introspectionResponseLogin struct {
-	Active bool `json:"active"`
-	ProjectsList string `json:"projects_list"`
-	User string `json:"user"`
 }
 
 // Communicate ID of the allUsersDarc if the system is running
@@ -409,7 +462,8 @@ func main() {
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
 	http.HandleFunc("/applyTransaction", applyTransaction)
-	http.HandleFunc("/tokenIntrospection", tokenIntrospection)
+	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
+	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
 	if err := http.ListenAndServe(":8989", nil); err != nil {
 		panic(err)
 	}
