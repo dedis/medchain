@@ -7,6 +7,11 @@ import (
 	"strconv"
 	"github.com/dedis/cothority/omniledger/darc"
 	"encoding/base64"
+	"github.com/dedis/cothority/omniledger/service"
+	"github.com/dedis/cothority/omniledger/contracts"
+	"time"
+	"github.com/dedis/onet/network"
+	"encoding/hex"
 )
 
 func Check(e error) {
@@ -40,10 +45,10 @@ func InitKeys(numKeys int, directory string) {
 func LoadIdentityEd25519(pathToPublic string) darc.Identity {
 	dat, err := ioutil.ReadFile(pathToPublic)
 	Check(err)
-	return loadIdentityEd25519FromBytes(dat)
+	return LoadIdentityEd25519FromBytes(dat)
 }
 
-func loadIdentityEd25519FromBytes(publicBytes []byte) darc.Identity {
+func LoadIdentityEd25519FromBytes(publicBytes []byte) darc.Identity {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(publicBytes[:]))
 	Check(err)
@@ -71,14 +76,86 @@ func LoadSignerEd25519(pathToPublic string, pathToPrivate string) darc.Signer {
 }
 
 
-func loadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Signer {
+func LoadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Signer {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(privateBytes))
 	Check(err)
 	err = kp.Private.UnmarshalBinary(bin)
 	Check(err)
 	return darc.Signer{Ed25519: &darc.SignerEd25519{
-		Point:  loadIdentityEd25519FromBytes(publicBytes).Ed25519.Point,
+		Point:  LoadIdentityEd25519FromBytes(publicBytes).Ed25519.Point,
 		Secret: kp.Private,
 	}}
+}
+
+func CreateQueryTransaction(projectDarc string, queryType string, query string, signer darc.Signer) string {
+	// We don't need the "darc:" part from the ID, and a
+	projectDarcDecoded, err := hex.DecodeString(projectDarc[5:])
+	Check(err)
+
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.InstanceID{
+				DarcID: projectDarcDecoded,
+				SubID:  service.SubID{},
+			},
+			Nonce:  service.Nonce{},
+			Index:  0,
+			Length: 1,
+			Spawn: &service.Spawn{
+				ContractID: contracts.ContractCreateQueryID,
+				Args: []service.Argument{{
+					Name:  "queryType",
+					Value: []byte(queryType),
+				}, {
+					Name:  "query",
+					Value: []byte(query),
+				}, {
+					Name:  "currentTime",
+					Value: []byte(time.Now().String()),
+				}},
+			},
+		}},
+	}
+
+	err = ctx.Instructions[0].SignBy(signer)
+	Check(err)
+	data, err := network.Marshal(&ctx)
+	Check(err)
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer darc.Signer) string {
+	allUsersDarcBytes, err := base64.StdEncoding.DecodeString(allUsersDarc)
+	Check(err)
+	userProjectsMapBytes, err := base64.StdEncoding.DecodeString(userProjectsMap)
+	Check(err)
+
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.InstanceID{
+				DarcID: allUsersDarcBytes,
+				SubID:  service.SubID{},
+			},
+			Nonce:  service.Nonce{},
+			Index:  0,
+			Length: 1,
+			Spawn: &service.Spawn{
+				ContractID: contracts.ContractProjectListID,
+				Args: []service.Argument{{
+					Name:  "userProjectsMapInstanceID",
+					Value: userProjectsMapBytes,
+				}, {
+					Name:  "currentTime",
+					Value: []byte(time.Now().String()),
+				}},
+			},
+		}},
+	}
+
+	err = ctx.Instructions[0].SignBy(signer)
+	Check(err)
+	data, err := network.Marshal(&ctx)
+	Check(err)
+	return base64.StdEncoding.EncodeToString(data)
 }
