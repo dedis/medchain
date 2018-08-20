@@ -28,6 +28,7 @@ func newService(c *onet.Context) (onet.Service, error) {
 	}
 	service.RegisterContract(c, ContractValueID, ContractValue)
 	service.RegisterContract(c, ContractProjectListID, ContractProjectList)
+	service.RegisterContract(c, ContractProjectListIDSlow, ContractProjectListSlow)
 	service.RegisterContract(c, ContractAuthGrantID, ContractAuthGrant)
 	service.RegisterContract(c, ContractCreateQueryID, ContractCreateQuery)
 	service.RegisterContract(c, ContractUserProjectsMapID, ContractUserProjectsMap)

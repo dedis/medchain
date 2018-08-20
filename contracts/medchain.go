@@ -69,6 +69,72 @@ func ContractProjectList(cdb service.CollectionView, inst service.Instruction, c
 	return nil, nil, errors.New("Didn't find any instruction")
 }
 
+// Slow, as it does not rely on the user-projects map
+var ContractProjectListIDSlow = "ProjectListSlow"
+func ContractProjectListSlow(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	switch {
+	case inst.Spawn != nil:
+		iid := service.InstanceID{
+			DarcID: inst.InstanceID.DarcID,
+			SubID:  service.NewSubID(inst.Hash()),
+		}
+
+		// Callback to find the latest DARC, to be used later
+		callback := DarcCallback(&cdb)
+
+		// Get the projects list
+		allProjectsListInstance, _, err := cdb.GetValues(inst.Spawn.Args.Search("allProjectsListInstanceID"))
+		if err != nil {
+			return nil, nil, errors.New("Could not retrieve the all projects list")
+		}
+		allProjects := strings.Split(string(allProjectsListInstance[:]), ";")
+
+		// Go through each project
+		output := ""
+		for p := 0; p < len(allProjects); p++ {
+			if allProjects[p] == "" {
+				continue
+			}
+
+			// Load the project DARC; we don't need the "darc:" part of the identity string
+			darcID, err := hex.DecodeString(allProjects[p][5:])
+			if err != nil{
+				return nil, nil, errors.New("Could not parse one of the given project DARC strings")
+			}
+			retrievedDarc, err := service.LoadDarcFromColl(cdb, service.InstanceID{darcID, service.SubID{}}.Slice())
+			if err != nil{
+				return nil, nil, errors.New("Could not find one of the given project DARCs")
+			}
+
+			// Check if the user can even get an AuthGrant for this project
+			if err := darc.EvalExprWithSigs(retrievedDarc.Rules["spawn:AuthGrant"], callback, inst.Signatures[0]); err != nil {
+				continue
+			}
+			output += inst.Signatures[0].Signer.String() + "......" + string(retrievedDarc.Description[:]) + "..." + retrievedDarc.GetIdentityString()
+
+			// Go through every possible query type
+			for q := 0; q < len(QueryTypes); q++ {
+				if err := darc.EvalExprWithSigs(retrievedDarc.Rules[darc.Action("spawn:" + QueryTypes[q])], callback, inst.Signatures[0]); err != nil {
+					continue
+				}
+				output += "..." + QueryTypes[q]
+			}
+			output += "......"
+		}
+
+		return []service.StateChange{
+			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output)),
+		}, c, nil
+	case inst.Invoke != nil:
+		return nil, nil, errors.New("The contract can not be invoked")
+	case inst.Delete != nil:
+		return service.StateChanges{
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil),
+		}, c, nil
+	}
+	return nil, nil, errors.New("Didn't find any instruction")
+}
+
 // The contract authorizes a user for a particular project.
 var ContractAuthGrantID = "AuthGrant"
 // Contract instances can only be spawned or deleted.
@@ -200,6 +266,10 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 
 		// Go through each project
 		for p := 0; p < len(allProjects); p++ {
+			if allProjects[p] == "" {
+				continue
+			}
+
 			// We don't need the "darc:" part of the identity string
 			darcID, err := hex.DecodeString(allProjects[p][5:])
 			if err != nil{
@@ -212,6 +282,10 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 
 			// Go through each user who's map entry is to be created / updated
 			for u := 0; u < len(givenUsers); u++ {
+				if givenUsers[u] == "" {
+					continue
+				}
+
 				if output[givenUsers[u]] == nil {
 					output[givenUsers[u]] = map[string]string{}
 				}
