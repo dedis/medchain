@@ -95,10 +95,7 @@ func CreateQueryTransaction(projectDarc string, queryType string, query string, 
 
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: projectDarcDecoded,
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(projectDarcDecoded),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -118,7 +115,7 @@ func CreateQueryTransaction(projectDarc string, queryType string, query string, 
 		}},
 	}
 
-	err = ctx.Instructions[0].SignBy(signer)
+	err = ctx.Instructions[0].SignBy(projectDarcDecoded, signer)
 	Check(err)
 	data, err := network.Marshal(&ctx)
 	Check(err)
@@ -133,10 +130,7 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allUsersDarcBytes,
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allUsersDarcBytes),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -153,7 +147,7 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 		}},
 	}
 
-	err = ctx.Instructions[0].SignBy(signer)
+	err = ctx.Instructions[0].SignBy(allUsersDarcBytes, signer)
 	Check(err)
 	data, err := network.Marshal(&ctx)
 	Check(err)

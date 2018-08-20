@@ -22,14 +22,14 @@ func Test_System_Rigorous(t *testing.T) {
 	numberOfHospitals := 3
 	adminsPerHospital := 1
 	managersPerHospital := 1
-	usersPerHospital := 100
+	usersPerHospital := 5
 	serversPerHospital := 1
-	numberOfProjects := 50
+	numberOfProjects := 2
 
 	// Virtual servers
 	local := onet.NewTCPTest(cothority.Suite)
 	defer local.CloseAll()
-	servers, roster, _ := local.GenTree(numberOfHospitals * serversPerHospital, true)
+	_, roster, _ := local.GenTree(numberOfHospitals * serversPerHospital, true)
 	cl := service.NewClient()
 
 	// Admins
@@ -151,10 +151,7 @@ func Test_System_Rigorous(t *testing.T) {
 	// Register all project DARCs with the value contract
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allManagersDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -167,122 +164,104 @@ func Test_System_Rigorous(t *testing.T) {
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(managers...))
+	require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...))
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	allProjectsListInstanceID := service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval * time.Duration(waitFactor), nil)
 	require.True(t, pr.InclusionProof.Match())
 
-		//// Create a users-projects map contract instance
-		//ctx = service.ClientTransaction{
-		//	Instructions: []service.Instruction{{
-		//		InstanceID: service.InstanceID{
-		//			DarcID: allManagersDarc.GetBaseID(),
-		//			SubID:  service.SubID{},
-		//		},
-		//		Nonce:  service.Nonce{},
-		//		Index:  0,
-		//		Length: 1,
-		//		Spawn: &service.Spawn{
-		//			ContractID: ContractUserProjectsMapID,
-		//			Args: []service.Argument{{
-		//				Name:  "allProjectsListInstanceID",
-		//				Value: []byte(allProjectsListInstanceID.Slice()),
-		//			}, {
-		//				Name:  "users",
-		//				Value: []byte(""),
-		//			}},
-		//		},
-		//	}},
-		//}
-		//require.Nil(t, ctx.Instructions[0].SignBy(managers...))
-		//_, err = cl.AddTransaction(ctx)
-		//require.Nil(t, err)
-		//userProjectsMapInstanceID := service.InstanceID{
-		//	DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		//	SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-		//}
-		//pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval * time.Duration(waitFactor) , nil)
-		//require.True(t, pr.InclusionProof.Match())
-		//values, err := pr.InclusionProof.RawValues()
+		// Create a users-projects map contract instance
+		ctx = service.ClientTransaction{
+			Instructions: []service.Instruction{{
+				InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
+				Nonce:  service.Nonce{},
+				Index:  0,
+				Length: 1,
+				Spawn: &service.Spawn{
+					ContractID: ContractUserProjectsMapID,
+					Args: []service.Argument{{
+						Name:  "allProjectsListInstanceID",
+						Value: []byte(allProjectsListInstanceID.Slice()),
+					}, {
+						Name:  "users",
+						Value: []byte(""),
+					}},
+				},
+			}},
+		}
+		require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...))
+		_, err = cl.AddTransaction(ctx)
+		require.Nil(t, err)
+	    userProjectsMapInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
+		pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval * time.Duration(waitFactor) , nil)
+		require.True(t, pr.InclusionProof.Match())
+		values, err := pr.InclusionProof.RawValues()
 
-		//// Update the users-projects map contract instance for users of interest
-		//usersToBeUpdatedInMap := ""
-		//for i := 0; i < 1; i++ {
-		//	usersToBeUpdatedInMap += users[i].Identity().String() + ";"
-		//	ctx = service.ClientTransaction{
-		//		Instructions: []service.Instruction{{
-		//			InstanceID: service.InstanceID{
-		//				DarcID: userProjectsMapInstanceID.DarcID,
-		//				SubID:  userProjectsMapInstanceID.SubID,
-		//			},
-		//			Nonce:  service.Nonce{},
-		//			Index:  0,
-		//			Length: 1,
-		//			Invoke: &service.Invoke{
-		//				Command: "update",
-		//				Args: []service.Argument{{
-		//					Name:  "allProjectsListInstanceID",
-		//					Value: []byte(allProjectsListInstanceID.Slice()),
-		//				}, {
-		//					Name:  "users",
-		//					Value: []byte(usersToBeUpdatedInMap),
-		//				}},
-		//			},
-		//		}},
-		//	}
-		//
-		//	// Any manager can authorize an update of the user-projects map
-		//	require.Nil(t, ctx.Instructions[0].SignBy(managers[0]))
-		//	_, err = cl.AddTransaction(ctx)
-		//	require.Nil(t, err)
-		//
-		//	// Hack to proceed only when the update goes through
-		//	for {
-		//		pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval * time.Duration(waitFactor) , nil)
-		//		require.True(t, pr.InclusionProof.Match())
-		//		tmp, _ := pr.InclusionProof.RawValues()
-		//		if string(values[0][:]) == string(tmp[0][:]) {
-		//			time.Sleep(1 * time.Second)
-		//		} else {
-		//			println(string(tmp[0][:]))
-		//			break
-		//		}
-		//	}
-		//}
+		// Update the users-projects map contract instance for users of interest
+		usersToBeUpdatedInMap := ""
+		for i := 0; i < 1; i++ {
+			usersToBeUpdatedInMap += users[i].Identity().String() + ";"
+			ctx = service.ClientTransaction{
+				Instructions: []service.Instruction{{
+					InstanceID: userProjectsMapInstanceID,
+					Nonce:  service.Nonce{},
+					Index:  0,
+					Length: 1,
+					Invoke: &service.Invoke{
+						Command: "update",
+						Args: []service.Argument{{
+							Name:  "allProjectsListInstanceID",
+							Value: []byte(allProjectsListInstanceID.Slice()),
+						}, {
+							Name:  "users",
+							Value: []byte(usersToBeUpdatedInMap),
+						}},
+					},
+				}},
+			}
+
+			// Any manager can authorize an update of the user-projects map
+			require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0]))
+			_, err = cl.AddTransaction(ctx)
+			require.Nil(t, err)
+
+			// Hack to proceed only when the update goes through
+			for {
+				pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval * time.Duration(waitFactor) , nil)
+				require.True(t, pr.InclusionProof.Match())
+				tmp, _ := pr.InclusionProof.RawValues()
+				if string(values[0][:]) == string(tmp[0][:]) {
+					time.Sleep(1 * time.Second)
+				} else {
+					println(string(tmp[0][:]))
+					break
+				}
+			}
+		}
 
 	// Demo1/rigorous ///////////////////////////////////////////////
 	// Get the list of all projects/actions a user is associated with
 		start := time.Now()
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allUsersDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allUsersDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
 			Spawn: &service.Spawn{
-				ContractID: ContractProjectListIDSlow,
+				ContractID: ContractProjectListID,
 				Args: []service.Argument{{
-					Name:  "allProjectsListInstanceID",
-					Value: []byte(allProjectsListInstanceID.Slice()),
+					Name:  "userProjectsMapInstanceID",
+					Value: []byte(userProjectsMapInstanceID.Slice()),
 				}},
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(users[0]))
+	require.Nil(t, ctx.Instructions[0].SignBy(allUsersDarc.GetBaseID(), users[0]))
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	instID := service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	instID := service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err = cl.WaitProof(instID, genesisMsg.BlockInterval * time.Duration(waitFactor), nil)
 	for x := 0; x < 1000; x++ {
 		if err != nil || pr.InclusionProof.Match() != true {
@@ -292,7 +271,7 @@ func Test_System_Rigorous(t *testing.T) {
 		}
 	}
 	require.True(t, pr.InclusionProof.Match())
-	values, err := pr.InclusionProof.RawValues()
+	values, err = pr.InclusionProof.RawValues()
 	require.Nil(t, err)
 		elapsed := time.Since(start)
 		println("Demo1 took " + elapsed.String())
@@ -306,10 +285,7 @@ func Test_System_Rigorous(t *testing.T) {
 		start = time.Now()
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: []byte(authorizedProjectDarcIDx),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(authorizedProjectDarcIDx),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -325,14 +301,11 @@ func Test_System_Rigorous(t *testing.T) {
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(users[0]))
+	require.Nil(t, ctx.Instructions[0].SignBy(authorizedProjectDarcIDx, users[0]))
 
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	instID = service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	instID = service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err = cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 	for x := 0; x < 1000; x++ {
 		if err != nil || pr.InclusionProof.Match() != true {
@@ -349,10 +322,7 @@ func Test_System_Rigorous(t *testing.T) {
 		println(string(values[0][:]))
 
 	// Wrap things up
-	services := local.GetServices(servers, service.OmniledgerID)
-	for _, s := range services {
-		s.(*service.Service).ClosePolling()
-	}
+	local.WaitDone(genesisMsg.BlockInterval)
 }
 
 func ExtractIdentities(x int, signerSlice []darc.Signer) []darc.Identity {
@@ -374,7 +344,7 @@ func ExtractIdentityStrings(x int, signerSlice []darc.Signer) []string {
 func Test_System(t *testing.T) {
 	local := onet.NewTCPTest(cothority.Suite)
 	defer local.CloseAll()
-	servers, roster, _ := local.GenTree(3, true)
+	_, roster, _ := local.GenTree(3, true)
 	cl := service.NewClient()
 
 	// Admins, Managers and Users as per our context
@@ -460,10 +430,7 @@ func Test_System(t *testing.T) {
 		myvalue := []byte(projectXDarc.GetIdentityString())
 		ctx := service.ClientTransaction{
 			Instructions: []service.Instruction{{
-				InstanceID: service.InstanceID{
-					DarcID: allManagersDarc.GetBaseID(),
-					SubID:  service.SubID{},
-				},
+				InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 				Nonce:  service.Nonce{},
 				Index:  0,
 				Length: 1,
@@ -476,13 +443,10 @@ func Test_System(t *testing.T) {
 				},
 			}},
 		}
-		require.Nil(t, ctx.Instructions[0].SignBy(managers[0], managers[1], managers[2]))
+		require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[1], managers[2]))
 		_, err = cl.AddTransaction(ctx)
 		require.Nil(t, err)
-		allProjectsListInstanceID := service.InstanceID{
-			DarcID: ctx.Instructions[0].InstanceID.DarcID,
-			SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-		}
+		allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
 		pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
 		require.True(t, pr.InclusionProof.Match())
 
@@ -490,10 +454,7 @@ func Test_System(t *testing.T) {
 		usersByte := []byte(users[2].Identity().String() + ";" + users[0].Identity().String())
 		ctx = service.ClientTransaction{
 			Instructions: []service.Instruction{{
-				InstanceID: service.InstanceID{
-					DarcID: allManagersDarc.GetBaseID(),
-					SubID:  service.SubID{},
-				},
+				InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 				Nonce:  service.Nonce{},
 				Index:  0,
 				Length: 1,
@@ -509,24 +470,19 @@ func Test_System(t *testing.T) {
 				},
 			}},
 		}
-		require.Nil(t, ctx.Instructions[0].SignBy(managers[0], managers[2]))
+		require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[2]))
 		_, err = cl.AddTransaction(ctx)
 		require.Nil(t, err)
-		userProjectsMapInstanceID := service.InstanceID{
-			DarcID: ctx.Instructions[0].InstanceID.DarcID,
-			SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-		}
+		userProjectsMapInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
+
 		pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval, nil)
 		require.True(t, pr.InclusionProof.Match())
 
-		//// Try updating users-projects map contract instance
+		// Try updating users-projects map contract instance
 		//usersByte = []byte(users[0].Identity().String())
 		//ctx = service.ClientTransaction{
 		//	Instructions: []service.Instruction{{
-		//		InstanceID: service.InstanceID{
-		//			DarcID: userProjectsMapInstanceID.DarcID,
-		//			SubID:  userProjectsMapInstanceID.SubID,
-		//		},
+		//		InstanceID: userProjectsMapInstanceID,
 		//		Nonce:  service.Nonce{},
 		//		Index:  0,
 		//		Length: 1,
@@ -542,7 +498,7 @@ func Test_System(t *testing.T) {
 		//		},
 		//	}},
 		//}
-		//require.Nil(t, ctx.Instructions[0].SignBy(managers[0]))
+		//require.Nil(t, ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0]))
 		//_, err = cl.AddTransaction(ctx)
 		//require.Nil(t, err)
 
@@ -550,10 +506,7 @@ func Test_System(t *testing.T) {
 	// Get the list of all projects/actions a user is associated with
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allUsersDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allUsersDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -566,34 +519,31 @@ func Test_System(t *testing.T) {
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(users[0]))
-/*
-	data, err := network.Marshal(&ctx)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	var testTransactionRetrieved *service.ClientTransaction
-	_, tmp, err := network.Unmarshal(data, cothority.Suite)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	testTransactionRetrieved, ok := tmp.(*service.ClientTransaction)
-	if !ok {
-		fmt.Println("Data of wrong time:", err)
-	}
-	_, err = cl.AddTransaction(*testTransactionRetrieved)
-*/
+	require.Nil(t, ctx.Instructions[0].SignBy(allUsersDarc.GetBaseID(), users[0]))
 
+	// To see if the transactions can be sent/retrieved over the network
+	//data, err := network.Marshal(&ctx)
+	//if err != nil {
+	//	fmt.Println("error:", err)
+	//}
+	//var testTransactionRetrieved *service.ClientTransaction
+	//_, tmp, err := network.Unmarshal(data, cothority.Suite)
+	//if err != nil {
+	//	fmt.Println("error:", err)
+	//}
+	//if err != nil {
+	//	fmt.Println("error:", err)
+	//}
+	//testTransactionRetrieved, ok := tmp.(*service.ClientTransaction)
+	//if !ok {
+	//	fmt.Println("Data of wrong time:", err)
+	//}
+	//_, err = cl.AddTransaction(*testTransactionRetrieved)
 
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	instID := service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	instID := service.NewInstanceID(ctx.Instructions[0].Hash())
+
 	pr, err = cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 	require.True(t, pr.InclusionProof.Match())
 	values, err := pr.InclusionProof.RawValues()
@@ -608,10 +558,7 @@ func Test_System(t *testing.T) {
 	// Get authorization for a particular project for a particular user
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: []byte(authorizedProjectDarcIDx),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(authorizedProjectDarcIDx),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -621,14 +568,11 @@ func Test_System(t *testing.T) {
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(users[0]))
+	require.Nil(t, ctx.Instructions[0].SignBy(authorizedProjectDarcIDx, users[0]))
 
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	instID = service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	instID = service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err = cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 	require.True(t, pr.InclusionProof.Match())
 	values, err = pr.InclusionProof.RawValues()
@@ -639,10 +583,7 @@ func Test_System(t *testing.T) {
 	//Create a query with a particular type for a particular user
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: []byte(authorizedProjectDarcIDx),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(authorizedProjectDarcIDx),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -658,14 +599,11 @@ func Test_System(t *testing.T) {
 			},
 		}},
 	}
-	require.Nil(t, ctx.Instructions[0].SignBy(users[0]))
+	require.Nil(t, ctx.Instructions[0].SignBy(authorizedProjectDarcIDx, users[0]))
 
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
-	instID = service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	instID = service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err = cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 	require.True(t, pr.InclusionProof.Match())
 	values, err = pr.InclusionProof.RawValues()
@@ -673,10 +611,6 @@ func Test_System(t *testing.T) {
 	println(string(values[0][:]))
 
 	// Wrap things up
-	services := local.GetServices(servers, service.OmniledgerID)
-	for _, s := range services {
-		s.(*service.Service).ClosePolling()
-	}
 	local.WaitDone(genesisMsg.BlockInterval)
 }
 
@@ -689,10 +623,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	}
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: baseDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -705,7 +636,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 			},
 		}},
 	}
-	if err := ctx.Instructions[0].SignBy(signers...); err != nil {
+	if err := ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...); err != nil {
 		return nil, err
 	}
 
@@ -715,10 +646,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	}
 
 	// Verify DARC creation before returning its reference
-	instID := service.InstanceID{
-		DarcID: tempDarc.GetBaseID(),
-		SubID:  service.SubID{},
-	}
+	instID := service.NewInstanceID(tempDarc.GetBaseID())
 	pr, err := client.WaitProof(instID, interval * time.Duration(waitFactor), nil)
 	if err != nil || pr.InclusionProof.Match() == false {
 		return nil, err

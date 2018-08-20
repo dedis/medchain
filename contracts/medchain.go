@@ -19,14 +19,17 @@ var ContractProjectListID = "ProjectList"
 // The state of this contract is to be treated as a string with results, as in the example below.
 // "darc:533d2e1ba5adac0d569874b9cfe6442a2e805105c319314af2f65a5e486eb0a5%ProjectX%ObfuscatedQuery;".
 func ContractProjectList(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	iid := service.NewInstanceID(inst.Hash())
+	var darcID darc.ID
+	_, _, darcID, err := cdb.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, errors.New("Could not retrieve the darcID")
+	}
+
 	switch {
 	case inst.Spawn != nil:
-		iid := service.InstanceID{
-			DarcID: inst.InstanceID.DarcID,
-			SubID:  service.NewSubID(inst.Hash()),
-		}
 		// Get the user-projects map
-		userProjectsMapInstance, _, err := cdb.GetValues(inst.Spawn.Args.Search("userProjectsMapInstanceID")[:])
+		userProjectsMapInstance, _, _, err := cdb.GetValues(inst.Spawn.Args.Search("userProjectsMapInstanceID")[:])
 		if err != nil {
 			return nil, nil, errors.New("Could not retrieve the user-projects map")
 		}
@@ -57,33 +60,33 @@ func ContractProjectList(cdb service.CollectionView, inst service.Instruction, c
 			output = append(output, "......")
 		}
 		return []service.StateChange{
-			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(strings.Join(output, ""))),
+			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(strings.Join(output, "")), darcID),
 		}, c, nil
 	case inst.Invoke != nil:
 		return nil, nil, errors.New("The contract can not be invoked")
 	case inst.Delete != nil:
 		return service.StateChanges{
-			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil),
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil, darcID),
 		}, c, nil
 	}
 	return nil, nil, errors.New("Didn't find any instruction")
 }
 
-// Slow, as it does not rely on the user-projects map
+//Slow, as it does not rely on the user-projects map
 var ContractProjectListIDSlow = "ProjectListSlow"
 func ContractProjectListSlow(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	var ownderDarcID darc.ID
+	_, _, ownderDarcID, err := cdb.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, errors.New("Could not retrieve the darcID")
+	}
 	switch {
 	case inst.Spawn != nil:
-		iid := service.InstanceID{
-			DarcID: inst.InstanceID.DarcID,
-			SubID:  service.NewSubID(inst.Hash()),
-		}
-
 		// Callback to find the latest DARC, to be used later
 		callback := DarcCallback(&cdb)
 
 		// Get the projects list
-		allProjectsListInstance, _, err := cdb.GetValues(inst.Spawn.Args.Search("allProjectsListInstanceID"))
+		allProjectsListInstance, _, _, err := cdb.GetValues(inst.Spawn.Args.Search("allProjectsListInstanceID"))
 		if err != nil {
 			return nil, nil, errors.New("Could not retrieve the all projects list")
 		}
@@ -101,7 +104,7 @@ func ContractProjectListSlow(cdb service.CollectionView, inst service.Instructio
 			if err != nil{
 				return nil, nil, errors.New("Could not parse one of the given project DARC strings")
 			}
-			retrievedDarc, err := service.LoadDarcFromColl(cdb, service.InstanceID{darcID, service.SubID{}}.Slice())
+			retrievedDarc, err := service.LoadDarcFromColl(cdb, darcID)
 			if err != nil{
 				return nil, nil, errors.New("Could not find one of the given project DARCs")
 			}
@@ -122,14 +125,15 @@ func ContractProjectListSlow(cdb service.CollectionView, inst service.Instructio
 			output += "......"
 		}
 
+		iid := service.NewInstanceID(inst.Hash())
 		return []service.StateChange{
-			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output)),
+			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output), ownderDarcID),
 		}, c, nil
 	case inst.Invoke != nil:
 		return nil, nil, errors.New("The contract can not be invoked")
 	case inst.Delete != nil:
 		return service.StateChanges{
-			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil),
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil, ownderDarcID),
 		}, c, nil
 	}
 	return nil, nil, errors.New("Didn't find any instruction")
@@ -139,18 +143,19 @@ func ContractProjectListSlow(cdb service.CollectionView, inst service.Instructio
 var ContractAuthGrantID = "AuthGrant"
 // Contract instances can only be spawned or deleted.
 func ContractAuthGrant(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	var darcID darc.ID
+	_, _, darcID, err := cdb.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, errors.New("Could not retrieve the darcID")
+	}
+
 	switch {
 	case inst.Spawn != nil:
-		iid := service.InstanceID{
-			DarcID: inst.InstanceID.DarcID,
-			SubID:  service.NewSubID(inst.Hash()),
-		}
-
 		// Callback to find the latest DARC
 		callback := DarcCallback(&cdb)
 
 		output := ""
-		retrievedDarc, err := service.LoadDarcFromColl(cdb, service.InstanceID{inst.InstanceID.DarcID, service.SubID{}}.Slice())
+		retrievedDarc, err := service.LoadDarcFromColl(cdb, darcID)
 		if err != nil{
 			return nil, nil, errors.New("Could not find given DARC")
 		}
@@ -160,14 +165,15 @@ func ContractAuthGrant(cdb service.CollectionView, inst service.Instruction, c [
 			output = inst.Signatures[0].Signer.String() + " authorized for " + string(retrievedDarc.Description[:])
 		}
 
+		iid := service.NewInstanceID(inst.Hash())
 		return []service.StateChange{
-			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output)),
+			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output), darcID),
 		}, c, nil
 	case inst.Invoke != nil:
 		return nil, nil, errors.New("The contract can not be invoked")
 	case inst.Delete != nil:
 		return service.StateChanges{
-			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil),
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil, darcID),
 		}, c, nil
 	}
 	return nil, nil, errors.New("Didn't find any instruction")
@@ -177,12 +183,14 @@ func ContractAuthGrant(cdb service.CollectionView, inst service.Instruction, c [
 var ContractCreateQueryID = "CreateQuery"
 // Contract instances can only be spawned or deleted.
 func ContractCreateQuery(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	var darcID darc.ID
+	_, _, darcID, err := cdb.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, errors.New("Could not retrieve the darcID")
+	}
+
 	switch {
 	case inst.Spawn != nil:
-		iid := service.InstanceID{
-			DarcID: inst.InstanceID.DarcID,
-			SubID:  service.NewSubID(inst.Hash()),
-		}
 		givenQueryType := string(inst.Spawn.Args.Search("queryType")[:])
 		givenQuery := string(inst.Spawn.Args.Search("query")[:])
 
@@ -190,7 +198,7 @@ func ContractCreateQuery(cdb service.CollectionView, inst service.Instruction, c
 		callback := DarcCallback(&cdb)
 
 		output := ""
-		retrievedDarc, err := service.LoadDarcFromColl(cdb, service.InstanceID{inst.InstanceID.DarcID, service.SubID{}}.Slice())
+		retrievedDarc, err := service.LoadDarcFromColl(cdb, darcID)
 		if err != nil{
 			return nil, nil, errors.New("Could not find the given DARC")
 		}
@@ -200,14 +208,16 @@ func ContractCreateQuery(cdb service.CollectionView, inst service.Instruction, c
 			output =  givenQuery + "......" + givenQueryType + "......" +
 				inst.Signatures[0].Signer.String() + "......" + string(retrievedDarc.Description[:])
 		}
+
+		iid := service.NewInstanceID(inst.Hash())
 		return []service.StateChange{
-			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output)),
+			service.NewStateChange(service.Create, iid, ContractProjectListID, []byte(output), darcID),
 		}, c, nil
 	case inst.Invoke != nil:
 		return nil, nil, errors.New("The contract can not be invoked")
 	case inst.Delete != nil:
 		return service.StateChanges{
-			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil),
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractProjectListID, nil, darcID),
 		}, c, nil
 	}
 	return nil, nil, errors.New("Didn't find any instruction")
@@ -215,6 +225,12 @@ func ContractCreateQuery(cdb service.CollectionView, inst service.Instruction, c
 
 var ContractUserProjectsMapID = "UserProjectsMap"
 func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	var ownerDarcID darc.ID
+	_, _, ownerDarcID, err := cdb.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, errors.New("Could not retrieve the darcID")
+	}
+
 	switch {
 	case inst.Spawn != nil || inst.Invoke != nil:
 		var iid service.InstanceID
@@ -226,12 +242,9 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 		if inst.Spawn != nil {
 			action = service.Create
 
-			iid = service.InstanceID{
-				DarcID: inst.InstanceID.DarcID,
-				SubID:  service.NewSubID(inst.Hash()),
-			}
+			iid = service.NewInstanceID(inst.Hash())
 			givenUsers = strings.Split(string(inst.Spawn.Args.Search("users")[:]), ";")
-			allProjectsListInstance, _, _ = cdb.GetValues(inst.Spawn.Args.Search("allProjectsListInstanceID"))
+			allProjectsListInstance, _, _, _ = cdb.GetValues(inst.Spawn.Args.Search("allProjectsListInstanceID"))
 
 			// Need to create a new map
 			output = make(map[string](map[string]string))
@@ -243,10 +256,10 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 
 			iid = inst.InstanceID
 			givenUsers = strings.Split(string(inst.Invoke.Args.Search("users")[:]), ";")
-			allProjectsListInstance, _, _ = cdb.GetValues(inst.Invoke.Args.Search("allProjectsListInstanceID"))
+			allProjectsListInstance, _, _, _ = cdb.GetValues(inst.Invoke.Args.Search("allProjectsListInstanceID"))
 
 			// Need to update an existing map
-			userProjectsMapInstance, _, err := cdb.GetValues(iid.Slice())
+			userProjectsMapInstance, _, _, err := cdb.GetValues(iid.Slice())
 			if err != nil {
 				return nil, nil, errors.New("Could not retrieve the existing user-projects map")
 			}
@@ -275,7 +288,7 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 			if err != nil{
 				return nil, nil, errors.New("Could not parse one of the given project DARC strings")
 			}
-			retrievedDarc, err := service.LoadDarcFromColl(cdb, service.InstanceID{darcID, service.SubID{}}.Slice())
+			retrievedDarc, err := service.LoadDarcFromColl(cdb, []byte(darcID))
 			if err != nil{
 				return nil, nil, errors.New("Could not find one of the given project DARCs")
 			}
@@ -305,11 +318,11 @@ func ContractUserProjectsMap(cdb service.CollectionView, inst service.Instructio
 		}
 		outputByte, _ := json.Marshal(output)
 		return []service.StateChange{
-			service.NewStateChange(action, iid, ContractUserProjectsMapID, outputByte),
+			service.NewStateChange(action, iid, ContractUserProjectsMapID, outputByte, ownerDarcID),
 		}, c, nil
 	case inst.Delete != nil:
 		return service.StateChanges{
-			service.NewStateChange(service.Remove, inst.InstanceID, ContractValueID, nil),
+			service.NewStateChange(service.Remove, inst.InstanceID, ContractValueID, nil, ownerDarcID),
 		}, c, nil
 	}
 	return nil, nil, errors.New("didn't find any instruction")
@@ -322,7 +335,7 @@ func DarcCallback(cdb *service.CollectionView) func(str string, latest bool) *da
 		if err != nil{
 			return nil
 		}
-		d, err := service.LoadDarcFromColl(*cdb, service.InstanceID{darcID, service.SubID{}}.Slice())
+		d, err := service.LoadDarcFromColl(*cdb, []byte(darcID))
 		if err != nil{
 			return nil
 		}

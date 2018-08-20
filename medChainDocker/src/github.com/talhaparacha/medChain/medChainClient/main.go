@@ -11,7 +11,7 @@ func main() {
 
 	// Transaction for logging the user
 	tmp := medChainUtils.CreateLoginTransaction("dYSkNjIWYe3At5cDQAT957IHJ1WXkNaVlFP64vRB9Xk=",
-		"LN3sD8dm2YJsIMFQsQFz47N0N1hp/VAINmuJgiEU6msrF7UujuBh6E1wkW2pSjfG7k4KuZZiRhyy5+zYmVk5zQ==", signer)
+		"F1PNGnR43XWh5zePelSrqIATvQeIEKaMTzYjKaXX428=", signer)
 	println(tmp)
 
 	// Transaction for logging the query on the MedChain

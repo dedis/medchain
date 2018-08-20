@@ -20,7 +20,7 @@ import (
 
 // Configure cothority here...
 var local = onet.NewTCPTest(cothority.Suite)
-var servers, roster, _ = local.GenTree(3, true)
+var _, roster, _ = local.GenTree(3, true)
 var cl = service.NewClient()
 
 // Admins, Managers and Users as per the context defined in system diagram
@@ -150,10 +150,7 @@ func startSystem() {
 	myvalue := []byte(projectXDarc.GetIdentityString())
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allManagersDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -166,7 +163,7 @@ func startSystem() {
 			},
 		}},
 	}
-	err = ctx.Instructions[0].SignBy(managers[0], managers[1], managers[2])
+	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[1], managers[2])
 	if err != nil {
 		panic(err)
 	}
@@ -176,11 +173,7 @@ func startSystem() {
 		panic(err)
 	}
 
-	allProjectsListInstanceID := service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
-
+	allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
 	if pr.InclusionProof.Match() != true {
 		panic(err)
@@ -190,10 +183,7 @@ func startSystem() {
 	usersByte := []byte(users[2].String() + ";" + users[0].String())
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: allManagersDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -209,7 +199,7 @@ func startSystem() {
 			},
 		}},
 	}
-	err = ctx.Instructions[0].SignBy(managers[0], managers[2])
+	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[2])
 	if err != nil {
 		panic(err)
 	}
@@ -217,10 +207,7 @@ func startSystem() {
 	if err != nil {
 		panic(err)
 	}
-	userProjectsMapInstanceID = service.InstanceID{
-		DarcID: ctx.Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID(ctx.Instructions[0].Hash()),
-	}
+	userProjectsMapInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
 	pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval, nil)
 	if pr.InclusionProof.Match() != true {
 		panic(err)
@@ -236,10 +223,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	}
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
-			InstanceID: service.InstanceID{
-				DarcID: baseDarc.GetBaseID(),
-				SubID:  service.SubID{},
-			},
+			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
 			Nonce:  service.Nonce{},
 			Index:  0,
 			Length: 1,
@@ -252,7 +236,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 			},
 		}},
 	}
-	if err := ctx.Instructions[0].SignBy(signers...); err != nil {
+	if err := ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...); err != nil {
 		return nil, err
 	}
 
@@ -262,10 +246,7 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	}
 
 	// Verify DARC creation before returning its reference
-	instID := service.InstanceID{
-		DarcID: tempDarc.GetBaseID(),
-		SubID:  service.SubID{},
-	}
+	instID := service.NewInstanceID(tempDarc.GetBaseID())
 	pr, err := client.WaitProof(instID, interval, nil)
 	if err != nil || pr.InclusionProof.Match() == false {
 		return nil, err
@@ -310,14 +291,11 @@ func applyTransaction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	instID := service.InstanceID{
-		DarcID: (*testTransactionRetrieved).Instructions[0].InstanceID.DarcID,
-		SubID:  service.NewSubID((*testTransactionRetrieved).Instructions[0].Hash()),
-	}
+	instID := service.NewInstanceID((*testTransactionRetrieved).Instructions[0].Hash())
 
 	// Respond if the transaction succeeded
-	w.Header().Set("Content-Type", "text/plain")
 	pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
+	w.Header().Set("Content-Type", "text/plain")
 	if err != nil || pr.InclusionProof.Match() != true {
 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
 	} else {
@@ -469,10 +447,6 @@ func main() {
 	}
 
 	// Wrap Omniledger service
-	services := local.GetServices(servers, service.OmniledgerID)
-	for _, s := range services {
-		s.(*service.Service).ClosePolling()
-	}
 	local.WaitDone(genesisMsg.BlockInterval)
 	local.CloseAll()
 }
