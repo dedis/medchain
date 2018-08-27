@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"github.com/dedis/cothority/omniledger/darc"
 	"encoding/json"
+	"time"
+	"github.com/dedis/onet/log"
 )
 
 // Possible query types
@@ -75,6 +77,7 @@ func ContractProjectList(cdb service.CollectionView, inst service.Instruction, c
 //Slow, as it does not rely on the user-projects map
 var ContractProjectListIDSlow = "ProjectListSlow"
 func ContractProjectListSlow(cdb service.CollectionView, inst service.Instruction, c []service.Coin) ([]service.StateChange, []service.Coin, error) {
+	start := time.Now()
 	var ownderDarcID darc.ID
 	_, _, ownderDarcID, err := cdb.GetValues(inst.InstanceID.Slice())
 	if err != nil {
@@ -124,6 +127,9 @@ func ContractProjectListSlow(cdb service.CollectionView, inst service.Instructio
 			}
 			output += "......"
 		}
+
+		end := time.Since(start)
+		log.Lvlf1("Contract ContractProjectListIDSlow took: %s", end.String())
 
 		iid := service.NewInstanceID(inst.Hash())
 		return []service.StateChange{
