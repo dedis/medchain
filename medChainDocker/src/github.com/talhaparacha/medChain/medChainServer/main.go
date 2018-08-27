@@ -32,7 +32,9 @@ var keysDirectory = "keys"
 
 // Genesis block
 var genesisMsg *service.CreateGenesisBlock
-// Stuff required by the login service
+var genesisBlock *service.CreateGenesisBlockResponse
+
+// Stuff required by the token introspection services
 var allUsersDarc *darc.Darc
 var userProjectsMapInstanceID service.InstanceID
 var err error
@@ -74,7 +76,7 @@ func startSystem() {
 	gDarc.Rules.AddRule("spawn:darc", gDarc.Rules.GetSignExpr())
 
 	genesisMsg.BlockInterval = time.Second
-	_, err = cl.CreateGenesisBlock(genesisMsg)
+	genesisBlock, err = cl.CreateGenesisBlock(genesisMsg)
 	if err != nil {
 		panic(err)
 	}
@@ -313,7 +315,7 @@ func doMedChainValidation(msg Message) (bool, string) {
 	if err == nil && incomingTokenValue != "" {
 		instID := service.NewInstanceID(instIDbytes)
 		pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
-		if err == nil && pr.InclusionProof.Match() == true {
+		if err == nil && pr.InclusionProof.Match() == true && pr.Verify(genesisBlock.Skipblock.Hash) == nil {
 			values, err := pr.InclusionProof.RawValues()
 			if err == nil {
 				return true, string(values[0][:])
@@ -377,7 +379,6 @@ func tokenIntrospectionLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Do validation
 	isActive, data := doMedChainValidation(*msg)
-
 
 	// Retrieve data, if any
 	user := ""
