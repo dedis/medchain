@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -61,23 +60,38 @@ type introspectionResponseLogin struct {
 func startSystem() {
 	configuration := conf.ReadConf(configFileName)
 	// We need to load suitable keys to initialize the system DARCs as per our context
-	for i := 0; i < 3; i++ {
-		admins = append(admins, medChainUtils.LoadSignerEd25519(keysDirectory+"/admins/"+strconv.Itoa(i)+"_public",
-			keysDirectory+"/admins/"+strconv.Itoa(i)+"_private"))
-		managers = append(managers, medChainUtils.LoadSignerEd25519(keysDirectory+"/managers/"+strconv.Itoa(i)+"_public",
-			keysDirectory+"/managers/"+strconv.Itoa(i)+"_private"))
-		users = append(users, medChainUtils.LoadIdentityEd25519(keysDirectory+"/users/"+strconv.Itoa(i)+"_public"))
+
+	adminIds := darc.Identity{}
+	adminIdString := []string{}
+	for _, admin := range configuration.Admins {
+		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+admin.PublicKey,
+			configuration.KeyDirectory+admin.PrivateKey)
+		id := signer.Identity()
+		adminIds = append(adminIds, id)
+		adminIdString = append(adminIdString, id.String())
+		admins = append(admins, signer)
+	}
+
+	for _, manager := range configuration.Managers {
+		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+manager.PublicKey,
+			configuration.KeyDirectory+manager.PrivateKey)
+		managers = append(managers, signer)
+	}
+
+	for _, user := range configuration.users {
+		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+user.PublicKey,
+			configuration.KeyDirectory+user.PrivateKey)
+		users = append(users, signer)
 	}
 
 	// Create Genesis block
 	genesisMsg, err = service.DefaultGenesisMsg(service.CurrentVersion, roster,
-		[]string{}, admins[0].Identity(), admins[1].Identity(), admins[2].Identity())
+		[]string{}, adminIds...)
 	if err != nil {
 		panic(err)
 	}
 	gDarc := &genesisMsg.GenesisDarc
-	gDarc.Rules.UpdateSign(expression.InitAndExpr(admins[0].Identity().String(),
-		admins[1].Identity().String(), admins[2].Identity().String()))
+	gDarc.Rules.UpdateSign(expression.InitAndExpr(adminIdString...))
 	gDarc.Rules.AddRule("spawn:darc", gDarc.Rules.GetSignExpr())
 
 	genesisMsg.BlockInterval = time.Second
@@ -88,49 +102,53 @@ func startSystem() {
 
 	// Create a DARC for managers of each hospital
 	managersDarcs := []*darc.Darc{}
-	for i := 0; i < len(managers); i++ {
-		rules := darc.InitRules([]darc.Identity{admins[i].Identity()},
-			[]darc.Identity{managers[i].Identity()})
+	managersDarcsIdString := []string{}
+	for i, manager := range configuration.Managers {
+		owners := []darc.Identity{admins[manager.AdminIndex].Identity()}
+		signers := []darc.Identity{managers[i].Identity()}
+		rules := darc.InitRules(owners, signers)
 		tempDarc, err := createDarc(cl, gDarc, genesisMsg.BlockInterval, rules,
 			"Managers darc", admins...)
 		if err != nil {
 			panic(err)
 		}
 		managersDarcs = append(managersDarcs, tempDarc)
+		managersDarcsIdString = append(managersDarcsIdString, tempDarc.GetIdentityString())
 	}
 
 	// Create a collective managers DARC
-	rules := darc.InitRules([]darc.Identity{admins[0].Identity(), admins[1].Identity(),
-		admins[2].Identity()}, []darc.Identity{})
-	rules.UpdateSign(expression.InitAndExpr(managersDarcs[0].GetIdentityString(),
-		managersDarcs[1].GetIdentityString(), managersDarcs[2].GetIdentityString()))
+	rules := darc.InitRules(adminIds, []darc.Identity{})
+	rules.UpdateSign(expression.InitAndExpr(managersDarcsIdString...))
 	rules.AddRule("spawn:darc", rules.GetSignExpr())
 	rules.AddRule("spawn:value", rules.GetSignExpr())
-	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(managersDarcs[0].GetIdentityString(),
-		managersDarcs[1].GetIdentityString(), managersDarcs[2].GetIdentityString()))
+	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(managersDarcsIdString...))
 	rules.AddRule("invoke:update", rules["spawn:UserProjectsMap"])
 	allManagersDarc, err := createDarc(cl, gDarc, genesisMsg.BlockInterval, rules,
 		"AllManagers darc", admins...)
 	if err != nil {
 		panic(err)
 	}
+
 	// Create a DARC for users of each hospital
 	usersDarcs := []*darc.Darc{}
-	for i := 0; i < len(users); i++ {
-		rules := darc.InitRules([]darc.Identity{darc.NewIdentityDarc(managersDarcs[i].GetID())},
-			[]darc.Identity{users[i]})
+	userDarcsIds := []darc.Identity{}
+
+	for i, user := range configuration.Users {
+		owners := []darc.Identity{darc.NewIdentityDarc(managersDarcs[user.ManagerIndex].GetID())}
+		signers := []darc.Identity{users[i]}
+		rules := darc.InitRules(owners, signers)
 		tempDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, rules,
 			"Users darc", managers...)
 		if err != nil {
 			panic(err)
 		}
 		usersDarcs = append(usersDarcs, tempDarc)
+		userDarcsIds := append(userDarcsId, darc.NewIdentityDarc(tempDarc.GetID()))
 	}
 
 	// Create a collective users DARC
-	rules = darc.InitRules([]darc.Identity{darc.NewIdentityDarc(allManagersDarc.GetID())},
-		[]darc.Identity{darc.NewIdentityDarc(usersDarcs[0].GetID()), darc.NewIdentityDarc(usersDarcs[1].GetID()),
-			darc.NewIdentityDarc(usersDarcs[2].GetID())})
+	collectiveUserDarcOwner := []darc.Identity{darc.NewIdentityDarc(allManagersDarc.GetID())}
+	rules = darc.InitRules(collectiveUserDarcOwner, userDarcsIds)
 	rules.AddRule("spawn:ProjectList", rules.GetSignExpr())
 	allUsersDarc, err = createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, rules,
 		"AllUsers darc", managers...)
@@ -138,56 +156,82 @@ func startSystem() {
 		panic(err)
 	}
 
-	// Create a sample project DARC
-	projectXDarcRules := darc.InitRules([]darc.Identity{darc.NewIdentityDarc(managersDarcs[0].GetID()),
-		darc.NewIdentityDarc(managersDarcs[2].GetID())}, []darc.Identity{darc.NewIdentityDarc(usersDarcs[0].GetID()),
-		darc.NewIdentityDarc(usersDarcs[2].GetID())})
-	// Define access control rules for the project DARC
-	projectXDarcRules.AddRule("spawn:AuthGrant", projectXDarcRules.GetSignExpr())
-	projectXDarcRules.AddRule("spawn:CreateQuery", projectXDarcRules.GetSignExpr())
-	projectXDarcRules.AddRule(darc.Action("spawn:"+contracts.QueryTypes[0]), projectXDarcRules.GetSignExpr())
-	projectXDarcRules.AddRule(darc.Action("spawn:"+contracts.QueryTypes[1]), expression.InitOrExpr(usersDarcs[0].GetIdentityString()))
-	projectXDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, projectXDarcRules,
-		"ProjectX", managers...)
-	if err != nil {
-		panic(err)
-	}
+	for _, project := range configuration.Projects {
+		owners := []darc.Identity{}
+		for _, managerIndex := range project.ManagerOwners {
+			id := darc.NewIdentityDarc(managersDarcs[managerIndex].GetID())
+			owners = append(owners, id)
+		}
+		signers := []darc.Identity{}
+		for _, userIndex := range project.SigningUsers {
+			id := darc.NewIdentityDarc(usersDarcs[userIndex].GetID())
+			signers = append(owners, id)
+		}
+		projectDarcRules := darc.InitRules(owners, signers)
+		for _, rule := range project.Rules {
+			usersIdString := []string{}
+			for _, userIndex := range rule.Users {
+				idString := usersDarcs[userIndex].GetIdentityString()
+				usersIdString = append(usersIdString, idString)
+			}
+			var expr expression.Expr
+			switch rule.ExprType {
+			case "SIGNERS":
+				expr = projectDarcRules.GetSignExpr()
+			case "OR":
+				expr := expression.InitOrExpr(userIdString...)
+			case "AND":
+				expr := expression.InitAndExpr(userIdString...)
+			}
+			projectDarcRules.AddRule(darc.Action(rule.Action), expr)
+		}
+		projectDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, projectXDarcRules,
+			project.Name, managers...)
+		if err != nil {
+			panic(err)
+		}
 
-	// Register the sample project DARC with the value contract
-	myvalue := []byte(projectXDarc.GetIdentityString())
-	ctx := service.ClientTransaction{
-		Instructions: []service.Instruction{{
-			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
-			Nonce:      service.Nonce{},
-			Index:      0,
-			Length:     1,
-			Spawn: &service.Spawn{
-				ContractID: contracts.ContractValueID,
-				Args: []service.Argument{{
-					Name:  "value",
-					Value: myvalue,
-				}},
-			},
-		}},
-	}
-	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[1], managers[2])
-	if err != nil {
-		panic(err)
-	}
+		// Register the sample project DARC with the value contract
+		myvalue := []byte(projectDarc.GetIdentityString())
+		ctx := service.ClientTransaction{
+			Instructions: []service.Instruction{{
+				InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
+				Nonce:      service.Nonce{},
+				Index:      0,
+				Length:     1,
+				Spawn: &service.Spawn{
+					ContractID: contracts.ContractValueID,
+					Args: []service.Argument{{
+						Name:  "value",
+						Value: myvalue,
+					}},
+				},
+			}},
+		}
+		err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...)
+		if err != nil {
+			panic(err)
+		}
 
-	_, err = cl.AddTransaction(ctx)
-	if err != nil {
-		panic(err)
-	}
+		_, err = cl.AddTransaction(ctx)
+		if err != nil {
+			panic(err)
+		}
 
-	allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
-	if pr.InclusionProof.Match() != true {
-		panic(err)
+		allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
+		pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
+		if pr.InclusionProof.Match() != true {
+			panic(err)
+		}
 	}
 
 	// Create a users-projects map contract instance
-	usersByte := []byte(users[2].String() + ";" + users[0].String())
+	userStrings = []string{}
+	for _, user := range users {
+		userString = append(userStrings, user.String())
+	}
+	allUsersString := strings.Join(userStrings, ";")
+	usersByte := []byte(allUsersString)
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
@@ -206,7 +250,7 @@ func startSystem() {
 			},
 		}},
 	}
-	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers[0], managers[2])
+	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...)
 	if err != nil {
 		panic(err)
 	}
