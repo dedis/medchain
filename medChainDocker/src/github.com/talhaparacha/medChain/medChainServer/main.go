@@ -1,21 +1,23 @@
 package main
 
 import (
-	"github.com/talhaparacha/medChain/medChainUtils"
-	"net/http"
-	"github.com/dedis/cothority/omniledger/service"
-	"github.com/dedis/cothority/omniledger/darc/expression"
-	"time"
-	"github.com/dedis/cothority/omniledger/darc"
-	"github.com/dedis/onet"
-	"github.com/dedis/cothority"
-	"github.com/dedis/cothority/omniledger/contracts"
-	"strings"
-     b64 "encoding/base64"
+	b64 "encoding/base64"
 	"encoding/json"
 	"io/ioutil"
+	"net/http"
 	"strconv"
+	"strings"
+	"time"
+
+	"github.com/dedis/cothority"
+	"github.com/dedis/cothority/omniledger/contracts"
+	"github.com/dedis/cothority/omniledger/darc"
+	"github.com/dedis/cothority/omniledger/darc/expression"
+	"github.com/dedis/cothority/omniledger/service"
+	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
+	"github.com/talhaparacha/medChain/medChainServer/conf"
+	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
 // Configure cothority here...
@@ -30,6 +32,8 @@ var users = []darc.Identity{}
 
 var keysDirectory = "keys"
 
+var configFileName = "conf/conf.json"
+
 // Genesis block
 var genesisMsg *service.CreateGenesisBlock
 var genesisBlock *service.CreateGenesisBlockResponse
@@ -41,27 +45,28 @@ var err error
 var systemStart = false
 
 type introspectionResponseQuery struct {
-	Active bool `json:"active"`
-	Query string `json:"query"`
-	QueryType string `json:"query_type"`
-	UserId string `json:"user_id"`
+	Active      bool   `json:"active"`
+	Query       string `json:"query"`
+	QueryType   string `json:"query_type"`
+	UserId      string `json:"user_id"`
 	ProjectDesc string `json:"project_description"`
 }
 
 type introspectionResponseLogin struct {
-	Active bool `json:"active"`
+	Active       bool   `json:"active"`
 	ProjectsList string `json:"projects_list"`
-	User string `json:"user"`
+	User         string `json:"user"`
 }
 
 func startSystem() {
+	configuration := conf.ReadConf(configFileName)
 	// We need to load suitable keys to initialize the system DARCs as per our context
 	for i := 0; i < 3; i++ {
-		admins = append(admins, medChainUtils.LoadSignerEd25519(keysDirectory + "/admins/" + strconv.Itoa(i) + "_public",
-			keysDirectory + "/admins/" + strconv.Itoa(i) + "_private"))
-		managers = append(managers, medChainUtils.LoadSignerEd25519(keysDirectory + "/managers/" + strconv.Itoa(i) + "_public",
-			keysDirectory + "/managers/" + strconv.Itoa(i) + "_private"))
-		users = append(users, medChainUtils.LoadIdentityEd25519(keysDirectory + "/users/" + strconv.Itoa(i) + "_public"))
+		admins = append(admins, medChainUtils.LoadSignerEd25519(keysDirectory+"/admins/"+strconv.Itoa(i)+"_public",
+			keysDirectory+"/admins/"+strconv.Itoa(i)+"_private"))
+		managers = append(managers, medChainUtils.LoadSignerEd25519(keysDirectory+"/managers/"+strconv.Itoa(i)+"_public",
+			keysDirectory+"/managers/"+strconv.Itoa(i)+"_private"))
+		users = append(users, medChainUtils.LoadIdentityEd25519(keysDirectory+"/users/"+strconv.Itoa(i)+"_public"))
 	}
 
 	// Create Genesis block
@@ -153,9 +158,9 @@ func startSystem() {
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
-			Nonce:  service.Nonce{},
-			Index:  0,
-			Length: 1,
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
 			Spawn: &service.Spawn{
 				ContractID: contracts.ContractValueID,
 				Args: []service.Argument{{
@@ -186,9 +191,9 @@ func startSystem() {
 	ctx = service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
-			Nonce:  service.Nonce{},
-			Index:  0,
-			Length: 1,
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
 			Spawn: &service.Spawn{
 				ContractID: contracts.ContractUserProjectsMapID,
 				Args: []service.Argument{{
@@ -226,9 +231,9 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
-			Nonce:  service.Nonce{},
-			Index:  0,
-			Length: 1,
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
 			Spawn: &service.Spawn{
 				ContractID: service.ContractDarcID,
 				Args: []service.Argument{{
@@ -306,7 +311,7 @@ func applyTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 type Message struct {
-	Token   string  `json:"token"`
+	Token string `json:"token"`
 }
 
 func doMedChainValidation(msg Message) (bool, string) {
@@ -407,9 +412,9 @@ func info(w http.ResponseWriter, r *http.Request) {
 
 	if systemStart {
 		temp = map[string]string{
-			"all_users_darc": b64.StdEncoding.EncodeToString(allUsersDarc.GetBaseID()),
-			"user_projects_maps" : b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice()),
-			"error":"",
+			"all_users_darc":     b64.StdEncoding.EncodeToString(allUsersDarc.GetBaseID()),
+			"user_projects_maps": b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice()),
+			"error":              "",
 		}
 	} else {
 		temp = map[string]string{"error": "MedChain not started yet"}

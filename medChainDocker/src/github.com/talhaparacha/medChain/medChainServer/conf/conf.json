@@ -23,15 +23,15 @@
       "Rules": [
         {
           "Action":"spawn:AuthGrant",
-          "ExprType":"SIGNERS",
+          "ExprType":"SIGNERS"
         },
         {
           "Action":"spawn:CreateQuery",
-          "ExprType":"SIGNERS",
+          "ExprType":"SIGNERS"
         },
         {
           "Action":"spawn:ObfuscatedQuery",
-          "ExprType":"SIGNERS",
+          "ExprType":"SIGNERS"
         },
         {
           "Action":"spawn:AggregatedQuery",
