@@ -1,0 +1,44 @@
+{
+  "KeyDirectory":"keys",
+  "Admins":[
+    {"PublicKey":"admins/0_public", "PrivateKey":"admins/0_private"},
+    {"PublicKey":"admins/1_public", "PrivateKey":"admins/1_private"},
+    {"PublicKey":"admins/2_public", "PrivateKey":"admins/2_private"}
+  ],
+  "Managers":[
+    {"PublicKey":"managers/0_public", "PrivateKey":"managers/0_private", "AdminIndex":0},
+    {"PublicKey":"managers/1_public", "PrivateKey":"managers/1_private", "AdminIndex":1},
+    {"PublicKey":"managers/2_public", "PrivateKey":"managers/2_private", "AdminIndex":2}
+  ],
+  "Users":[
+    {"PublicKey":"users/0_public", "PrivateKey":"users/0_private", "ManagerIndex":0},
+    {"PublicKey":"users/1_public", "PrivateKey":"users/1_private", "ManagerIndex":1},
+    {"PublicKey":"users/2_public", "PrivateKey":"users/2_private", "ManagerIndex":2}
+  ],
+  "Projects":[
+    {
+      "Name":"ProjectX",
+      "ManagerOwners":[0,2],
+      "SigningUsers":[0,2],
+      "Rules": [
+        {
+          "Action":"spawn:AuthGrant",
+          "ExprType":"SIGNERS",
+        },
+        {
+          "Action":"spawn:CreateQuery",
+          "ExprType":"SIGNERS",
+        },
+        {
+          "Action":"spawn:ObfuscatedQuery",
+          "ExprType":"SIGNERS",
+        },
+        {
+          "Action":"spawn:AggregatedQuery",
+          "ExprType":"OR",
+          "Users":[0]
+        }
+      ]
+    }
+  ]
+}
