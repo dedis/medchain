@@ -15,7 +15,7 @@ type User struct {
 
 type Manager struct {
 	PublicKey  string `json:"PublicKey"`
-	PrivateKey string `json:"PublicKey"`
+	PrivateKey string `json:"PrivateKey"`
 	AdminIndex int    `json:"AdminIndex"`
 }
 
@@ -64,6 +64,18 @@ func ReadConf(confFileName string) (*Configuration, error) {
 	// we unmarshal our byteArray which contains our
 	// jsonFile's content into 'configuration' which we defined above
 	json.Unmarshal(byteValue, &configuration)
+
+	// for _, user := range configuration.Users {
+	// 	fmt.Println("user", user.PublicKey, user.PrivateKey)
+	// }
+	//
+	// for _, manager := range configuration.Managers {
+	// 	fmt.Println("manager", manager.PublicKey, manager.PrivateKey)
+	// }
+	//
+	// for _, admin := range configuration.Admins {
+	// 	fmt.Println("admin", admin.PublicKey, admin.PrivateKey)
+	// }
 
 	return &configuration, nil
 }

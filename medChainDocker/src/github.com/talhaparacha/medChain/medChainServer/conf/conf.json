@@ -1,5 +1,5 @@
 {
-  "KeyDirectory":"keys",
+  "KeyDirectory":"keys/",
   "Admins":[
     {"PublicKey":"admins/0_public", "PrivateKey":"admins/0_private"},
     {"PublicKey":"admins/1_public", "PrivateKey":"admins/1_private"},

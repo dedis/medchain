@@ -58,10 +58,13 @@ type introspectionResponseLogin struct {
 }
 
 func startSystem() {
-	configuration := conf.ReadConf(configFileName)
+	configuration, err := conf.ReadConf(configFileName)
+	if err != nil {
+		panic(err)
+	}
 	// We need to load suitable keys to initialize the system DARCs as per our context
 
-	adminIds := darc.Identity{}
+	adminIds := []darc.Identity{}
 	adminIdString := []string{}
 	for _, admin := range configuration.Admins {
 		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+admin.PublicKey,
@@ -78,10 +81,10 @@ func startSystem() {
 		managers = append(managers, signer)
 	}
 
-	for _, user := range configuration.users {
+	for _, user := range configuration.Users {
 		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+user.PublicKey,
 			configuration.KeyDirectory+user.PrivateKey)
-		users = append(users, signer)
+		users = append(users, signer.Identity())
 	}
 
 	// Create Genesis block
@@ -143,7 +146,7 @@ func startSystem() {
 			panic(err)
 		}
 		usersDarcs = append(usersDarcs, tempDarc)
-		userDarcsIds := append(userDarcsId, darc.NewIdentityDarc(tempDarc.GetID()))
+		userDarcsIds = append(userDarcsIds, darc.NewIdentityDarc(tempDarc.GetID()))
 	}
 
 	// Create a collective users DARC
@@ -156,6 +159,7 @@ func startSystem() {
 		panic(err)
 	}
 
+	var allProjectsListInstanceID service.InstanceID
 	for _, project := range configuration.Projects {
 		owners := []darc.Identity{}
 		for _, managerIndex := range project.ManagerOwners {
@@ -179,13 +183,13 @@ func startSystem() {
 			case "SIGNERS":
 				expr = projectDarcRules.GetSignExpr()
 			case "OR":
-				expr := expression.InitOrExpr(userIdString...)
+				expr = expression.InitOrExpr(usersIdString...)
 			case "AND":
-				expr := expression.InitAndExpr(userIdString...)
+				expr = expression.InitAndExpr(usersIdString...)
 			}
 			projectDarcRules.AddRule(darc.Action(rule.Action), expr)
 		}
-		projectDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, projectXDarcRules,
+		projectDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, projectDarcRules,
 			project.Name, managers...)
 		if err != nil {
 			panic(err)
@@ -218,7 +222,7 @@ func startSystem() {
 			panic(err)
 		}
 
-		allProjectsListInstanceID := service.NewInstanceID(ctx.Instructions[0].Hash())
+		allProjectsListInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
 		pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
 		if pr.InclusionProof.Match() != true {
 			panic(err)
@@ -226,13 +230,13 @@ func startSystem() {
 	}
 
 	// Create a users-projects map contract instance
-	userStrings = []string{}
+	userStrings := []string{}
 	for _, user := range users {
-		userString = append(userStrings, user.String())
+		userStrings = append(userStrings, user.String())
 	}
 	allUsersString := strings.Join(userStrings, ";")
 	usersByte := []byte(allUsersString)
-	ctx = service.ClientTransaction{
+	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
 			Nonce:      service.Nonce{},
@@ -259,7 +263,7 @@ func startSystem() {
 		panic(err)
 	}
 	userProjectsMapInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err = cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval, nil)
 	if pr.InclusionProof.Match() != true {
 		panic(err)
 	}
