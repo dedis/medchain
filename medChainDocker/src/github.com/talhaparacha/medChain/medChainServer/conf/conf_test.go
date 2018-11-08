@@ -11,11 +11,19 @@ func TestReadConf(t *testing.T) {
 		t.FailNow()
 	}
 	fmt.Println("dir", configuration.KeyDirectory)
-	for _, user := range configuration.Users {
-		fmt.Println(user.PublicKey)
-	}
 	for _, admin := range configuration.Admins {
 		fmt.Println(admin.PublicKey)
+		for _, manager := range admin.Managers {
+			fmt.Println(manager.PublicKey)
+			for _, user := range manager.Users {
+				fmt.Println(user.PublicKey)
+			}
+		}
+	}
+	for _, project := range configuration.Projects {
+		fmt.Println(project.Name)
+		fmt.Println(project.ManagerOwners)
+		fmt.Println(project.SigningUsers)
 	}
 }
 

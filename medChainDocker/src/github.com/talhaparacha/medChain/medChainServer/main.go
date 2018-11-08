@@ -3,19 +3,17 @@ package main
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/dedis/cothority"
-	"github.com/dedis/cothority/omniledger/contracts"
 	"github.com/dedis/cothority/omniledger/darc"
-	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
-	"github.com/talhaparacha/medChain/medChainServer/conf"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
@@ -26,8 +24,14 @@ var cl = service.NewClient()
 
 // Admins, Managers and Users as per the context defined in system diagram
 var admins = []darc.Signer{}
-var managers = []darc.Signer{}
-var users = []darc.Identity{}
+var managers = make(map[string][]darc.Signer)
+var users = make(map[string][]darc.Identity)
+
+var adminsDarcsMap = make(map[string]*darc.Darc)
+var managersListDarcsMap = make(map[string]*darc.Darc)
+var managersDarcsMap = make(map[string]*darc.Darc)
+var usersDarcsMap = make(map[string]*darc.Darc)
+var usersListDarcsMap = make(map[string]*darc.Darc)
 
 var keysDirectory = "keys"
 
@@ -39,6 +43,7 @@ var genesisBlock *service.CreateGenesisBlockResponse
 
 // Stuff required by the token introspection services
 var allUsersDarc *darc.Darc
+var allManagersDarc *darc.Darc
 var userProjectsMapInstanceID service.InstanceID
 var err error
 var systemStart = false
@@ -57,224 +62,12 @@ type introspectionResponseLogin struct {
 	User         string `json:"user"`
 }
 
-func startSystem() {
-	configuration, err := conf.ReadConf(configFileName)
-	if err != nil {
-		panic(err)
-	}
-	// We need to load suitable keys to initialize the system DARCs as per our context
-
-	adminIds := []darc.Identity{}
-	adminIdString := []string{}
-	for _, admin := range configuration.Admins {
-		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+admin.PublicKey,
-			configuration.KeyDirectory+admin.PrivateKey)
-		id := signer.Identity()
-		adminIds = append(adminIds, id)
-		adminIdString = append(adminIdString, id.String())
-		admins = append(admins, signer)
-	}
-
-	for _, manager := range configuration.Managers {
-		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+manager.PublicKey,
-			configuration.KeyDirectory+manager.PrivateKey)
-		managers = append(managers, signer)
-	}
-
-	for _, user := range configuration.Users {
-		signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+user.PublicKey,
-			configuration.KeyDirectory+user.PrivateKey)
-		users = append(users, signer.Identity())
-	}
-
-	// Create Genesis block
-	genesisMsg, err = service.DefaultGenesisMsg(service.CurrentVersion, roster,
-		[]string{}, adminIds...)
-	if err != nil {
-		panic(err)
-	}
-	gDarc := &genesisMsg.GenesisDarc
-	gDarc.Rules.UpdateSign(expression.InitAndExpr(adminIdString...))
-	gDarc.Rules.AddRule("spawn:darc", gDarc.Rules.GetSignExpr())
-
-	genesisMsg.BlockInterval = time.Second
-	genesisBlock, err = cl.CreateGenesisBlock(genesisMsg)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create a DARC for managers of each hospital
-	managersDarcs := []*darc.Darc{}
-	managersDarcsIdString := []string{}
-	for i, manager := range configuration.Managers {
-		owners := []darc.Identity{admins[manager.AdminIndex].Identity()}
-		signers := []darc.Identity{managers[i].Identity()}
-		rules := darc.InitRules(owners, signers)
-		tempDarc, err := createDarc(cl, gDarc, genesisMsg.BlockInterval, rules,
-			"Managers darc", admins...)
-		if err != nil {
-			panic(err)
-		}
-		managersDarcs = append(managersDarcs, tempDarc)
-		managersDarcsIdString = append(managersDarcsIdString, tempDarc.GetIdentityString())
-	}
-
-	// Create a collective managers DARC
-	rules := darc.InitRules(adminIds, []darc.Identity{})
-	rules.UpdateSign(expression.InitAndExpr(managersDarcsIdString...))
-	rules.AddRule("spawn:darc", rules.GetSignExpr())
-	rules.AddRule("spawn:value", rules.GetSignExpr())
-	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(managersDarcsIdString...))
-	rules.AddRule("invoke:update", rules["spawn:UserProjectsMap"])
-	allManagersDarc, err := createDarc(cl, gDarc, genesisMsg.BlockInterval, rules,
-		"AllManagers darc", admins...)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create a DARC for users of each hospital
-	usersDarcs := []*darc.Darc{}
-	userDarcsIds := []darc.Identity{}
-
-	for i, user := range configuration.Users {
-		owners := []darc.Identity{darc.NewIdentityDarc(managersDarcs[user.ManagerIndex].GetID())}
-		signers := []darc.Identity{users[i]}
-		rules := darc.InitRules(owners, signers)
-		tempDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, rules,
-			"Users darc", managers...)
-		if err != nil {
-			panic(err)
-		}
-		usersDarcs = append(usersDarcs, tempDarc)
-		userDarcsIds = append(userDarcsIds, darc.NewIdentityDarc(tempDarc.GetID()))
-	}
-
-	// Create a collective users DARC
-	collectiveUserDarcOwner := []darc.Identity{darc.NewIdentityDarc(allManagersDarc.GetID())}
-	rules = darc.InitRules(collectiveUserDarcOwner, userDarcsIds)
-	rules.AddRule("spawn:ProjectList", rules.GetSignExpr())
-	allUsersDarc, err = createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, rules,
-		"AllUsers darc", managers...)
-	if err != nil {
-		panic(err)
-	}
-
-	var allProjectsListInstanceID service.InstanceID
-	for _, project := range configuration.Projects {
-		owners := []darc.Identity{}
-		for _, managerIndex := range project.ManagerOwners {
-			id := darc.NewIdentityDarc(managersDarcs[managerIndex].GetID())
-			owners = append(owners, id)
-		}
-		signers := []darc.Identity{}
-		for _, userIndex := range project.SigningUsers {
-			id := darc.NewIdentityDarc(usersDarcs[userIndex].GetID())
-			signers = append(owners, id)
-		}
-		projectDarcRules := darc.InitRules(owners, signers)
-		for _, rule := range project.Rules {
-			usersIdString := []string{}
-			for _, userIndex := range rule.Users {
-				idString := usersDarcs[userIndex].GetIdentityString()
-				usersIdString = append(usersIdString, idString)
-			}
-			var expr expression.Expr
-			switch rule.ExprType {
-			case "SIGNERS":
-				expr = projectDarcRules.GetSignExpr()
-			case "OR":
-				expr = expression.InitOrExpr(usersIdString...)
-			case "AND":
-				expr = expression.InitAndExpr(usersIdString...)
-			}
-			projectDarcRules.AddRule(darc.Action(rule.Action), expr)
-		}
-		projectDarc, err := createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, projectDarcRules,
-			project.Name, managers...)
-		if err != nil {
-			panic(err)
-		}
-
-		// Register the sample project DARC with the value contract
-		myvalue := []byte(projectDarc.GetIdentityString())
-		ctx := service.ClientTransaction{
-			Instructions: []service.Instruction{{
-				InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
-				Nonce:      service.Nonce{},
-				Index:      0,
-				Length:     1,
-				Spawn: &service.Spawn{
-					ContractID: contracts.ContractValueID,
-					Args: []service.Argument{{
-						Name:  "value",
-						Value: myvalue,
-					}},
-				},
-			}},
-		}
-		err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...)
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = cl.AddTransaction(ctx)
-		if err != nil {
-			panic(err)
-		}
-
-		allProjectsListInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-		pr, err := cl.WaitProof(allProjectsListInstanceID, genesisMsg.BlockInterval, nil)
-		if pr.InclusionProof.Match() != true {
-			panic(err)
-		}
-	}
-
-	// Create a users-projects map contract instance
-	userStrings := []string{}
-	for _, user := range users {
-		userStrings = append(userStrings, user.String())
-	}
-	allUsersString := strings.Join(userStrings, ";")
-	usersByte := []byte(allUsersString)
-	ctx := service.ClientTransaction{
-		Instructions: []service.Instruction{{
-			InstanceID: service.NewInstanceID(allManagersDarc.GetBaseID()),
-			Nonce:      service.Nonce{},
-			Index:      0,
-			Length:     1,
-			Spawn: &service.Spawn{
-				ContractID: contracts.ContractUserProjectsMapID,
-				Args: []service.Argument{{
-					Name:  "allProjectsListInstanceID",
-					Value: []byte(allProjectsListInstanceID.Slice()),
-				}, {
-					Name:  "users",
-					Value: usersByte,
-				}},
-			},
-		}},
-	}
-	err = ctx.Instructions[0].SignBy(allManagersDarc.GetBaseID(), managers...)
-	if err != nil {
-		panic(err)
-	}
-	_, err = cl.AddTransaction(ctx)
-	if err != nil {
-		panic(err)
-	}
-	userProjectsMapInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err := cl.WaitProof(userProjectsMapInstanceID, genesisMsg.BlockInterval, nil)
-	if pr.InclusionProof.Match() != true {
-		panic(err)
-	}
-}
-
-func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Duration, rules darc.Rules, description string, signers ...darc.Signer) (*darc.Darc, error) {
+func createTransactionForNewDARC(baseDarc *darc.Darc, rules darc.Rules, description string) (*service.ClientTransaction, *darc.Darc, error) {
 	// Create a transaction to spawn a DARC
 	tempDarc := darc.NewDarc(rules, []byte(description))
 	tempDarcBuff, err := tempDarc.ToProto()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
@@ -291,12 +84,37 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 			},
 		}},
 	}
-	if err := ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...); err != nil {
-		return nil, err
-	}
+	return &ctx, tempDarc, nil
+}
 
+func createTransactionForUpdatingDARC(baseDarc *darc.Darc, rules darc.Rules, description string) (*service.ClientTransaction, *darc.Darc, error) {
+	// Create a transaction to spawn a DARC
+	tempDarc := darc.NewDarc(rules, []byte(description))
+	tempDarcBuff, err := tempDarc.ToProto()
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
+			Spawn: &service.Spawn{
+				ContractID: service.ContractDarcID,
+				Args: []service.Argument{{
+					Name:  "darc",
+					Value: tempDarcBuff,
+				}},
+			},
+		}},
+	}
+	return &ctx, tempDarc, nil
+}
+
+func submitSignedTransactionForNewDARC(client *service.Client, tempDarc *darc.Darc, interval time.Duration, ctx *service.ClientTransaction) (*darc.Darc, error) {
 	// Commit transaction
-	if _, err := client.AddTransaction(ctx); err != nil {
+	if _, err := client.AddTransaction(*ctx); err != nil {
 		return nil, err
 	}
 
@@ -304,10 +122,24 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	instID := service.NewInstanceID(tempDarc.GetBaseID())
 	pr, err := client.WaitProof(instID, interval, nil)
 	if err != nil || pr.InclusionProof.Match() == false {
+		fmt.Println("Error at transaction submission")
 		return nil, err
 	}
 
 	return tempDarc, nil
+}
+
+func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Duration, rules darc.Rules, description string, signers ...darc.Signer) (*darc.Darc, error) {
+	ctx, tempDarc, err := createTransactionForNewDARC(baseDarc, rules, description)
+	if err != nil {
+		fmt.Println("Error at transaction creation")
+		return nil, err
+	}
+	if err = ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...); err != nil {
+		fmt.Println("Error at transaction signature")
+		return nil, err
+	}
+	return submitSignedTransactionForNewDARC(client, tempDarc, interval, ctx)
 }
 
 // Simple web server
@@ -493,6 +325,9 @@ func main() {
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
+	http.HandleFunc("/add/user", newUserPart1)
+	http.HandleFunc("/add/manager", newManager)
+	http.HandleFunc("/add/administrator", newAdministrator)
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)

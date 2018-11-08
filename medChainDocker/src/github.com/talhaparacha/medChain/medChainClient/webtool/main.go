@@ -1,16 +1,18 @@
 package main
 
 import (
-	"html/template"
-	"net/http"
-	"github.com/talhaparacha/medChain/medChainUtils"
-	"io/ioutil"
-	"encoding/json"
 	"bytes"
-	"io"
-	"github.com/dedis/cothority/omniledger/darc"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"strings"
+
+	"github.com/dedis/cothority/omniledger/darc"
+	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
 // These will be initialized after log-ing
@@ -23,9 +25,9 @@ var client *http.Client
 
 // To inject data in HTML templates
 type ProjectsPageData struct {
-	Username string
+	Username   string
 	LoginToken string
-	Projects []Project
+	Projects   []Project
 }
 
 type LogQueryPageData struct {
@@ -33,8 +35,8 @@ type LogQueryPageData struct {
 }
 
 type Project struct {
-	Name string
-	ID string
+	Name       string
+	ID         string
 	QueryTypes []string
 }
 
@@ -54,7 +56,7 @@ func logQuery(w http.ResponseWriter, r *http.Request) {
 	transaction := medChainUtils.CreateQueryTransaction(projectDarc, queryType, Buf1.String(), signer)
 
 	// Apply the transaction through MedChain
-	request, err := http.NewRequest("GET", medchainURL + "/applyTransaction", nil)
+	request, err := http.NewRequest("GET", medchainURL+"/applyTransaction", nil)
 	medChainUtils.Check(err)
 	request.Header.Set("transaction", transaction)
 	response, err := client.Do(request)
@@ -101,7 +103,7 @@ func projects(w http.ResponseWriter, r *http.Request) {
 	transaction := medChainUtils.CreateLoginTransaction(allUsersDarcID, userProjectsMapID, signer)
 
 	// Apply the transaction through MedChain
-	request, err := http.NewRequest("GET", medchainURL + "/applyTransaction", nil)
+	request, err := http.NewRequest("GET", medchainURL+"/applyTransaction", nil)
 	medChainUtils.Check(err)
 	request.Header.Set("transaction", transaction)
 	response, err = client.Do(request)
@@ -109,16 +111,21 @@ func projects(w http.ResponseWriter, r *http.Request) {
 	body, err = ioutil.ReadAll(response.Body)
 	medChainUtils.Check(err)
 	loginToken := string(body[:])
+	fmt.Println("token", loginToken)
 
 	// Get the projects list from IRCT
-	request, err = http.NewRequest("GET", irctURL + "/systemService/about", nil)
+	request, err = http.NewRequest("GET", irctURL+"/systemService/about", nil)
 	medChainUtils.Check(err)
-	request.Header.Set("Authorization", "Bearer " + loginToken)
+	request.Header.Set("Authorization", "Bearer "+loginToken)
 	response, err = client.Do(request)
+	fmt.Println("code", response.StatusCode)
 	medChainUtils.Check(err)
 	body, err = ioutil.ReadAll(response.Body)
 	var dat2 []map[string]interface{}
+	fmt.Println("body", body)
 	err = json.Unmarshal(body, &dat2)
+	fmt.Println("err", err != nil)
+	fmt.Println("dat2", dat2)
 	projects := []Project{}
 	username := dat2[1]["username"].(string)
 	tmp := strings.Split(dat2[1]["projects"].(string), "......")
@@ -130,23 +137,23 @@ func projects(w http.ResponseWriter, r *http.Request) {
 		projectQueryTypes := []string{}
 
 		// Loop through each query type
-		for i := 2; i < len(tmp); i ++ {
+		for i := 2; i < len(tmp); i++ {
 			projectQueryTypes = append(projectQueryTypes, tmp[i])
 		}
 
 		// Add to main slice
 		projects = append(projects, Project{
-			Name: projectName,
-			ID: projectID,
+			Name:       projectName,
+			ID:         projectID,
 			QueryTypes: projectQueryTypes,
 		})
 	}
 
 	// Serve the page
 	data := ProjectsPageData{
-		Username: username,
+		Username:   username,
 		LoginToken: loginToken,
-		Projects: projects,
+		Projects:   projects,
 	}
 	tmpl := template.Must(template.ParseFiles("templates/static/projects.html"))
 	tmpl.Execute(w, data)
@@ -164,7 +171,7 @@ func main() {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client = &http.Client{Transport: tr}
-	client.CheckRedirect = func (req *http.Request, via []*http.Request) error {
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		req.Header.Add("Authorization", via[0].Header.Get("Authorization"))
 		return nil
 	}
