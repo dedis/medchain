@@ -325,6 +325,7 @@ func main() {
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
+	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/add/user", newUserPart1)
 	http.HandleFunc("/add/manager", newManager)
 	http.HandleFunc("/add/administrator", newAdministrator)

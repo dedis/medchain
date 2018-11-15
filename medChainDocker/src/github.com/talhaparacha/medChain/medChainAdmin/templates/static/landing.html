@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Medchain Admin</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form method="POST" enctype="multipart/form-data" action="/init">
+    Medchain Url: <input type="text" name="medchainurl"/><br/>
+    Public Key: <input type="file" name="publickey"/><br/>
+    Private Key: <input type="file" name="privatekey"/><br/>
+    <div class="control">
+      <label class="radio">
+        <input type="radio" name="usertype" value="Administrator" checked="checked">
+        Administrator
+      </label>
+      <label class="radio">
+        <input type="radio" name="usertype" value="Manager">
+        Manager
+      </label>
+    </div><br/>
+    <input type="submit" value="Log In"/>
+  </form>
+</body>

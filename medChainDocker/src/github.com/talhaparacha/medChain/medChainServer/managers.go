@@ -78,3 +78,37 @@ func newUserPart2(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: update the user-projects map
 }
+
+type ManagerInfoRequest struct {
+	ManagerPublicKey []byte `json:"manager_public_key"`
+}
+
+type ManagerInfoReply struct {
+	ManagerDarc  *darc.Darc `json:"manager_darc"`
+	UserListDarc *darc.Darc `json:"user_list_darc"`
+}
+
+func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
+	var inforequest ManagerInfoRequest
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		// TOD0 Return 400 error code
+		panic(err)
+	}
+	medChainUtils.Check(err)
+	err = json.Unmarshal(body, &inforequest)
+	if err != nil {
+		// TOD0 Return 400 error code
+		panic(err)
+	}
+	identity := medChainUtils.LoadIdentityEd25519FromBytes(inforequest.ManagerPublicKey)
+	managerDarc := managersDarcsMap[identity.String()]
+	userListDarc := usersListDarcsMap[identity.String()]
+	reply := ManagerInfoReply{ManagerDarc: managerDarc, UserListDarc: userListDarc}
+	jsonVal, err := json.Marshal(reply)
+	if err != nil {
+		// TOD0 Return 400 error code
+		panic(err)
+	}
+	w.Write(jsonVal)
+}
