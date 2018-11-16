@@ -21,9 +21,7 @@
         {
           "PublicKey":"managers/1_public",
           "PrivateKey":"managers/1_private",
-          "Users":[
-            {"PublicKey":"users/1_public", "PrivateKey":"users/1_private"}
-          ]
+          "Users":[]
         }
       ]
     },
@@ -68,8 +66,8 @@
     },
     {
       "Name":"ProjectY",
-      "ManagerOwners":[{"i":0, "j":0}, {"i":1, "j":0}],
-      "SigningUsers":[{"i":0, "j":0, "k":0}, {"i":1, "j":0, "k":0}],
+      "ManagerOwners":[{"i":0, "j":0}, {"i":2, "j":0}],
+      "SigningUsers":[{"i":0, "j":0, "k":0}, {"i":2, "j":0, "k":0}],
       "Rules": [
         {
           "Action":"spawn:AuthGrant",

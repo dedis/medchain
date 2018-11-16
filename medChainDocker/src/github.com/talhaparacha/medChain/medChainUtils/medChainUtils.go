@@ -1,17 +1,18 @@
 package medChainUtils
 
 import (
-	"io/ioutil"
-	"github.com/dedis/kyber/util/key"
-	"github.com/dedis/cothority"
-	"strconv"
-	"github.com/dedis/cothority/omniledger/darc"
 	"encoding/base64"
-	"github.com/dedis/cothority/omniledger/service"
-	"github.com/dedis/cothority/omniledger/contracts"
-	"time"
-	"github.com/dedis/onet/network"
 	"encoding/hex"
+	"io/ioutil"
+	"strconv"
+	"time"
+
+	"github.com/dedis/cothority"
+	"github.com/dedis/cothority/omniledger/contracts"
+	"github.com/dedis/cothority/omniledger/darc"
+	"github.com/dedis/cothority/omniledger/service"
+	"github.com/dedis/kyber/util/key"
+	"github.com/dedis/onet/network"
 )
 
 func Check(e error) {
@@ -29,9 +30,9 @@ func InitKeys(numKeys int, directory string) {
 		public := temp.Identity().Ed25519.Point
 		publicInBytes, _ := public.MarshalBinary()
 
-		err := ioutil.WriteFile(directory + "/" + strconv.Itoa(i) + "_private", []byte(base64.StdEncoding.EncodeToString(privateInBytes)), 0644)
+		err := ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_private", []byte(base64.StdEncoding.EncodeToString(privateInBytes)), 0644)
 		Check(err)
-		err = ioutil.WriteFile(directory + "/" + strconv.Itoa(i) + "_public", []byte(base64.StdEncoding.EncodeToString(publicInBytes)), 0644)
+		err = ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_public", []byte(base64.StdEncoding.EncodeToString(publicInBytes)), 0644)
 		Check(err)
 
 		kp := key.NewKeyPair(cothority.Suite)
@@ -75,7 +76,6 @@ func LoadSignerEd25519(pathToPublic string, pathToPrivate string) darc.Signer {
 	}}
 }
 
-
 func LoadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Signer {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(privateBytes))
@@ -96,9 +96,9 @@ func CreateQueryTransaction(projectDarc string, queryType string, query string, 
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(projectDarcDecoded),
-			Nonce:  service.Nonce{},
-			Index:  0,
-			Length: 1,
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
 			Spawn: &service.Spawn{
 				ContractID: contracts.ContractCreateQueryID,
 				Args: []service.Argument{{
@@ -122,6 +122,31 @@ func CreateQueryTransaction(projectDarc string, queryType string, query string, 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
+func CreateNewDarcTransaction(baseDarc *darc.Darc, tempDarc *darc.Darc, signers []darc.Signer) string {
+	tempDarcBuff, err := tempDarc.ToProto()
+	Check(err)
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
+			Spawn: &service.Spawn{
+				ContractID: service.ContractDarcID,
+				Args: []service.Argument{{
+					Name:  "darc",
+					Value: tempDarcBuff,
+				}},
+			},
+		}},
+	}
+	err = ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...)
+	Check(err)
+	data, err := network.Marshal(&ctx)
+	Check(err)
+	return base64.StdEncoding.EncodeToString(data)
+}
+
 func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer darc.Signer) string {
 	allUsersDarcBytes, err := base64.StdEncoding.DecodeString(allUsersDarc)
 	Check(err)
@@ -131,9 +156,9 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 	ctx := service.ClientTransaction{
 		Instructions: []service.Instruction{{
 			InstanceID: service.NewInstanceID(allUsersDarcBytes),
-			Nonce:  service.Nonce{},
-			Index:  0,
-			Length: 1,
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
 			Spawn: &service.Spawn{
 				ContractID: contracts.ContractProjectListID,
 				Args: []service.Argument{{
@@ -152,4 +177,13 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 	data, err := network.Marshal(&ctx)
 	Check(err)
 	return base64.StdEncoding.EncodeToString(data)
+}
+
+type ManagerInfoReply struct {
+	ManagerDarc  *darc.Darc `json:"manager_darc"`
+	UserListDarc *darc.Darc `json:"user_list_darc"`
+}
+
+type UserInfoReply struct {
+	UserDarc *darc.Darc `json:"user_darc"`
 }

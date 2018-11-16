@@ -12,7 +12,7 @@ import (
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
-var medChainUrl string
+var medchainURL string
 var usertype string
 var signer darc.Signer
 var public_key string
@@ -31,7 +31,7 @@ func initSigner(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(32 << 20) //Parse url parameters passed, then parse the response packet for the POST body (request body)
 	// attention: If you do not call ParseForm method, the following data can not be obtained form
 	usertype = r.FormValue("usertype")
-	medChainUrl = r.FormValue("medchainurl")
+	medchainURL = r.FormValue("medchainurl")
 	var Buf1 bytes.Buffer
 	file, _, err := r.FormFile("publickey")
 	medChainUtils.Check(err)
@@ -43,7 +43,7 @@ func initSigner(w http.ResponseWriter, r *http.Request) {
 	signer = medChainUtils.LoadSignerEd25519FromBytes(Buf1.Bytes(), Buf2.Bytes())
 	var next_url string
 	fmt.Println(usertype)
-	fmt.Println(medChainUrl)
+	fmt.Println(medchainURL)
 	switch usertype {
 	case "Manager":
 		next_url = "/manager"
@@ -72,6 +72,7 @@ func main() {
 	http.HandleFunc("/init", initSigner)
 	http.HandleFunc("/manager", managerLanding)
 	http.HandleFunc("/admin", adminLanding)
+	http.HandleFunc("/add/user", createUser)
 	// Start server
 	if err := http.ListenAndServe(":6161", nil); err != nil {
 		panic(err)

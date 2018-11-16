@@ -31,6 +31,7 @@ var adminsDarcsMap = make(map[string]*darc.Darc)
 var managersListDarcsMap = make(map[string]*darc.Darc)
 var managersDarcsMap = make(map[string]*darc.Darc)
 var usersDarcsMap = make(map[string]*darc.Darc)
+var usersDarcsMapWithDarcId = make(map[string]*darc.Darc)
 var usersListDarcsMap = make(map[string]*darc.Darc)
 
 var keysDirectory = "keys"
@@ -63,31 +64,6 @@ type introspectionResponseLogin struct {
 }
 
 func createTransactionForNewDARC(baseDarc *darc.Darc, rules darc.Rules, description string) (*service.ClientTransaction, *darc.Darc, error) {
-	// Create a transaction to spawn a DARC
-	tempDarc := darc.NewDarc(rules, []byte(description))
-	tempDarcBuff, err := tempDarc.ToProto()
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx := service.ClientTransaction{
-		Instructions: []service.Instruction{{
-			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
-			Nonce:      service.Nonce{},
-			Index:      0,
-			Length:     1,
-			Spawn: &service.Spawn{
-				ContractID: service.ContractDarcID,
-				Args: []service.Argument{{
-					Name:  "darc",
-					Value: tempDarcBuff,
-				}},
-			},
-		}},
-	}
-	return &ctx, tempDarc, nil
-}
-
-func createTransactionForUpdatingDARC(baseDarc *darc.Darc, rules darc.Rules, description string) (*service.ClientTransaction, *darc.Darc, error) {
 	// Create a transaction to spawn a DARC
 	tempDarc := darc.NewDarc(rules, []byte(description))
 	tempDarcBuff, err := tempDarc.ToProto()
@@ -326,9 +302,7 @@ func main() {
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
 	http.HandleFunc("/info/manager", GetManagerInfo)
-	http.HandleFunc("/add/user", newUserPart1)
-	http.HandleFunc("/add/manager", newManager)
-	http.HandleFunc("/add/administrator", newAdministrator)
+	http.HandleFunc("/info/user", GetUserInfo)
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
