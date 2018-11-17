@@ -1,5 +1,6 @@
 rm -rf $GOPATH/src/github.com/talhaparacha/
 cp -rf $GOPATH/src/github.com/DPPH/MedChain/medChainDocker/src/github.com/talhaparacha/ $GOPATH/src/github.com/talhaparacha/
+rm -rf $GOPATH/src/github.com/dedis/cothority/
 cp -rf $GOPATH/src/github.com/DPPH/cothority/ $GOPATH/src/github.com/dedis/cothority/
 cp $GOPATH/src/github.com/DPPH/MedChain/medChainDocker/Dockerfile $GOPATH/Dockerfile
 cp $GOPATH/src/github.com/DPPH/MedChain/medChainDocker/.dockerignore $GOPATH/.dockerignore
