@@ -39,7 +39,7 @@ func managerLanding(w http.ResponseWriter, r *http.Request) {
 	signer_darcs := strings.Split(expr_string, " | ")
 	UserIds := []string{}
 	for _, signer_darc := range signer_darcs {
-		response, err := http.Get(medchainURL + "/info/user?identity=" + signer_darc)
+		response, err := http.Get(medchainURL + "/info/user?darc_identity=" + signer_darc)
 		medChainUtils.Check(err)
 		body, err := ioutil.ReadAll(response.Body)
 		medChainUtils.Check(err)

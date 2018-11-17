@@ -23,14 +23,28 @@ type NewUserTransaction struct {
 	Darc             darc.Darc                 `json:"darc"`
 }
 
-type ManagerInfoRequest struct {
-	ManagerPublicKey []byte `json:"manager_public_key"`
-}
-
 func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
 	identity := strings.Join(r.URL.Query()["identity"], "")
+	darc_identity := strings.Join(r.URL.Query()["darc_identity"], "")
+	var managerDarc *darc.Darc
+	var ok bool
+	if identity != "" {
+		fmt.Println("manager info ", identity)
+		managerDarc, ok = managersDarcsMap[identity]
+	} else if darc_identity != "" {
+		fmt.Println("manager darc query ", darc_identity)
+		managerDarc, ok = managersDarcsMapWithDarcId[darc_identity]
+		if ok {
+			identity = string(managerDarc.Rules.GetSignExpr())
+		}
+	} else {
+		ok = false
+	}
+	if !ok {
+		// TODO return 404
+		return
+	}
 	fmt.Println("manager info", identity)
-	managerDarc := managersDarcsMap[identity]
 	userListDarc := usersListDarcsMap[identity]
 	reply := medChainUtils.ManagerInfoReply{ManagerDarc: managerDarc, UserListDarc: userListDarc}
 	jsonVal, err := json.Marshal(reply)
@@ -43,10 +57,20 @@ func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
 
 func GetUserInfo(w http.ResponseWriter, r *http.Request) {
 	identity := strings.Join(r.URL.Query()["identity"], "")
-	fmt.Println("user query ", identity)
-	userDarc, ok := usersDarcsMap[identity]
+	darc_identity := strings.Join(r.URL.Query()["darc_identity"], "")
+	var userDarc *darc.Darc
+	var ok bool
+	if identity != "" {
+		fmt.Println("user query ", identity)
+		userDarc, ok = usersDarcsMap[identity]
+	} else if darc_identity != "" {
+		fmt.Println("user darc query ", darc_identity)
+		userDarc, ok = usersDarcsMapWithDarcId[darc_identity]
+	} else {
+		ok = false
+	}
 	if !ok {
-		userDarc, ok = usersDarcsMapWithDarcId[identity]
+		// TODO return 404
 	}
 	reply := medChainUtils.UserInfoReply{UserDarc: userDarc}
 	jsonVal, err := json.Marshal(reply)

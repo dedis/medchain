@@ -73,6 +73,7 @@ func main() {
 	http.HandleFunc("/manager", managerLanding)
 	http.HandleFunc("/admin", adminLanding)
 	http.HandleFunc("/add/user", createUser)
+	http.HandleFunc("/add/manager", createManager)
 	// Start server
 	if err := http.ListenAndServe(":6161", nil); err != nil {
 		panic(err)

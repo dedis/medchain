@@ -5,5 +5,16 @@
     <title>Medchain Admin</title>
 </head>
 <body>
-  Hello
+  <h2><label>Your Id: </label>{{.AdminId}}</h2>
+  <h2>Managers: </h2>
+  <ul>
+    {{range .ManagerIds}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  <h2>Add new manager: </h2>
+  <form method="POST" enctype="multipart/form-data" action="/add/manager">
+    Public Key: <input type="file" name="publickey"/><br/>
+    <input type="submit" value="Add"/>
+  </form>
 </body>

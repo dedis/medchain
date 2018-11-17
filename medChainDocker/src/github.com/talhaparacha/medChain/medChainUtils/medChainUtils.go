@@ -184,6 +184,11 @@ type ManagerInfoReply struct {
 	UserListDarc *darc.Darc `json:"user_list_darc"`
 }
 
+type AdminInfoReply struct {
+	AdminDarc       *darc.Darc `json:"admin_darc"`
+	ManagerListDarc *darc.Darc `json:"manager_list_darc"`
+}
+
 type UserInfoReply struct {
 	UserDarc *darc.Darc `json:"user_darc"`
 }

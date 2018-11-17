@@ -104,6 +104,7 @@ func startSystem() {
 				panic(err)
 			}
 			managersDarcsMap[manager_signer.Identity().String()] = tempDarc
+			managersDarcsMapWithDarcId[tempDarc.GetIdentityString()] = tempDarc
 			overall_signers = append(overall_signers, tempDarc.GetIdentityString())
 		}
 		rules := darc.InitRules(overall_owners, []darc.Identity{})
