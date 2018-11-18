@@ -147,6 +147,31 @@ func CreateNewDarcTransaction(baseDarc *darc.Darc, tempDarc *darc.Darc, signers 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
+func CreateEvolveDarcTransaction(oldDarc *darc.Darc, newVersionDarc *darc.Darc, signers []darc.Signer) string {
+	newVersionDarcBuff, err := newVersionDarc.ToProto()
+	Check(err)
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.NewInstanceID(oldDarc.GetBaseID()),
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
+			Invoke: &service.Invoke{
+				Command: "evolve",
+				Args: []service.Argument{{
+					Name:  "darc",
+					Value: newVersionDarcBuff,
+				}},
+			},
+		}},
+	}
+	err = ctx.Instructions[0].SignBy(oldDarc.GetBaseID(), signers...)
+	Check(err)
+	data, err := network.Marshal(&ctx)
+	Check(err)
+	return base64.StdEncoding.EncodeToString(data)
+}
+
 func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer darc.Signer) string {
 	allUsersDarcBytes, err := base64.StdEncoding.DecodeString(allUsersDarc)
 	Check(err)

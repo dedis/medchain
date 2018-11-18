@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/dedis/cothority/omniledger/darc"
+	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
@@ -78,19 +79,40 @@ func createNewUserDarc(user_identity darc.Identity) {
 	var reply medChainUtils.ManagerInfoReply
 	err = json.Unmarshal(body, &reply)
 	managerDarc := reply.ManagerDarc
-	// userListDarc := reply.UserListDarc
+	userListDarc := reply.UserListDarc
 	owners := []darc.Identity{darc.NewIdentityDarc(managerDarc.GetID())}
 	signers := []darc.Identity{user_identity}
 	rules := darc.InitRules(owners, signers)
 	tempDarc := createDarcAndSubmit(managerDarc, rules, "Single User darc", signer)
+	newDarc := userListDarc.Copy()
+	sign_expr := newDarc.Rules.GetSignExpr()
+	new_sign_expr := expression.InitOrExpr(string(sign_expr), tempDarc.GetIdentityString())
+	newDarc.Rules.UpdateSign(new_sign_expr)
+	updateDarcAndSubmit(userListDarc, newDarc, signer)
 	fmt.Println(tempDarc.GetIdentityString())
+}
+
+func updateDarcAndSubmit(oldDarc, newDarc *darc.Darc, signers ...darc.Signer) {
+	// Create a transaction to evolve a DARC
+	transaction := medChainUtils.CreateEvolveDarcTransaction(oldDarc, newDarc, signers)
+	fmt.Println("sending evolve transaction", transaction)
+	request, err := http.NewRequest("GET", medchainURL+"/evolve/darc", nil)
+	medChainUtils.Check(err)
+	request.Header.Set("transaction", transaction)
+	response, err := client.Do(request)
+	medChainUtils.Check(err)
+	body, err := ioutil.ReadAll(response.Body)
+	medChainUtils.Check(err)
+	result := string(body[:])
+	fmt.Println("Result", result)
 }
 
 func createDarcAndSubmit(baseDarc *darc.Darc, rules darc.Rules, description string, signers ...darc.Signer) *darc.Darc {
 	// Create a transaction to spawn a DARC
 	tempDarc := darc.NewDarc(rules, []byte(description))
 	transaction := medChainUtils.CreateNewDarcTransaction(baseDarc, tempDarc, signers)
-	request, err := http.NewRequest("GET", medchainURL+"/applyTransaction", nil)
+	fmt.Println("sending spawn transaction", transaction)
+	request, err := http.NewRequest("GET", medchainURL+"/add/darc", nil)
 	medChainUtils.Check(err)
 	request.Header.Set("transaction", transaction)
 	response, err := client.Do(request)

@@ -44,7 +44,6 @@ func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
 		// TODO return 404
 		return
 	}
-	fmt.Println("manager info", identity)
 	userListDarc := usersListDarcsMap[identity]
 	reply := medChainUtils.ManagerInfoReply{ManagerDarc: managerDarc, UserListDarc: userListDarc}
 	jsonVal, err := json.Marshal(reply)

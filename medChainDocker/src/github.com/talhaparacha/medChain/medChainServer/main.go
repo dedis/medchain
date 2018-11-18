@@ -3,6 +3,7 @@ package main
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -127,24 +128,99 @@ func sayHello(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(message))
 }
 
-func applyTransaction(w http.ResponseWriter, r *http.Request) {
-	// Fetch the transaction provided in the GET request
-	transaction := r.Header.Get("transaction")
-	transactionDecoded, err := b64.StdEncoding.DecodeString(transaction)
-	if err != nil && transaction != "" {
+func applyNewDarcTransaction(w http.ResponseWriter, r *http.Request) {
+	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
+	if err != nil {
+		fmt.Println("failed to retrieve transaction")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	darc, err := extractNewDarcFromTransaction(testTransactionRetrieved)
+	if err != nil {
+		fmt.Println("failed to extract darc")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
+	if err != nil {
+		fmt.Println("failed to submit new darc transaction")
+		w.Write([]byte("Failed to commit the transaction to the MedChain"))
+		return
+	} else {
+		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
+	}
+}
 
+func applyEvolveDarcTransaction(w http.ResponseWriter, r *http.Request) {
+	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
+	if err != nil {
+		fmt.Println("failed to retrieve transaction")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	darc, err := extractEvolvedDarcFromTransaction(testTransactionRetrieved)
+	if err != nil {
+		fmt.Println("failed to extract darc")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
+	if err != nil {
+		fmt.Println("failed to submit evolve darc transaction")
+		w.Write([]byte("Failed to commit the transaction to the MedChain"))
+		return
+	} else {
+		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
+	}
+}
+
+func extractEvolvedDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
+	instruction := transaction.Instructions[0]
+	invoke := instruction.Invoke
+	args := invoke.Args
+	arg := args[0]
+	darcBuf := arg.Value
+	newDarc, err := darc.NewFromProtobuf(darcBuf)
+	return newDarc, err
+}
+
+func extractNewDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
+	instruction := transaction.Instructions[0]
+	spawn := instruction.Spawn
+	args := spawn.Args
+	arg := args[0]
+	darcBuf := arg.Value
+	newDarc, err := darc.NewFromProtobuf(darcBuf)
+	return newDarc, err
+}
+
+func extractTransactionFromRequest(w http.ResponseWriter, r *http.Request) (*service.ClientTransaction, error) {
+	// Fetch the transaction provided in the GET request
+	transaction := r.Header.Get("transaction")
+	fmt.Println("received transaction", transaction)
+	transactionDecoded, err := b64.StdEncoding.DecodeString(transaction)
+	if err != nil && transaction != "" {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
+	}
 	// Load the transaction
 	var testTransactionRetrieved *service.ClientTransaction
 	_, tmp, err := network.Unmarshal(transactionDecoded, cothority.Suite)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 	testTransactionRetrieved, ok := tmp.(*service.ClientTransaction)
 	if !ok {
+
+		return nil, errors.New("could not retrieve the transaction")
+	}
+	return testTransactionRetrieved, nil
+}
+
+func applyTransaction(w http.ResponseWriter, r *http.Request) {
+	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -161,6 +237,11 @@ func applyTransaction(w http.ResponseWriter, r *http.Request) {
 	pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
 	w.Header().Set("Content-Type", "text/plain")
 	if err != nil || pr.InclusionProof.Match() != true {
+		if err != nil {
+			fmt.Println("wait proof failed ", err)
+		} else {
+			fmt.Println("proof failed")
+		}
 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
 	} else {
 		w.Write([]byte(b64.StdEncoding.EncodeToString(instID.Slice())))
@@ -305,6 +386,8 @@ func main() {
 	http.HandleFunc("/info/admin", GetAdminInfo)
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
+	http.HandleFunc("/add/darc", applyNewDarcTransaction)
+	http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
