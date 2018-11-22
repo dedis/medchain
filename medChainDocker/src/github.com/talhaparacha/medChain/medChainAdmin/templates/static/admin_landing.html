@@ -5,10 +5,10 @@
     <title>Medchain Admin</title>
 </head>
 <body>
-  <h2><label>Your Id: </label>{{.AdminId}}</h2>
+  <h2><label>Your Id: </label>{{.UserId}}</h2>
   <h2>Managers: </h2>
   <ul>
-    {{range .ManagerIds}}
+    {{range .SubordinatesIds}}
     <li>{{.}}</li>
     {{end}}
   </ul>

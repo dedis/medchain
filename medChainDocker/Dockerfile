@@ -11,6 +11,6 @@ COPY src/ .
 WORKDIR $server_path
 RUN go build .
 
-ENTRYPOINT ./medChainServer
+ENTRYPOINT ./medChainServer -test
 
 EXPOSE 8989

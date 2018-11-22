@@ -15,24 +15,33 @@ type User struct {
 type Manager struct {
 	PublicKey  string `json:"PublicKey"`
 	PrivateKey string `json:"PrivateKey"`
-	Users      []User `json:"Users"`
+	Users      []User `json:"Users,omitempty"`
 }
 
 type Admin struct {
 	PublicKey  string    `json:"PublicKey"`
 	PrivateKey string    `json:"PrivateKey"`
-	Managers   []Manager `json:"Managers"`
+	Managers   []Manager `json:"Managers,omitempty"`
+}
+
+type Hospital struct {
+	Name       string  `json:"Name"`
+	PublicKey  string  `json:"PublicKey"`
+	PrivateKey string  `json:"PrivateKey"`
+	Admins     []Admin `json:"Admins,omitempty"`
 }
 
 type ManagerCoordinates struct {
 	I int `json:"i"`
 	J int `json:"j"`
+	K int `json:"k"`
 }
 
 type UserCoordinates struct {
 	I int `json:"i"`
 	J int `json:"j"`
 	K int `json:"k"`
+	L int `json:"l"`
 }
 
 type Rule struct {
@@ -49,9 +58,9 @@ type Project struct {
 }
 
 type Configuration struct {
-	KeyDirectory string    `json:"KeyDirectory"`
-	Admins       []Admin   `json:"Admins"`
-	Projects     []Project `json:"Projects"`
+	KeyDirectory string     `json:"KeyDirectory"`
+	Hospitals    []Hospital `json:"Hospitals"`
+	Projects     []Project  `json:"Projects,omitempty"`
 }
 
 func ReadConf(confFileName string) (*Configuration, error) {

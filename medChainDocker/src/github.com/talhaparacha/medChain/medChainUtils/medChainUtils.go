@@ -147,7 +147,7 @@ func CreateNewDarcTransaction(baseDarc *darc.Darc, tempDarc *darc.Darc, signers 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-func CreateEvolveDarcTransaction(oldDarc *darc.Darc, newVersionDarc *darc.Darc, signers []darc.Signer) string {
+func CreateEvolveDarcTransaction(baseDarc, oldDarc, newVersionDarc *darc.Darc, signers []darc.Signer) string {
 	newVersionDarcBuff, err := newVersionDarc.ToProto()
 	Check(err)
 	ctx := service.ClientTransaction{
@@ -204,16 +204,11 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-type ManagerInfoReply struct {
-	ManagerDarc  *darc.Darc `json:"manager_darc"`
-	UserListDarc *darc.Darc `json:"user_list_darc"`
-}
-
-type AdminInfoReply struct {
-	AdminDarc       *darc.Darc `json:"admin_darc"`
-	ManagerListDarc *darc.Darc `json:"manager_list_darc"`
-}
-
 type UserInfoReply struct {
-	UserDarc *darc.Darc `json:"user_darc"`
+	MainDarc         *darc.Darc `json:"main_darc"`
+	SubordinatesDarc *darc.Darc `json:"subordinates_darc"`
+}
+
+func IDToHexString(id darc.ID) string {
+	return hex.EncodeToString([]byte(id))
 }

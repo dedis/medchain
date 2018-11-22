@@ -23,18 +23,29 @@ var local = onet.NewTCPTest(cothority.Suite)
 var _, roster, _ = local.GenTree(3, true)
 var cl = service.NewClient()
 
-// Admins, Managers and Users as per the context defined in system diagram
-var admins = []darc.Signer{}
-var managers = make(map[string][]darc.Signer)
-var users = make(map[string][]darc.Identity)
+var baseIdToDarcMap = make(map[string]*darc.Darc)
+var darcIdToBaseIdMap = make(map[string]string)
 
-var adminsDarcsMap = make(map[string]*darc.Darc)
-var managersListDarcsMap = make(map[string]*darc.Darc)
-var managersDarcsMap = make(map[string]*darc.Darc)
-var managersDarcsMapWithDarcId = make(map[string]*darc.Darc)
-var usersDarcsMap = make(map[string]*darc.Darc)
-var usersDarcsMapWithDarcId = make(map[string]*darc.Darc)
-var usersListDarcsMap = make(map[string]*darc.Darc)
+var superAdminsDarcsMap = make(map[string]string)
+var superAdminsDarcsMapWithDarcId = make(map[string]string)
+
+var adminsDarcsMap = make(map[string]string)
+var adminsDarcsMapWithDarcId = make(map[string]string)
+var adminsListDarcsMap = make(map[string]string)
+var adminsListDarcsMapWithDarcId = make(map[string]string)
+
+var managersDarcsMap = make(map[string]string)
+var managersDarcsMapWithDarcId = make(map[string]string)
+var managersListDarcsMap = make(map[string]string)
+var managersListDarcsMapWithDarcId = make(map[string]string)
+
+var usersDarcsMap = make(map[string]string)
+var usersDarcsMapWithDarcId = make(map[string]string)
+var usersListDarcsMap = make(map[string]string)
+var usersListDarcsMapWithDarcId = make(map[string]string)
+
+var projectsDarcsMap = make(map[string]string)
+var projectsDarcsMapWithDarcId = make(map[string]string)
 
 var keysDirectory = "keys"
 
@@ -45,8 +56,15 @@ var genesisMsg *service.CreateGenesisBlock
 var genesisBlock *service.CreateGenesisBlockResponse
 
 // Stuff required by the token introspection services
-var allUsersDarc *darc.Darc
+var allSuperAdminsDarc *darc.Darc
+var allSuperAdminsBaseID string
+var allAdminsDarc *darc.Darc
+var allAdminsBaseID string
 var allManagersDarc *darc.Darc
+var allManagersBaseID string
+var allUsersDarc *darc.Darc
+var allUsersBaseID string
+
 var userProjectsMapInstanceID service.InstanceID
 var err error
 var systemStart = false
@@ -107,6 +125,30 @@ func submitSignedTransactionForNewDARC(client *service.Client, tempDarc *darc.Da
 	return tempDarc, nil
 }
 
+func submitSignedTransactionForEvolveDARC(client *service.Client, newDarc *darc.Darc, interval time.Duration, ctx *service.ClientTransaction) (*darc.Darc, error) {
+	// Commit transaction
+	if _, err := client.AddTransaction(*ctx); err != nil {
+		return nil, err
+	}
+	// Verify DARC creation before returning its reference
+	instID := service.NewInstanceID(newDarc.GetBaseID())
+	darcBuf, err := newDarc.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	pr, err := client.WaitProof(instID, interval, darcBuf)
+	if err != nil || pr.InclusionProof.Match() == false {
+		if err != nil {
+			fmt.Println("error", err)
+		} else {
+			fmt.Println("wrong proof")
+		}
+		fmt.Println("Error at transaction submission")
+		return nil, err
+	}
+	return newDarc, nil
+}
+
 func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Duration, rules darc.Rules, description string, signers ...darc.Signer) (*darc.Darc, error) {
 	ctx, tempDarc, err := createTransactionForNewDARC(baseDarc, rules, description)
 	if err != nil {
@@ -147,6 +189,9 @@ func applyNewDarcTransaction(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
 		return
 	} else {
+		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
+		baseIdToDarcMap[darcBaseID] = tempDarc
+		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
 	}
 }
@@ -164,12 +209,15 @@ func applyEvolveDarcTransaction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
+	tempDarc, err := submitSignedTransactionForEvolveDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
 	if err != nil {
 		fmt.Println("failed to submit evolve darc transaction")
 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
 		return
 	} else {
+		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
+		baseIdToDarcMap[darcBaseID] = tempDarc
+		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
 	}
 }
@@ -374,15 +422,63 @@ func start(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Success"))
 }
 
+func getDarcFromId(id string, baseIdToDarcMap map[string]*darc.Darc, mapId map[string]string) (*darc.Darc, bool) {
+	darcId, ok := mapId[id]
+	if ok {
+		darc, ok := baseIdToDarcMap[darcId]
+		return darc, ok
+	}
+	return nil, ok
+}
+
+func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]*darc.Darc, map_id, map_darc_id, map_subordinates map[string]string, needSubordinates bool) {
+	identity := strings.Join(r.URL.Query()["identity"], "")
+	darc_identity := strings.Join(r.URL.Query()["darc_identity"], "")
+	var mainDarc *darc.Darc
+	var ok bool
+	if identity != "" {
+		mainDarc, ok = getDarcFromId(identity, baseIdToDarcMap, map_id)
+	} else if darc_identity != "" {
+		mainDarc, ok = getDarcFromId(darc_identity, baseIdToDarcMap, map_darc_id)
+		if ok {
+			identity = string(mainDarc.Rules.GetSignExpr())
+		}
+	} else {
+		ok = false
+	}
+	if !ok {
+		fmt.Println("Failed To Retrieve Info")
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+	var subordinatesDarc *darc.Darc = nil
+	if needSubordinates {
+		subordinatesDarc, ok = getDarcFromId(identity, baseIdToDarcMap, map_subordinates)
+		if !ok {
+			subordinatesDarc = nil
+		}
+	}
+	reply := medChainUtils.UserInfoReply{MainDarc: mainDarc, SubordinatesDarc: subordinatesDarc}
+	jsonVal, err := json.Marshal(reply)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(jsonVal)
+}
+
 func main() {
 	// Run one time to generate all the keys for our context
 	//medChainUtils.InitKeys(3, "keys/admins")
 	//medChainUtils.InitKeys(3, "keys/managers")
 	//medChainUtils.InitKeys(3, "keys/users")
-
+	port, testConf := getFlags()
+	if testConf {
+		configFileName = "conf/test_conf.json"
+	}
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
+	http.HandleFunc("/info/super_admin", GetSuperAdminInfo)
 	http.HandleFunc("/info/admin", GetAdminInfo)
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
@@ -391,10 +487,9 @@ func main() {
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
-	if err := http.ListenAndServe(":8989", nil); err != nil {
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		panic(err)
 	}
-
 	// Wrap Omniledger service
 	local.WaitDone(genesisMsg.BlockInterval)
 	local.CloseAll()
