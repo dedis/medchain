@@ -27,25 +27,20 @@ var baseIdToDarcMap = make(map[string]*darc.Darc)
 var darcIdToBaseIdMap = make(map[string]string)
 
 var superAdminsDarcsMap = make(map[string]string)
-var superAdminsDarcsMapWithDarcId = make(map[string]string)
 
 var adminsDarcsMap = make(map[string]string)
-var adminsDarcsMapWithDarcId = make(map[string]string)
 var adminsListDarcsMap = make(map[string]string)
-var adminsListDarcsMapWithDarcId = make(map[string]string)
 
 var managersDarcsMap = make(map[string]string)
-var managersDarcsMapWithDarcId = make(map[string]string)
-var managersListDarcsMap = make(map[string]string)
-var managersListDarcsMapWithDarcId = make(map[string]string)
+var managersListLevel0DarcsMap = make(map[string]string)
+var managersListLevel1DarcsMap = make(map[string]string)
 
 var usersDarcsMap = make(map[string]string)
-var usersDarcsMapWithDarcId = make(map[string]string)
-var usersListDarcsMap = make(map[string]string)
-var usersListDarcsMapWithDarcId = make(map[string]string)
+var usersListLevel0DarcsMap = make(map[string]string)
+var usersListLevel1DarcsMap = make(map[string]string)
+var usersListLevel2DarcsMap = make(map[string]string)
 
 var projectsDarcsMap = make(map[string]string)
-var projectsDarcsMapWithDarcId = make(map[string]string)
 
 var keysDirectory = "keys"
 
@@ -431,34 +426,42 @@ func getDarcFromId(id string, baseIdToDarcMap map[string]*darc.Darc, mapId map[s
 	return nil, ok
 }
 
-func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]*darc.Darc, map_id, map_darc_id, map_subordinates map[string]string, needSubordinates bool) {
-	identity := strings.Join(r.URL.Query()["identity"], "")
+func GetDarcInfo(w http.ResponseWriter, r *http.Request) {
 	darc_identity := strings.Join(r.URL.Query()["darc_identity"], "")
-	var mainDarc *darc.Darc
-	var ok bool
-	if identity != "" {
-		mainDarc, ok = getDarcFromId(identity, baseIdToDarcMap, map_id)
-	} else if darc_identity != "" {
-		mainDarc, ok = getDarcFromId(darc_identity, baseIdToDarcMap, map_darc_id)
-		if ok {
-			identity = string(mainDarc.Rules.GetSignExpr())
-		}
-	} else {
-		ok = false
+	mainDarc, ok := getDarcFromId(darc_identity, baseIdToDarcMap, darcIdToBaseIdMap)
+	if !ok {
+		fmt.Println("Failed To Retrieve Darc Info")
+		http.Error(w, "", http.StatusNotFound)
+		return
 	}
+	reply := medChainUtils.UserInfoReply{MainDarc: mainDarc}
+	jsonVal, err := json.Marshal(reply)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(jsonVal)
+}
+
+func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]*darc.Darc, map_id map[string]string, list_of_map_subordinates []map[string]string) {
+	identity := strings.Join(r.URL.Query()["identity"], "")
+	mainDarc, ok := getDarcFromId(identity, baseIdToDarcMap, map_id)
 	if !ok {
 		fmt.Println("Failed To Retrieve Info")
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
-	var subordinatesDarc *darc.Darc = nil
-	if needSubordinates {
-		subordinatesDarc, ok = getDarcFromId(identity, baseIdToDarcMap, map_subordinates)
+	subordinatesDarcsList := []*darc.Darc{}
+	for _, map_subordinates := range list_of_map_subordinates {
+		subordinatesDarc, ok := getDarcFromId(identity, baseIdToDarcMap, map_subordinates)
 		if !ok {
-			subordinatesDarc = nil
+			fmt.Println("Failed To Retrieve Info")
+			http.Error(w, "", http.StatusNotFound)
+			return
 		}
+		subordinatesDarcsList = append(subordinatesDarcsList, subordinatesDarc)
 	}
-	reply := medChainUtils.UserInfoReply{MainDarc: mainDarc, SubordinatesDarc: subordinatesDarc}
+
+	reply := medChainUtils.UserInfoReply{MainDarc: mainDarc, SubordinatesDarcsList: subordinatesDarcsList}
 	jsonVal, err := json.Marshal(reply)
 	if err != nil {
 		panic(err)
@@ -482,8 +485,12 @@ func main() {
 	http.HandleFunc("/info/admin", GetAdminInfo)
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
+	http.HandleFunc("/info/darc", GetDarcInfo)
 	http.HandleFunc("/add/darc", applyNewDarcTransaction)
 	http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
+	http.HandleFunc("/metadata/add/user", NewUserMetadata)
+	http.HandleFunc("/metadata/add/manager", NewManagerMetadata)
+	http.HandleFunc("/metadata/add/admin", NewAdminMetadata)
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)

@@ -205,8 +205,13 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 }
 
 type UserInfoReply struct {
-	MainDarc         *darc.Darc `json:"main_darc"`
-	SubordinatesDarc *darc.Darc `json:"subordinates_darc"`
+	MainDarc              *darc.Darc   `json:"main_darc"`
+	SubordinatesDarcsList []*darc.Darc `json:"subordinates_darcs_list"`
+}
+
+type NewDarcsMetadata struct {
+	Darcs map[string]*darc.Darc `json:"darcs"`
+	Id    string                `json:"id"`
 }
 
 func IDToHexString(id darc.ID) string {

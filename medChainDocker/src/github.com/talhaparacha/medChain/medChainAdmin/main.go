@@ -25,13 +25,24 @@ var private_key string
 var client *http.Client
 
 func landing(w http.ResponseWriter, r *http.Request) {
+	clearInfo()
 	fmt.Println("landing")
 	tmpl := template.Must(template.ParseFiles("templates/static/landing.html"))
 	tmpl.Execute(w, nil)
 }
 
+func logOut(w http.ResponseWriter, r *http.Request) {
+	clearInfo()
+}
+
+func clearInfo() {
+	medchainURL, usertype, public_key, private_key = "", "", "", ""
+	signer = *new(darc.Signer)
+}
+
 func wrongLogin(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("wrongLogin")
+	clearInfo()
 	tmpl := template.Must(template.ParseFiles("templates/static/wrong_login.html"))
 	tmpl.Execute(w, nil)
 }
@@ -58,6 +69,8 @@ func initSigner(w http.ResponseWriter, r *http.Request) {
 		next_url = "/manager"
 	case "Administrator":
 		next_url = "/admin"
+	case "SuperAdministrator":
+		next_url = "/super_admin"
 	default:
 		next_url = "/"
 	}
@@ -78,11 +91,12 @@ func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, 
 	var reply medChainUtils.UserInfoReply
 	err = json.Unmarshal(body, &reply)
 	mainDarc := reply.MainDarc
-	subordinatesDarc := reply.SubordinatesDarc
-	if mainDarc == nil || subordinatesDarc == nil {
+	subordinatesDarcsList := reply.SubordinatesDarcsList
+	if mainDarc == nil || subordinatesDarcsList == nil || len(subordinatesDarcsList) == 0 {
 		wrongLogin(w, r)
 		return
 	}
+	subordinatesDarc := subordinatesDarcsList[0]
 	fmt.Println("mainDarc", mainDarc.GetIdentityString())
 	fmt.Println("subordinatesDarc", subordinatesDarc.GetIdentityString())
 	rules := subordinatesDarc.Rules
@@ -92,24 +106,39 @@ func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, 
 	signer_darcs := strings.Split(expr_string, " | ")
 	SubordinatesIds := []string{}
 	for _, signer_darc := range signer_darcs {
-		response, err := http.Get(medchainURL + "/info/" + subordinate_type + "?darc_identity=" + signer_darc)
-		medChainUtils.Check(err)
-		body, err := ioutil.ReadAll(response.Body)
-		medChainUtils.Check(err)
-		var reply medChainUtils.UserInfoReply
-		err = json.Unmarshal(body, &reply)
-		medChainUtils.Check(err)
-		subordinateDarc := reply.MainDarc
-		if subordinateDarc != nil {
-			fmt.Println(subordinate_type, subordinateDarc.GetIdentityString())
-			signing_expr := string(subordinateDarc.Rules.GetSignExpr())
-			fmt.Println(subordinate_type+" id :", signing_expr)
-			SubordinatesIds = append(SubordinatesIds, signing_expr)
+		if len(signer_darc) > 4 && signer_darc[:5] == "darc:" {
+			response, err := http.Get(medchainURL + "/info/darc?darc_identity=" + signer_darc)
+			medChainUtils.Check(err)
+			body, err := ioutil.ReadAll(response.Body)
+			medChainUtils.Check(err)
+			var reply medChainUtils.UserInfoReply
+			err = json.Unmarshal(body, &reply)
+			medChainUtils.Check(err)
+			subordinateDarc := reply.MainDarc
+			if subordinateDarc != nil {
+				fmt.Println(subordinate_type, subordinateDarc.GetIdentityString())
+				signing_expr := string(subordinateDarc.Rules.GetSignExpr())
+				fmt.Println(subordinate_type+" id :", signing_expr)
+				SubordinatesIds = append(SubordinatesIds, signing_expr)
+			}
 		}
 	}
 	tmpl := template.Must(template.ParseFiles("templates/static/" + user_type + "_landing.html"))
 	data := UserLandingData{UserId: signer.Identity().String(), SubordinatesIds: SubordinatesIds}
 	tmpl.Execute(w, data)
+}
+
+func postNewDarcsMetadata(new_darcs map[string]*darc.Darc, id, role string) {
+	// Get the projects list from IRCT
+	metaData := medChainUtils.NewDarcsMetadata{Darcs: new_darcs, Id: id}
+	jsonVal, err := json.Marshal(metaData)
+	if err != nil {
+		panic(err)
+	}
+	request, err := http.NewRequest("POST", medchainURL+"/metadata/add/"+role, bytes.NewBuffer(jsonVal))
+	request.Header.Set("Content-Type", "application/json")
+	_, err = client.Do(request)
+	medChainUtils.Check(err)
 }
 
 func main() {
@@ -123,10 +152,13 @@ func main() {
 		return nil
 	}
 
+	port := getFlags()
+
 	// Register addresses
 	http.Handle("/templates/static/", http.StripPrefix("/templates/static/", http.FileServer(http.Dir("templates/static"))))
 	http.HandleFunc("/", landing)
 	http.HandleFunc("/init", initSigner)
+	http.HandleFunc("/logout", logOut)
 	http.HandleFunc("/manager", managerLanding)
 	http.HandleFunc("/admin", adminLanding)
 	http.HandleFunc("/super_admin", superAdminLanding)
@@ -134,7 +166,7 @@ func main() {
 	http.HandleFunc("/add/manager", createManager)
 	http.HandleFunc("/add/admin", createAdmin)
 	// Start server
-	if err := http.ListenAndServe(":6161", nil); err != nil {
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		panic(err)
 	}
 }

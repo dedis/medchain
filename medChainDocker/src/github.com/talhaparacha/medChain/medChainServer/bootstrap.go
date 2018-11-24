@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/dedis/cothority/omniledger/contracts"
@@ -32,12 +34,11 @@ func findManager(userCoordinates conf.ManagerCoordinates) *darc.Signer {
 	return &manager_signer
 }
 
-func addDarcToMaps(NewDarc *darc.Darc, baseIdToDarcMap map[string]*darc.Darc, id string, mapId, mapDarcID, darcIdToBassIdMap map[string]string) {
+func addDarcToMaps(NewDarc *darc.Darc, id string, mapId map[string]string) {
 	IDHash := medChainUtils.IDToHexString(NewDarc.GetBaseID())
 	baseIdToDarcMap[IDHash] = NewDarc
 	darcIdToBaseIdMap[NewDarc.GetIdentityString()] = IDHash
 	mapId[id] = IDHash
-	mapDarcID[NewDarc.GetIdentityString()] = IDHash
 }
 
 func loadKeys(configuration *conf.Configuration) {
@@ -118,7 +119,8 @@ func createSuperAdminsDarcs() {
 		if err != nil {
 			panic(err)
 		}
-		addDarcToMaps(tempDarc, baseIdToDarcMap, super_admin_signer.Identity().String(), superAdminsDarcsMap, superAdminsDarcsMapWithDarcId, darcIdToBaseIdMap)
+		addDarcToMaps(tempDarc, super_admin_signer.Identity().String(), superAdminsDarcsMap)
+		fmt.Println("add super admin darc", super_admin_signer.Identity().String())
 	}
 }
 
@@ -129,9 +131,11 @@ func createAllSuperAdminsDarc() {
 	for _, super_admin_signer := range super_admins {
 		super_admin_IDString := super_admin_signer.Identity().String()
 		super_admin_darc, ok := getDarcFromId(super_admin_IDString, baseIdToDarcMap, superAdminsDarcsMap)
-		if ok {
-			darcIdList = append(darcIdList, super_admin_darc.GetIdentityString())
+		if !ok {
+			fmt.Println("failed super admin darc", super_admin_IDString)
+			panic(errors.New("Could not load super admin darc"))
 		}
+		darcIdList = append(darcIdList, super_admin_darc.GetIdentityString())
 	}
 	rules := darc.InitRulesWith(owners, []darc.Identity{}, "invoke:evolve")
 	rules.UpdateSign(expression.InitAndExpr(darcIdList...)) // OR or AND ?
@@ -148,18 +152,21 @@ func createAdminsDarcs() {
 	for _, super_admin_signer := range super_admins {
 		super_adminIDString := super_admin_signer.Identity().String()
 		super_admin_darc, ok := getDarcFromId(super_adminIDString, baseIdToDarcMap, superAdminsDarcsMap)
-		if ok {
-			for _, admin_signer := range admins[super_adminIDString] {
-				owners := []darc.Identity{darc.NewIdentityDarc(super_admin_darc.GetID())}
-				signers := []darc.Identity{admin_signer.Identity()}
-				rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
-				rules.AddRule("spawn:darc", rules.GetSignExpr())
-				tempDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Single Admin darc", super_admin_signer)
-				if err != nil {
-					panic(err)
-				}
-				addDarcToMaps(tempDarc, baseIdToDarcMap, admin_signer.Identity().String(), adminsDarcsMap, adminsDarcsMapWithDarcId, darcIdToBaseIdMap)
+		if !ok {
+			fmt.Println("failed super admin darc", super_adminIDString)
+			panic(errors.New("Could not load super admin darc"))
+		}
+		for _, admin_signer := range admins[super_adminIDString] {
+			owners := []darc.Identity{darc.NewIdentityDarc(super_admin_darc.GetID())}
+			signers := []darc.Identity{admin_signer.Identity()}
+			rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
+			rules.AddRule("spawn:darc", rules.GetSignExpr())
+			tempDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Single Admin darc", super_admin_signer)
+			if err != nil {
+				panic(err)
 			}
+			fmt.Println("add admin darc", admin_signer.Identity().String())
+			addDarcToMaps(tempDarc, admin_signer.Identity().String(), adminsDarcsMap)
 		}
 	}
 }
@@ -171,15 +178,19 @@ func createAdminsListDarcs() {
 	for _, super_admin_signer := range super_admins {
 		super_adminIDString := super_admin_signer.Identity().String()
 		super_admin_darc, ok := getDarcFromId(super_adminIDString, baseIdToDarcMap, superAdminsDarcsMap)
+		if !ok {
+			fmt.Println("failed super admin darc", super_adminIDString)
+			panic(errors.New("Could not load super admin darc"))
+		}
 		overall_owners := []darc.Identity{super_admin_signer.Identity()}
 		overall_signers := []string{}
-		if ok {
-			for _, admin_signer := range admins[super_adminIDString] {
-				admin_darc, ok := getDarcFromId(admin_signer.Identity().String(), baseIdToDarcMap, adminsDarcsMap)
-				if ok {
-					overall_signers = append(overall_signers, admin_darc.GetIdentityString())
-				}
+		for _, admin_signer := range admins[super_adminIDString] {
+			admin_darc, ok := getDarcFromId(admin_signer.Identity().String(), baseIdToDarcMap, adminsDarcsMap)
+			if !ok {
+				fmt.Println("failed admin darc", admin_signer.Identity().String())
+				panic(errors.New("Could not load admin darc"))
 			}
+			overall_signers = append(overall_signers, admin_darc.GetIdentityString())
 		}
 		rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
 		rules.UpdateSign(expression.InitOrExpr(overall_signers...))
@@ -187,7 +198,7 @@ func createAdminsListDarcs() {
 		if err != nil {
 			panic(err)
 		}
-		addDarcToMaps(adminsListDarc, baseIdToDarcMap, super_admin_signer.Identity().String(), adminsListDarcsMap, adminsListDarcsMapWithDarcId, darcIdToBaseIdMap)
+		addDarcToMaps(adminsListDarc, super_admin_signer.Identity().String(), adminsListDarcsMap)
 		adminsListDarcsIds = append(adminsListDarcsIds, adminsListDarc.GetIdentityString())
 		super_admin_signers = append(super_admin_signers, super_admin_signer)
 	}
@@ -216,19 +227,22 @@ func createManagersDarcs() {
 		super_adminIDString := super_admin_signer.Identity().String()
 		for _, admin_signer := range admins[super_adminIDString] {
 			admin_darc, ok := getDarcFromId(admin_signer.Identity().String(), baseIdToDarcMap, adminsDarcsMap)
-			if ok {
-				for _, manager_signer := range managers[admin_signer.Identity().String()] {
-					owners := []darc.Identity{admin_signer.Identity()}
-					signers := []darc.Identity{manager_signer.Identity()}
-					rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
-					rules.AddRule("spawn:darc", rules.GetSignExpr())
-					tempDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules,
-						"Single Manager darc", admin_signer)
-					if err != nil {
-						panic(err)
-					}
-					addDarcToMaps(tempDarc, baseIdToDarcMap, manager_signer.Identity().String(), managersDarcsMap, managersDarcsMapWithDarcId, darcIdToBaseIdMap)
+			if !ok {
+				fmt.Println("failed admin darc", admin_signer.Identity().String())
+				panic(errors.New("Could not load admin darc"))
+			}
+			for _, manager_signer := range managers[admin_signer.Identity().String()] {
+				owners := []darc.Identity{admin_signer.Identity()}
+				signers := []darc.Identity{manager_signer.Identity()}
+				rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
+				rules.AddRule("spawn:darc", rules.GetSignExpr())
+				tempDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules,
+					"Single Manager darc", admin_signer)
+				if err != nil {
+					panic(err)
 				}
+				addDarcToMaps(tempDarc, manager_signer.Identity().String(), managersDarcsMap)
+				fmt.Println("add manager darc", manager_signer.Identity().String())
 			}
 		}
 	}
@@ -236,52 +250,78 @@ func createManagersDarcs() {
 
 func createManagersListDarcs() {
 	// Create a DARC for admins of each hospital
-	managersListDarcsIds := []string{}
-	admin_signers := []darc.Signer{}
+	listsOfLevel1Ids := []string{}
+	super_admin_signers := []darc.Signer{}
 	for _, super_admin_signer := range super_admins {
 		super_adminIDString := super_admin_signer.Identity().String()
+		listsOfLevel0Ids := []string{}
 		for _, admin_signer := range admins[super_adminIDString] {
-			adminIDString := admin_signer.Identity().String()
-			admin_darc, ok := getDarcFromId(adminIDString, baseIdToDarcMap, adminsDarcsMap)
-			overall_owners := []darc.Identity{admin_signer.Identity()}
-			overall_signers := []string{}
-			if ok {
-				for _, manager_signer := range managers[adminIDString] {
-					manager_darc, ok := getDarcFromId(manager_signer.Identity().String(), baseIdToDarcMap, managersDarcsMap)
-					if ok {
-						overall_signers = append(overall_signers, manager_darc.GetIdentityString())
-					}
-				}
-			}
-			if len(overall_signers) > 0 {
-				rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
-				rules.UpdateSign(expression.InitOrExpr(overall_signers...))
-				managersListDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules, "Managers List, Admin :"+adminIDString, admin_signer)
-				if err != nil {
-					panic(err)
-				}
-				addDarcToMaps(managersListDarc, baseIdToDarcMap, admin_signer.Identity().String(), managersListDarcsMap, managersListDarcsMapWithDarcId, darcIdToBaseIdMap)
-				managersListDarcsIds = append(managersListDarcsIds, managersListDarc.GetIdentityString())
-				admin_signers = append(admin_signers, admin_signer)
-			}
+			listLevel0 := createManagersListLevel0(admin_signer)
+			listsOfLevel0Ids = append(listsOfLevel0Ids, listLevel0.GetIdentityString())
 		}
+		listLevel1 := createManagersListLevel1(super_admin_signer, listsOfLevel0Ids)
+		listsOfLevel1Ids = append(listsOfLevel1Ids, listLevel1.GetIdentityString())
+		super_admin_signers = append(super_admin_signers, super_admin_signer)
 	}
-	if len(managersListDarcsIds) > 0 {
-		createAllManagersDarc(managersListDarcsIds, admin_signers)
-	}
+	createAllManagersDarc(listsOfLevel1Ids, super_admin_signers)
 }
 
-func createAllManagersDarc(managersListDarcsIds []string, admin_signers []darc.Signer) {
+func createManagersListLevel0(admin_signer darc.Signer) *darc.Darc {
+	adminIDString := admin_signer.Identity().String()
+	admin_darc, ok := getDarcFromId(adminIDString, baseIdToDarcMap, adminsDarcsMap)
+	if !ok {
+		fmt.Println("failed admin darc", adminIDString)
+		panic(errors.New("Could not load admin darc"))
+	}
+	overall_owners := []darc.Identity{admin_signer.Identity()}
+	overall_signers := []string{}
+	for _, manager_signer := range managers[adminIDString] {
+		manager_darc, ok := getDarcFromId(manager_signer.Identity().String(), baseIdToDarcMap, managersDarcsMap)
+		if !ok {
+			fmt.Println("failed manager darc", manager_signer.Identity().String())
+			panic(errors.New("Could not load manager darc"))
+		}
+		overall_signers = append(overall_signers, manager_darc.GetIdentityString())
+	}
+	rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+	rules.UpdateSign(expression.InitOrExpr(overall_signers...))
+	managersListDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules, "Managers List Level 0, Admin :"+adminIDString, admin_signer)
+	if err != nil {
+		panic(err)
+	}
+	addDarcToMaps(managersListDarc, admin_signer.Identity().String(), managersListLevel0DarcsMap)
+	return managersListDarc
+}
+
+func createManagersListLevel1(super_admin_signer darc.Signer, listsOfLevel0Ids []string) *darc.Darc {
+	superAdminIDString := super_admin_signer.Identity().String()
+	super_admin_darc, ok := getDarcFromId(superAdminIDString, baseIdToDarcMap, superAdminsDarcsMap)
+	if !ok {
+		fmt.Println("failed super admin darc", superAdminIDString)
+		panic(errors.New("Could not load super admin darc"))
+	}
+	overall_owners := []darc.Identity{super_admin_signer.Identity()}
+	rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+	rules.UpdateSign(expression.InitOrExpr(listsOfLevel0Ids...)) // OR or AND ?
+	managersListDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Managers List Level1 , Super Admin :"+superAdminIDString, super_admin_signer)
+	if err != nil {
+		panic(err)
+	}
+	addDarcToMaps(managersListDarc, super_admin_signer.Identity().String(), managersListLevel1DarcsMap)
+	return managersListDarc
+}
+
+func createAllManagersDarc(managersListDarcsIds []string, super_admin_signers []darc.Signer) {
 	// Create a collective users DARC
-	allManagersDarcOwner := []darc.Identity{darc.NewIdentityDarc(allAdminsDarc.GetID())}
+	allManagersDarcOwner := []darc.Identity{darc.NewIdentityDarc(allSuperAdminsDarc.GetID())}
 	rules := darc.InitRulesWith(allManagersDarcOwner, []darc.Identity{}, "invoke:evolve")
 	rules.UpdateSign(expression.InitAndExpr(managersListDarcsIds...)) // OR or AND ?
 	rules.AddRule("spawn:darc", rules.GetSignExpr())
 	rules.AddRule("spawn:value", rules.GetSignExpr())
 	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(managersListDarcsIds...))
 	rules.AddRule("invoke:update", rules["spawn:UserProjectsMap"])
-	allManagersDarc, err = createDarc(cl, allAdminsDarc, genesisMsg.BlockInterval, rules,
-		"AllManagers darc", admin_signers...)
+	allManagersDarc, err = createDarc(cl, allSuperAdminsDarc, genesisMsg.BlockInterval, rules,
+		"AllManagers darc", super_admin_signers...)
 	if err != nil {
 		panic(err)
 	}
@@ -298,18 +338,21 @@ func createUsersDarcs() {
 			for _, manager_signer := range managers[adminIDString] {
 				managerIDString := manager_signer.Identity().String()
 				manager_darc, ok := getDarcFromId(managerIDString, baseIdToDarcMap, managersDarcsMap)
-				if ok {
-					for _, user_identity := range users[managerIDString] {
-						owners := []darc.Identity{darc.NewIdentityDarc(manager_darc.GetID())}
-						signers := []darc.Identity{user_identity}
-						rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
-						tempDarc, err := createDarc(cl, manager_darc, genesisMsg.BlockInterval, rules,
-							"Single User darc", manager_signer)
-						if err != nil {
-							panic(err)
-						}
-						addDarcToMaps(tempDarc, baseIdToDarcMap, user_identity.String(), usersDarcsMap, usersDarcsMapWithDarcId, darcIdToBaseIdMap)
+				if !ok {
+					fmt.Println("failed manager darc", managerIDString)
+					panic(errors.New("Could not load manager darc"))
+				}
+				for _, user_identity := range users[managerIDString] {
+					owners := []darc.Identity{darc.NewIdentityDarc(manager_darc.GetID())}
+					signers := []darc.Identity{user_identity}
+					rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
+					tempDarc, err := createDarc(cl, manager_darc, genesisMsg.BlockInterval, rules,
+						"Single User darc", manager_signer)
+					if err != nil {
+						panic(err)
 					}
+					addDarcToMaps(tempDarc, user_identity.String(), usersDarcsMap)
+					fmt.Println("add user darc", user_identity.String())
 				}
 			}
 		}
@@ -318,52 +361,140 @@ func createUsersDarcs() {
 
 func createUsersListDarcs() {
 	// Create a DARC for admins of each hospital
-	usersListDarcsIds := []string{}
-	manager_signers := []darc.Signer{}
+	listsOfLevel2Ids := []string{}
+	super_admin_signers := []darc.Signer{}
 	for _, super_admin_signer := range super_admins {
 		super_adminIDString := super_admin_signer.Identity().String()
+		listsOfLevel1Ids := []string{}
 		for _, admin_signer := range admins[super_adminIDString] {
 			adminIDString := admin_signer.Identity().String()
+			listsOfLevel0Ids := []string{}
 			for _, manager_signer := range managers[adminIDString] {
-				managerIDString := manager_signer.Identity().String()
-				manager_darc, ok := getDarcFromId(managerIDString, baseIdToDarcMap, managersDarcsMap)
-				overall_owners := []darc.Identity{manager_signer.Identity()}
-				overall_signers := []string{}
-				if ok {
-					for _, user_identity := range users[managerIDString] {
-						user_darc, ok := getDarcFromId(user_identity.String(), baseIdToDarcMap, usersDarcsMap)
-						if ok {
-							overall_signers = append(overall_signers, user_darc.GetIdentityString())
-						}
-					}
-				}
-				if len(overall_signers) > 0 {
-					rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
-					rules.UpdateSign(expression.InitOrExpr(overall_signers...))
-					usersListDarc, err := createDarc(cl, manager_darc, genesisMsg.BlockInterval, rules, "Users List, Manager :"+managerIDString, manager_signer)
-					if err != nil {
-						panic(err)
-					}
-					addDarcToMaps(usersListDarc, baseIdToDarcMap, manager_signer.Identity().String(), usersListDarcsMap, usersListDarcsMapWithDarcId, darcIdToBaseIdMap)
-					usersListDarcsIds = append(usersListDarcsIds, usersListDarc.GetIdentityString())
-					manager_signers = append(manager_signers, manager_signer)
-				}
+				listLevel0 := createUsersListLevel0(manager_signer)
+				listsOfLevel0Ids = append(listsOfLevel0Ids, listLevel0.GetIdentityString())
 			}
+			listLevel1 := createUsersListLevel1(admin_signer, listsOfLevel0Ids)
+			listsOfLevel1Ids = append(listsOfLevel1Ids, listLevel1.GetIdentityString())
 		}
+		listLevel2 := createUsersListLevel2(super_admin_signer, listsOfLevel1Ids)
+		listsOfLevel2Ids = append(listsOfLevel2Ids, listLevel2.GetIdentityString())
+		super_admin_signers = append(super_admin_signers, super_admin_signer)
 	}
-	if len(usersListDarcsIds) > 0 {
-		createAllUsersDarc(usersListDarcsIds, manager_signers)
-	}
+	createAllUsersDarc(listsOfLevel2Ids, super_admin_signers)
 }
 
-func createAllUsersDarc(usersListDarcsIds []string, manager_signers []darc.Signer) {
+func createUsersListLevel0(manager_signer darc.Signer) *darc.Darc {
+	managerIDString := manager_signer.Identity().String()
+	manager_darc, ok := getDarcFromId(managerIDString, baseIdToDarcMap, managersDarcsMap)
+	if !ok {
+		fmt.Println("failed manager darc", managerIDString)
+		panic(errors.New("Could not load manager darc"))
+	}
+	overall_owners := []darc.Identity{manager_signer.Identity()}
+	overall_signers := []string{}
+	for _, user_identity := range users[managerIDString] {
+		user_darc, ok := getDarcFromId(user_identity.String(), baseIdToDarcMap, usersDarcsMap)
+		if !ok {
+			fmt.Println("failed user darc", user_identity.String())
+			panic(errors.New("Could not load user darc"))
+		}
+		overall_signers = append(overall_signers, user_darc.GetIdentityString())
+	}
+	rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+	rules.UpdateSign(expression.InitOrExpr(overall_signers...))
+	usersListDarc, err := createDarc(cl, manager_darc, genesisMsg.BlockInterval, rules, "Users List Level 0, Manager :"+managerIDString, manager_signer)
+	if err != nil {
+		panic(err)
+	}
+	addDarcToMaps(usersListDarc, manager_signer.Identity().String(), usersListLevel0DarcsMap)
+	return usersListDarc
+}
+
+func createUsersListLevel1(admin_signer darc.Signer, listsOfLevel0Ids []string) *darc.Darc {
+	adminIDString := admin_signer.Identity().String()
+	admin_darc, ok := getDarcFromId(adminIDString, baseIdToDarcMap, adminsDarcsMap)
+	if !ok {
+		fmt.Println("failed admin darc", adminIDString)
+		panic(errors.New("Could not load admin darc"))
+	}
+	overall_owners := []darc.Identity{admin_signer.Identity()}
+	rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+	rules.UpdateSign(expression.InitOrExpr(listsOfLevel0Ids...)) // OR or AND ?
+	usersListDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules, "Users List Level1 , Admin :"+adminIDString, admin_signer)
+	if err != nil {
+		panic(err)
+	}
+	addDarcToMaps(usersListDarc, admin_signer.Identity().String(), usersListLevel1DarcsMap)
+	return usersListDarc
+}
+
+func createUsersListLevel2(super_admin_signer darc.Signer, listsOfLevel0Ids []string) *darc.Darc {
+	superAdminIDString := super_admin_signer.Identity().String()
+	super_admin_darc, ok := getDarcFromId(superAdminIDString, baseIdToDarcMap, superAdminsDarcsMap)
+	if !ok {
+		fmt.Println("failed super admin darc", superAdminIDString)
+		panic(errors.New("Could not load super admin darc"))
+	}
+	overall_owners := []darc.Identity{super_admin_signer.Identity()}
+	rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+	rules.UpdateSign(expression.InitOrExpr(listsOfLevel0Ids...)) // OR or AND ?
+	usersListDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Users List Level2 , Super Admin :"+superAdminIDString, super_admin_signer)
+	if err != nil {
+		panic(err)
+	}
+	addDarcToMaps(usersListDarc, super_admin_signer.Identity().String(), usersListLevel2DarcsMap)
+	return usersListDarc
+}
+
+// func createUsersListDarcs() {
+// 	// Create a DARC for admins of each hospital
+// 	usersListDarcsIds := []string{}
+// 	manager_signers := []darc.Signer{}
+// 	for _, super_admin_signer := range super_admins {
+// 		super_adminIDString := super_admin_signer.Identity().String()
+// 		for _, admin_signer := range admins[super_adminIDString] {
+// 			adminIDString := admin_signer.Identity().String()
+// 			for _, manager_signer := range managers[adminIDString] {
+// 				managerIDString := manager_signer.Identity().String()
+// 				manager_darc, ok := getDarcFromId(managerIDString, baseIdToDarcMap, managersDarcsMap)
+// 				overall_owners := []darc.Identity{manager_signer.Identity()}
+// 				overall_signers := []string{}
+// 				if ok {
+// 					for _, user_identity := range users[managerIDString] {
+// 						user_darc, ok := getDarcFromId(user_identity.String(), baseIdToDarcMap, usersDarcsMap)
+// 						if ok {
+// 							overall_signers = append(overall_signers, user_darc.GetIdentityString())
+// 						}
+// 					}
+// 				}
+// 				if len(overall_signers) > 0 {
+// 					rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
+// 					rules.UpdateSign(expression.InitOrExpr(overall_signers...))
+// 					usersListDarc, err := createDarc(cl, manager_darc, genesisMsg.BlockInterval, rules, "Users List, Manager :"+managerIDString, manager_signer)
+// 					if err != nil {
+// 						panic(err)
+// 					}
+// 					addDarcToMaps(usersListDarc, baseIdToDarcMap, manager_signer.Identity().String(), usersListDarcsMap, usersListDarcsMapWithDarcId, darcIdToBaseIdMap)
+// 					usersListDarcsIds = append(usersListDarcsIds, usersListDarc.GetIdentityString())
+// 					manager_signers = append(manager_signers, manager_signer)
+// 				}
+// 			}
+// 		}
+// 	}
+// 	if len(usersListDarcsIds) > 0 {
+// 		createAllUsersDarc(usersListDarcsIds, manager_signers)
+// 	}
+// }
+//
+
+func createAllUsersDarc(usersListDarcsIds []string, super_admin_signers []darc.Signer) {
 	// Create a collective users DARC
-	collectiveUserDarcOwner := []darc.Identity{darc.NewIdentityDarc(allManagersDarc.GetID())}
+	collectiveUserDarcOwner := []darc.Identity{darc.NewIdentityDarc(allSuperAdminsDarc.GetID())}
 	rules := darc.InitRulesWith(collectiveUserDarcOwner, []darc.Identity{}, "invoke:evolve")
 	rules.UpdateSign(expression.InitOrExpr(usersListDarcsIds...)) // OR or AND ?
 	rules.AddRule("spawn:ProjectList", rules.GetSignExpr())
-	allUsersDarc, err = createDarc(cl, allManagersDarc, genesisMsg.BlockInterval, rules,
-		"AllUsers darc", manager_signers...)
+	allUsersDarc, err = createDarc(cl, allSuperAdminsDarc, genesisMsg.BlockInterval, rules,
+		"AllUsers darc", super_admin_signers...)
 	if err != nil {
 		panic(err)
 	}
@@ -433,7 +564,7 @@ func createProjectDarcs(configuration *conf.Configuration) {
 			panic(err)
 		}
 
-		addDarcToMaps(projectDarc, baseIdToDarcMap, project.Name, projectsDarcsMap, projectsDarcsMapWithDarcId, darcIdToBaseIdMap)
+		addDarcToMaps(projectDarc, project.Name, projectsDarcsMap)
 
 		// Register the sample project DARC with the value contract
 		myvalue := []byte(projectDarc.GetIdentityString())

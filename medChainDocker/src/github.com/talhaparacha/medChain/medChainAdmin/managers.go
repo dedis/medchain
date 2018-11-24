@@ -41,14 +41,16 @@ func createNewUserDarc(user_identity darc.Identity) {
 	var reply medChainUtils.UserInfoReply
 	err = json.Unmarshal(body, &reply)
 	managerDarc := reply.MainDarc
-	userListDarc := reply.SubordinatesDarc
+	userListDarc := reply.SubordinatesDarcsList[0]
 	owners := []darc.Identity{darc.NewIdentityDarc(managerDarc.GetID())}
 	signers := []darc.Identity{user_identity}
-	rules := darc.InitRules(owners, signers)
+	rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
 	tempDarc := createDarcAndSubmit(managerDarc, rules, "Single User darc", signer)
 	fmt.Println(tempDarc.GetIdentityString())
 	newDarc := addSignerToDarcAndEvolve(managerDarc, userListDarc, tempDarc.GetIdentityString(), signer)
 	fmt.Println(newDarc.GetIdentityString())
+	darcsMap := map[string]*darc.Darc{"user_darc": tempDarc}
+	postNewDarcsMetadata(darcsMap, user_identity.String(), "user")
 }
 
 func updateDarcAndSubmit(baseDarc, oldDarc, newDarc *darc.Darc, signers ...darc.Signer) {
