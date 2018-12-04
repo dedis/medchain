@@ -2,3 +2,4 @@
 medChainDocker/src/github.com/talhaparacha/medChain/medChainAdmin/medChainAdmin
 medChainDocker/src/github.com/talhaparacha/medChain/medChainServer/keys/
 medChainDocker/src/github.com/talhaparacha/medChain/medChainServer/medChainServer
+medChainDocker/src/github.com/talhaparacha/medChain/signingService/signingService
