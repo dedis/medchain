@@ -10,6 +10,7 @@ import (
 	"github.com/dedis/cothority"
 	"github.com/dedis/cothority/omniledger/contracts"
 	"github.com/dedis/cothority/omniledger/darc"
+	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/kyber/util/key"
 	"github.com/dedis/onet/network"
@@ -216,4 +217,21 @@ type NewDarcsMetadata struct {
 
 func IDToHexString(id darc.ID) string {
 	return hex.EncodeToString([]byte(id))
+}
+
+func InitAtLeastTwoExpr(ids []string) expression.Expr {
+	if len(ids) <= 2 {
+		return expression.InitAndExpr(ids...)
+	} else {
+		result := expression.InitAndExpr(ids[0], ids[1])
+		for i := 0; i < len(ids); i++ {
+			for j := i + 1; j < len(ids); j++ {
+				if i != 0 && j != 1 {
+					new_pair := expression.InitAndExpr(ids[i], ids[j])
+					result = expression.InitOrExpr(string(result), string(new_pair))
+				}
+			}
+		}
+		return result
+	}
 }

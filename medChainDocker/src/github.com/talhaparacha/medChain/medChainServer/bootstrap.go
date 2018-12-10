@@ -160,7 +160,7 @@ func createAdminsDarcs() {
 			owners := []darc.Identity{darc.NewIdentityDarc(super_admin_darc.GetID())}
 			signers := []darc.Identity{admin_signer.Identity()}
 			rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
-			rules.AddRule("spawn:darc", rules.GetSignExpr())
+			//rules.AddRule("spawn:darc", rules.GetSignExpr())
 			tempDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Single Admin darc", super_admin_signer)
 			if err != nil {
 				panic(err)
@@ -193,7 +193,8 @@ func createAdminsListDarcs() {
 			overall_signers = append(overall_signers, admin_darc.GetIdentityString())
 		}
 		rules := darc.InitRulesWith(overall_owners, []darc.Identity{}, "invoke:evolve")
-		rules.UpdateSign(expression.InitOrExpr(overall_signers...))
+		rules.UpdateSign(medChainUtils.InitAtLeastTwoExpr(overall_signers...))
+		rules.AddRule("spawn:darc", rules.GetSignExpr())
 		adminsListDarc, err := createDarc(cl, super_admin_darc, genesisMsg.BlockInterval, rules, "Admins List, Super Admin :"+super_adminIDString, super_admin_signer)
 		if err != nil {
 			panic(err)
@@ -210,7 +211,7 @@ func createAllAdminsDarc(adminsListDarcsIds []string, super_admin_signers []darc
 	allAdminsDarcOwner := []darc.Identity{darc.NewIdentityDarc(allSuperAdminsDarc.GetID())}
 	rules := darc.InitRulesWith(allAdminsDarcOwner, []darc.Identity{}, "invoke:evolve")
 	rules.UpdateSign(expression.InitAndExpr(adminsListDarcsIds...)) // OR or AND ?
-	rules.AddRule("spawn:darc", rules.GetSignExpr())
+	//rules.AddRule("spawn:darc", rules.GetSignExpr())
 	allAdminsDarc, err = createDarc(cl, allSuperAdminsDarc, genesisMsg.BlockInterval, rules,
 		"AllAdmins darc", super_admin_signers...)
 	if err != nil {
@@ -235,7 +236,7 @@ func createManagersDarcs() {
 				owners := []darc.Identity{admin_signer.Identity()}
 				signers := []darc.Identity{manager_signer.Identity()}
 				rules := darc.InitRulesWith(owners, signers, "invoke:evolve")
-				rules.AddRule("spawn:darc", rules.GetSignExpr())
+				//rules.AddRule("spawn:darc", rules.GetSignExpr())
 				tempDarc, err := createDarc(cl, admin_darc, genesisMsg.BlockInterval, rules,
 					"Single Manager darc", admin_signer)
 				if err != nil {

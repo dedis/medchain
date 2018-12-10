@@ -8,7 +8,7 @@
   <h2><label>Your Id: </label>{{.UserId}}</h2>
   <h2>Administrators: </h2>
   <ul>
-    {{range .SubordinatesIds}}
+    {{range .SubordinatesIdsList[0]}}
     <li>{{.}}</li>
     {{end}}
   </ul>
@@ -17,6 +17,18 @@
     Public Key: <input type="file" name="publickey"/><br/>
     <input type="submit" value="Add"/>
   </form>
+  <h2>Managers: </h2>
+  <ul>
+    {{range .SubordinatesIdsList[1]}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  <h2>Users: </h2>
+  <ul>
+    {{range .SubordinatesIdsList[2]}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
   <form action="/logout">
     <input type="submit" value="Log Out" />
   </form>

@@ -78,8 +78,8 @@ func initSigner(w http.ResponseWriter, r *http.Request) {
 }
 
 type UserLandingData struct {
-	UserId          string
-	SubordinatesIds []string
+	UserId              string
+	SubordinatesIdsList [][]string
 }
 
 func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, subordinate_type string) {
@@ -96,17 +96,28 @@ func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, 
 		wrongLogin(w, r)
 		return
 	}
-	subordinatesDarc := subordinatesDarcsList[0]
 	fmt.Println("mainDarc", mainDarc.GetIdentityString())
-	fmt.Println("subordinatesDarc", subordinatesDarc.GetIdentityString())
-	rules := subordinatesDarc.Rules
+	SubordinatesIdsList := [][]string{}
+	for _, subordinatesDarc := range subordinatesDarcsList {
+		fmt.Println("subordinatesDarc", subordinatesDarc.GetIdentityString())
+		SubordinatesIds := ExtractSignerIdsFromListDarc(subordinatesDarc)
+		SubordinatesIdsList = append(SubordinatesIdsList, SubordinatesIds)
+	}
+	tmpl := template.Must(template.ParseFiles("templates/static/" + user_type + "_landing.html"))
+	data := UserLandingData{UserId: signer.Identity().String(), SubordinatesIdsList: SubordinatesIdsList}
+	tmpl.Execute(w, data)
+}
+
+func ExtractSignerIdsFromListDarc(listDarc *darc.Darc) []string {
+	rules := listDarc.Rules
 	expr := rules.GetSignExpr()
 	fmt.Println("signing expr", string(expr))
 	expr_string := string(expr)
-	signer_darcs := strings.Split(expr_string, " | ")
+	signer_darcs := splitAndOr(expr_string)
 	SubordinatesIds := []string{}
 	for _, signer_darc := range signer_darcs {
-		if len(signer_darc) > 4 && signer_darc[:5] == "darc:" {
+		switch {
+		case strings.HasPrefix(signer_darc, "darc:"):
 			response, err := http.Get(medchainURL + "/info/darc?darc_identity=" + signer_darc)
 			medChainUtils.Check(err)
 			body, err := ioutil.ReadAll(response.Body)
@@ -116,16 +127,26 @@ func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, 
 			medChainUtils.Check(err)
 			subordinateDarc := reply.MainDarc
 			if subordinateDarc != nil {
-				fmt.Println(subordinate_type, subordinateDarc.GetIdentityString())
-				signing_expr := string(subordinateDarc.Rules.GetSignExpr())
-				fmt.Println(subordinate_type+" id :", signing_expr)
-				SubordinatesIds = append(SubordinatesIds, signing_expr)
+				extracted_ids := ExtractSignerIdsFromListDarc(subordinateDarc)
+				SubordinatesIds = append(SubordinatesIds, extracted_ids...)
 			}
+		case strings.HasPrefix(signer_darc, "ed25519:"):
+			SubordinatesIds = append(SubordinatesIds, signer_darc)
+		default:
+
 		}
 	}
-	tmpl := template.Must(template.ParseFiles("templates/static/" + user_type + "_landing.html"))
-	data := UserLandingData{UserId: signer.Identity().String(), SubordinatesIds: SubordinatesIds}
-	tmpl.Execute(w, data)
+	return SubordinatesIds
+}
+
+func splitAndOr(expr string) []string {
+	result := []string{}
+	or_splitted := strings.Split(expr, " | ")
+	for _, substring := range or_splitted {
+		and_splitted := strings.Split(substring, " & ")
+		result = append(result, and_splitted...)
+	}
+	return result
 }
 
 func postNewDarcsMetadata(new_darcs map[string]*darc.Darc, id, role string) {

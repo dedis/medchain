@@ -8,13 +8,24 @@
   <h2><label>Your Id: </label>{{.UserId}}</h2>
   <h2>Managers: </h2>
   <ul>
-    {{range .SubordinatesIds}}
+    {{range .SubordinatesIdsList[0]}}
     <li>{{.}}</li>
     {{end}}
   </ul>
   <h2>Add new manager: </h2>
   <form method="POST" enctype="multipart/form-data" action="/add/manager">
     Public Key: <input type="file" name="publickey"/><br/>
+    <input type="submit" value="Add"/>
+  </form>
+  <h2>Users: </h2>
+  <ul>
+    {{range .SubordinatesIdsList[1]}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  <h2>Add new user: </h2>
+  <form method="POST" enctype="multipart/form-data" action="/add/user">
+    Public Key: <input type="file" name="publickey"/>
     <input type="submit" value="Add"/>
   </form>
   <form action="/logout">
