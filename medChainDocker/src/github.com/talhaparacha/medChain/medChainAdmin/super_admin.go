@@ -33,7 +33,7 @@ func createAdmin(w http.ResponseWriter, r *http.Request) {
 	io.Copy(&Buf1, file)
 	admin_identity := medChainUtils.LoadIdentityEd25519FromBytes(Buf1.Bytes())
 	fmt.Println("new admin:", admin_identity.String())
-	createNewManagerDarc(admin_identity)
+	createNewAdminDarc(admin_identity)
 	http.Redirect(w, r, "/super_admin", http.StatusSeeOther)
 }
 

@@ -8,7 +8,7 @@
   <h2><label>Your Id: </label>{{.UserId}}</h2>
   <h2>Users: </h2>
   <ul>
-    {{range .SubordinatesIdsList[0]}}
+    {{range index .SubordinatesIdsList 0}}
     <li>{{.}}</li>
     {{end}}
   </ul>
