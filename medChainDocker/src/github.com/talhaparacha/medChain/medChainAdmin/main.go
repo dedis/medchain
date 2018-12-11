@@ -18,6 +18,7 @@ import (
 var medchainURL string
 var usertype string
 var signer darc.Signer
+var signer_identity string
 var public_key string
 var private_key string
 
@@ -38,6 +39,7 @@ func logOut(w http.ResponseWriter, r *http.Request) {
 func clearInfo() {
 	medchainURL, usertype, public_key, private_key = "", "", "", ""
 	signer = *new(darc.Signer)
+	signer_identity = ""
 }
 
 func wrongLogin(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +63,7 @@ func initSigner(w http.ResponseWriter, r *http.Request) {
 	medChainUtils.Check(err)
 	io.Copy(&Buf2, file)
 	signer = medChainUtils.LoadSignerEd25519FromBytes(Buf1.Bytes(), Buf2.Bytes())
+	signer_identity = signer.Identity().String()
 	var next_url string
 	// fmt.Println(usertype)
 	// fmt.Println(medchainURL)
@@ -84,7 +87,7 @@ type UserLandingData struct {
 
 func getUserInfoAndDisplayIt(w http.ResponseWriter, r *http.Request, user_type, subordinate_type string) {
 	fmt.Println(user_type + " landing")
-	response, err := http.Get(medchainURL + "/info/" + user_type + "?identity=" + signer.Identity().String())
+	response, err := http.Get(medchainURL + "/info/" + user_type + "?identity=" + signer_identity)
 	medChainUtils.Check(err)
 	body, err := ioutil.ReadAll(response.Body)
 	medChainUtils.Check(err)

@@ -34,7 +34,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 
 func createNewUserDarc(user_identity darc.Identity) {
 	// Get information from MedChain
-	response, err := http.Get(medchainURL + "/info/manager?identity=" + signer.Identity().String())
+	response, err := http.Get(medchainURL + "/info/manager?identity=" + signer_identity)
 	medChainUtils.Check(err)
 	body, err := ioutil.ReadAll(response.Body)
 	medChainUtils.Check(err)
