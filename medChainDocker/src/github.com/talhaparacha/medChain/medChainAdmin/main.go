@@ -26,7 +26,7 @@ var private_key string
 var client *http.Client
 
 func landing(w http.ResponseWriter, r *http.Request) {
-	clearInfo()
+	//clearInfo()
 	fmt.Println("landing")
 	tmpl := template.Must(template.ParseFiles("templates/static/landing.html"))
 	tmpl.Execute(w, nil)
@@ -34,6 +34,7 @@ func landing(w http.ResponseWriter, r *http.Request) {
 
 func logOut(w http.ResponseWriter, r *http.Request) {
 	clearInfo()
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func clearInfo() {
