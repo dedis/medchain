@@ -7,54 +7,42 @@ import (
 	"os"
 )
 
-type User struct {
+type Signer struct {
 	PublicKey  string `json:"PublicKey"`
 	PrivateKey string `json:"PrivateKey"`
+	Name       string `json:"Name"`
 }
 
-type Manager struct {
-	PublicKey  string `json:"PublicKey"`
-	PrivateKey string `json:"PrivateKey"`
-	Users      []User `json:"Users,omitempty"`
-}
-
-type Admin struct {
-	PublicKey  string    `json:"PublicKey"`
-	PrivateKey string    `json:"PrivateKey"`
-	Managers   []Manager `json:"Managers,omitempty"`
+type Identity struct {
+	PublicKey string `json:"PublicKey"`
+	Name      string `json:"Name"`
 }
 
 type Hospital struct {
-	Name       string  `json:"Name"`
-	PublicKey  string  `json:"PublicKey"`
-	PrivateKey string  `json:"PrivateKey"`
-	Admins     []Admin `json:"Admins,omitempty"`
+	Name       string     `json:"Name"`
+	PublicKey  string     `json:"PublicKey"`
+	PrivateKey string     `json:"PrivateKey"`
+	Admins     []Signer   `json:"Admins,omitempty"`
+	Managers   []Identity `json:"Managers,omitempty"`
+	Users      []Identity `json:"Users,omitempty"`
 }
 
-type ManagerCoordinates struct {
+type Coordinates struct {
 	I int `json:"i"`
 	J int `json:"j"`
-	K int `json:"k"`
-}
-
-type UserCoordinates struct {
-	I int `json:"i"`
-	J int `json:"j"`
-	K int `json:"k"`
-	L int `json:"l"`
 }
 
 type Rule struct {
-	Action   string            `json:"Action"`
-	ExprType string            `json:"ExprType"`
-	Users    []UserCoordinates `json:"Users,omitempty"`
+	Action   string        `json:"Action"`
+	ExprType string        `json:"ExprType"`
+	Users    []Coordinates `json:"Users,omitempty"`
 }
 
 type Project struct {
-	Name          string               `json:"Name"`
-	ManagerOwners []ManagerCoordinates `json:"ManagerOwners"`
-	SigningUsers  []UserCoordinates    `json:"SigningUsers"`
-	Rules         []Rule               `json:"Rules"`
+	Name          string        `json:"Name"`
+	ManagerOwners []Coordinates `json:"ManagerOwners"`
+	SigningUsers  []Coordinates `json:"SigningUsers"`
+	Rules         []Rule        `json:"Rules"`
 }
 
 type Configuration struct {

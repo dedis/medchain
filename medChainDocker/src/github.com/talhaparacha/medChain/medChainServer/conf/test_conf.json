@@ -8,30 +8,26 @@
       "Admins":[
         {
           "PublicKey":"admins/0_public",
-          "PrivateKey":"admins/0_private",
-          "Managers":[
-            {
-              "PublicKey":"managers/0_public",
-              "PrivateKey":"managers/0_private",
-              "Users":[
-                {"PublicKey":"users/0_public", "PrivateKey":"users/0_private"}
-              ]
-            }
-          ]
+          "Name":"Alice"
         },
         {
           "PublicKey":"admins/1_public",
-          "PrivateKey":"admins/1_private",
-          "Managers":[
-            {
-              "PublicKey":"managers/1_public",
-              "PrivateKey":"managers/1_private",
-              "Users":[
-                {"PublicKey":"users/1_public", "PrivateKey":"users/1_private"}
-              ]
-            }
-          ]
+          "Name":"Bob"
         }
+      ],
+      "Managers":[
+        {
+          "PublicKey":"managers/0_public",
+          "Name":"Charles"
+        },
+        {
+          "PublicKey":"managers/1_public",
+          "Name":"Debra"
+        }
+      ],
+      "Users":[
+        {"PublicKey":"users/0_public", "Name":"Eddy"},
+        {"PublicKey":"users/1_public", "Name":"Fanny"}
       ]
     },
     {
@@ -41,17 +37,17 @@
       "Admins":[
         {
           "PublicKey":"admins/2_public",
-          "PrivateKey":"admins/2_private",
-          "Managers":[
-            {
-              "PublicKey":"managers/2_public",
-              "PrivateKey":"managers/2_private",
-              "Users":[
-                {"PublicKey":"users/2_public", "PrivateKey":"users/2_private"}
-              ]
-            }
-          ]
+          "Name":"Garry"
         }
+      ],
+      "Managers":[
+        {
+          "PublicKey":"managers/2_public",
+          "Name":"Henry"
+        }
+      ],
+      "Users":[
+        {"PublicKey":"users/2_public", "Name":"Irene"}
       ]
     }
   ]
@@ -59,8 +55,8 @@
   "Projects":[
     {
       "Name":"ProjectX",
-      "ManagerOwners":[{"i":0, "j":0, "k":0}, {"i":1, "j":0, "k":0}],
-      "SigningUsers":[{"i":0, "j":0, "k":0, "l":0}, {"i":1, "j":0, "k":0, "l":0}],
+      "ManagerOwners":[{"i":0, "j":0}, {"i":1, "j":0}],
+      "SigningUsers":[{"i":0, "j":0}, {"i":1, "j":0}],
       "Rules": [
         {
           "Action":"spawn:AuthGrant",
@@ -77,7 +73,7 @@
         {
           "Action":"spawn:AggregatedQuery",
           "ExprType":"OR",
-          "Users":[{"i":0, "j":0, "k":0, "l":0}]
+          "Users":[{"i":0, "j":0}]
         }
       ]
     }

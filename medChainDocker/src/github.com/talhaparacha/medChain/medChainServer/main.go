@@ -15,6 +15,8 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
+	"github.com/talhaparacha/medChain/medChainServer/messages"
+	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
@@ -23,42 +25,44 @@ var local = onet.NewTCPTest(cothority.Suite)
 var _, roster, _ = local.GenTree(3, true)
 var cl = service.NewClient()
 
-var baseIdToDarcMap = make(map[string]*darc.Darc)
-var darcIdToBaseIdMap = make(map[string]string)
-
-var superAdminsDarcsMap = make(map[string]string)
-
-var adminsDarcsMap = make(map[string]string)
-var adminsListDarcsMap = make(map[string]string)
-
-var managersDarcsMap = make(map[string]string)
-var managersListLevel0DarcsMap = make(map[string]string)
-var managersListLevel1DarcsMap = make(map[string]string)
-
-var usersDarcsMap = make(map[string]string)
-var usersListLevel0DarcsMap = make(map[string]string)
-var usersListLevel1DarcsMap = make(map[string]string)
-var usersListLevel2DarcsMap = make(map[string]string)
-
-var projectsDarcsMap = make(map[string]string)
+// var baseIdToDarcMap = make(map[string]*darc.Darc)
+// var darcIdToBaseIdMap = make(map[string]string)
+// var IdToHospitalIdMap = make(map[string]string)
+//
+// var superAdminsDarcsMap = make(map[string]string)
+//
+// var adminsDarcsMap = make(map[string]string)
+// var adminsListDarcsMap = make(map[string]string)
+//
+// var managersDarcsMap = make(map[string]string)
+// var managersListDarcsMap = make(map[string]string)
+//
+// var usersDarcsMap = make(map[string]string)
+// var usersListDarcsMap = make(map[string]string)
+//
+// var powerfulDarcsMap = make(map[string]string)
+//
+// var projectsDarcsMap = make(map[string]string)
 
 var keysDirectory = "keys"
 
 var configFileName = "conf/conf.json"
 
-// Genesis block
-var genesisMsg *service.CreateGenesisBlock
-var genesisBlock *service.CreateGenesisBlockResponse
+// // Genesis block
+// var genesisMsg *service.CreateGenesisBlock
+// var genesisBlock *service.CreateGenesisBlockResponse
+//
+// // Stuff required by the token introspection services
+// var allSuperAdminsDarc *darc.Darc
+// var allSuperAdminsBaseID string
+// var allAdminsDarc *darc.Darc
+// var allAdminsBaseID string
+// var allManagersDarc *darc.Darc
+// var allManagersBaseID string
+// var allUsersDarc *darc.Darc
+// var allUsersBaseID string
 
-// Stuff required by the token introspection services
-var allSuperAdminsDarc *darc.Darc
-var allSuperAdminsBaseID string
-var allAdminsDarc *darc.Darc
-var allAdminsBaseID string
-var allManagersDarc *darc.Darc
-var allManagersBaseID string
-var allUsersDarc *darc.Darc
-var allUsersBaseID string
+var metaData *metadata.Metadata
 
 var userProjectsMapInstanceID service.InstanceID
 var err error
@@ -165,77 +169,77 @@ func sayHello(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(message))
 }
 
-func applyNewDarcTransaction(w http.ResponseWriter, r *http.Request) {
-	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
-	if err != nil {
-		fmt.Println("failed to retrieve transaction")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	darc, err := extractNewDarcFromTransaction(testTransactionRetrieved)
-	if err != nil {
-		fmt.Println("failed to extract darc")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
-	if err != nil {
-		fmt.Println("failed to submit new darc transaction")
-		w.Write([]byte("Failed to commit the transaction to the MedChain"))
-		return
-	} else {
-		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
-		baseIdToDarcMap[darcBaseID] = tempDarc
-		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
-		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
-	}
-}
+// func applyNewDarcTransaction(w http.ResponseWriter, r *http.Request) {
+// 	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
+// 	if err != nil {
+// 		fmt.Println("failed to retrieve transaction")
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	darc, err := extractNewDarcFromTransaction(testTransactionRetrieved)
+// 	if err != nil {
+// 		fmt.Println("failed to extract darc")
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
+// 	if err != nil {
+// 		fmt.Println("failed to submit new darc transaction")
+// 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
+// 		return
+// 	} else {
+// 		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
+// 		baseIdToDarcMap[darcBaseID] = tempDarc
+// 		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
+// 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
+// 	}
+// }
 
-func applyEvolveDarcTransaction(w http.ResponseWriter, r *http.Request) {
-	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
-	if err != nil {
-		fmt.Println("failed to retrieve transaction")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	darc, err := extractEvolvedDarcFromTransaction(testTransactionRetrieved)
-	if err != nil {
-		fmt.Println("failed to extract darc")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tempDarc, err := submitSignedTransactionForEvolveDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
-	if err != nil {
-		fmt.Println("failed to submit evolve darc transaction")
-		w.Write([]byte("Failed to commit the transaction to the MedChain"))
-		return
-	} else {
-		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
-		baseIdToDarcMap[darcBaseID] = tempDarc
-		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
-		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
-	}
-}
+// func applyEvolveDarcTransaction(w http.ResponseWriter, r *http.Request) {
+// 	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
+// 	if err != nil {
+// 		fmt.Println("failed to retrieve transaction")
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	darc, err := extractEvolvedDarcFromTransaction(testTransactionRetrieved)
+// 	if err != nil {
+// 		fmt.Println("failed to extract darc")
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+// 	tempDarc, err := submitSignedTransactionForEvolveDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
+// 	if err != nil {
+// 		fmt.Println("failed to submit evolve darc transaction")
+// 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
+// 		return
+// 	} else {
+// 		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
+// 		baseIdToDarcMap[darcBaseID] = tempDarc
+// 		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
+// 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
+// 	}
+// }
 
-func extractEvolvedDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
-	instruction := transaction.Instructions[0]
-	invoke := instruction.Invoke
-	args := invoke.Args
-	arg := args[0]
-	darcBuf := arg.Value
-	newDarc, err := darc.NewFromProtobuf(darcBuf)
-	return newDarc, err
-}
+// func extractEvolvedDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
+// 	instruction := transaction.Instructions[0]
+// 	invoke := instruction.Invoke
+// 	args := invoke.Args
+// 	arg := args[0]
+// 	darcBuf := arg.Value
+// 	newDarc, err := darc.NewFromProtobuf(darcBuf)
+// 	return newDarc, err
+// }
 
-func extractNewDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
-	instruction := transaction.Instructions[0]
-	spawn := instruction.Spawn
-	args := spawn.Args
-	arg := args[0]
-	darcBuf := arg.Value
-	newDarc, err := darc.NewFromProtobuf(darcBuf)
-	return newDarc, err
-}
+// func extractNewDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
+// 	instruction := transaction.Instructions[0]
+// 	spawn := instruction.Spawn
+// 	args := spawn.Args
+// 	arg := args[0]
+// 	darcBuf := arg.Value
+// 	newDarc, err := darc.NewFromProtobuf(darcBuf)
+// 	return newDarc, err
+// }
 
 func extractTransactionFromRequest(w http.ResponseWriter, r *http.Request) (*service.ClientTransaction, error) {
 	// Fetch the transaction provided in the GET request
@@ -277,7 +281,7 @@ func applyTransaction(w http.ResponseWriter, r *http.Request) {
 	instID := service.NewInstanceID((*testTransactionRetrieved).Instructions[0].Hash())
 
 	// Respond if the transaction succeeded
-	pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(instID, metaData.GenesisMsg.BlockInterval, nil)
 	w.Header().Set("Content-Type", "text/plain")
 	if err != nil || pr.InclusionProof.Match() != true {
 		if err != nil {
@@ -300,8 +304,8 @@ func doMedChainValidation(msg Message) (bool, string) {
 	instIDbytes, err := b64.StdEncoding.DecodeString(incomingTokenValue)
 	if err == nil && incomingTokenValue != "" {
 		instID := service.NewInstanceID(instIDbytes)
-		pr, err := cl.WaitProof(instID, genesisMsg.BlockInterval, nil)
-		if err == nil && pr.InclusionProof.Match() == true && pr.Verify(genesisBlock.Skipblock.Hash) == nil {
+		pr, err := cl.WaitProof(instID, metaData.GenesisMsg.BlockInterval, nil)
+		if err == nil && pr.InclusionProof.Match() == true && pr.Verify(metaData.GenesisBlock.Skipblock.Hash) == nil {
 			values, err := pr.InclusionProof.RawValues()
 			if err == nil {
 				return true, string(values[0][:])
@@ -392,6 +396,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	var temp map[string]string
 
 	if systemStart {
+		allUsersDarc := metaData.BaseIdToDarcMap[metaData.AllUsersDarcBaseId]
 		temp = map[string]string{
 			"all_users_darc":     b64.StdEncoding.EncodeToString(allUsersDarc.GetBaseID()),
 			"user_projects_maps": b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice()),
@@ -410,7 +415,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 func start(w http.ResponseWriter, r *http.Request) {
 	if !systemStart {
 		// Initiate Omniledger with the MedCo context
-		startSystem()
+		metaData = startSystem()
 		systemStart = true
 	}
 	w.Header().Set("Content-Type", "text/plain")
@@ -427,19 +432,43 @@ func getDarcFromId(id string, baseIdToDarcMap map[string]*darc.Darc, mapId map[s
 }
 
 func GetDarcInfo(w http.ResponseWriter, r *http.Request) {
-	darc_identity := strings.Join(r.URL.Query()["darc_identity"], "")
-	mainDarc, ok := getDarcFromId(darc_identity, baseIdToDarcMap, darcIdToBaseIdMap)
-	if !ok {
-		fmt.Println("Failed To Retrieve Darc Info")
-		http.Error(w, "", http.StatusNotFound)
+	body, err := ioutil.ReadAll(r.Body)
+	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := medChainUtils.UserInfoReply{MainDarc: mainDarc}
-	jsonVal, err := json.Marshal(reply)
-	if err != nil {
-		panic(err)
+	var request messages.DarcInfoRequest
+	err = json.Unmarshal(body, &request)
+	if medChainUtils.CheckError(err, w, r) {
+		return
 	}
-	w.Write(jsonVal)
+	var baseId string
+	if request.BaseId != "" {
+		baseId = request.BaseId
+	} else if request.DarcId != "" {
+		var ok bool
+		baseId, ok = metaData.DarcIdToBaseIdMap[request.DarcId]
+		if !ok {
+			medChainUtils.CheckError(errors.New("No darc with this id"), w, r)
+			return
+		}
+	} else {
+		medChainUtils.CheckError(errors.New("No darc id Nor base id was given"), w, r)
+		return
+	}
+	darc, ok := metaData.BaseIdToDarcMap[baseId]
+	if !ok {
+		medChainUtils.CheckError(errors.New("No darc with this base id"), w, r)
+		return
+	}
+	reply := messages.DarcInfoReply{Description: string(darc.Description)}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
 }
 
 func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]*darc.Darc, map_id map[string]string, list_of_map_subordinates []map[string]string) {
@@ -486,11 +515,11 @@ func main() {
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
 	http.HandleFunc("/info/darc", GetDarcInfo)
-	http.HandleFunc("/add/darc", applyNewDarcTransaction)
-	http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
-	http.HandleFunc("/metadata/add/user", NewUserMetadata)
-	http.HandleFunc("/metadata/add/manager", NewManagerMetadata)
-	http.HandleFunc("/metadata/add/admin", NewAdminMetadata)
+	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
+	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
+	// http.HandleFunc("/metadata/add/user", NewUserMetadata)
+	// http.HandleFunc("/metadata/add/manager", NewManagerMetadata)
+	// http.HandleFunc("/metadata/add/admin", NewAdminMetadata)
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
@@ -498,6 +527,6 @@ func main() {
 		panic(err)
 	}
 	// Wrap Omniledger service
-	local.WaitDone(genesisMsg.BlockInterval)
+	local.WaitDone(metaData.GenesisMsg.BlockInterval)
 	local.CloseAll()
 }
