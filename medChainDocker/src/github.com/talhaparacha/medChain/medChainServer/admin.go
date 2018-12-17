@@ -1,49 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
-	"io/ioutil"
+	"fmt"
 	"net/http"
-
-	"github.com/talhaparacha/medChain/medChainServer/messages"
-	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
 func GetAdminInfo(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.UserInfoRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var identity string
-	if request.Identity != "" {
-		identity = request.Identity
-	} else if request.PublicKey != "" {
-		id := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
-		identity = id.String()
-	} else {
-		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
-		return
-	}
-	hopital_metadata, ok := metaData.Admins[identity]
-	if !ok {
-		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
-		return
-	}
-	reply := messages.UserInfoReply{DarcBaseId: hopital_metadata.DarcBaseId}
-	json_val, err := json.Marshal(&reply)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	_, err = w.Write(json_val)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
+	fmt.Println("/info/admin")
+	getGenericUserInfo(w, r, metaData.Admins)
 }
 
 // func NewManagerMetadata(w http.ResponseWriter, r *http.Request) {

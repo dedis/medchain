@@ -1,15 +1,11 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
-	"io/ioutil"
+	"fmt"
 	"net/http"
 
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/service"
-	"github.com/talhaparacha/medChain/medChainServer/messages"
-	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
 type NewUserInfo struct {
@@ -25,75 +21,8 @@ type NewUserTransaction struct {
 }
 
 func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.UserInfoRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var identity string
-	if request.Identity != "" {
-		identity = request.Identity
-	} else if request.PublicKey != "" {
-		id := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
-		identity = id.String()
-	} else {
-		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
-		return
-	}
-	hopital_metadata, ok := metaData.Managers[identity]
-	if !ok {
-		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
-		return
-	}
-	reply := messages.UserInfoReply{DarcBaseId: hopital_metadata.DarcBaseId}
-	json_val, err := json.Marshal(&reply)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	_, err = w.Write(json_val)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-}
-
-func GetUserInfo(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.UserInfoRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var identity string
-	if request.Identity != "" {
-		identity = request.Identity
-	} else if request.PublicKey != "" {
-		id := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
-		identity = id.String()
-	} else {
-		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
-		return
-	}
-	hopital_metadata, ok := metaData.Users[identity]
-	if !ok {
-		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
-		return
-	}
-	reply := messages.UserInfoReply{DarcBaseId: hopital_metadata.DarcBaseId}
-	json_val, err := json.Marshal(&reply)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	_, err = w.Write(json_val)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
+	fmt.Println("/info/manager")
+	getGenericUserInfo(w, r, metaData.Managers)
 }
 
 // func NewUserMetadata(w http.ResponseWriter, r *http.Request) {
