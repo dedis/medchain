@@ -56,6 +56,10 @@ func loadKeys(configuration *conf.Configuration, metaData *metadata.Metadata) []
 		// super_admin_IDString := super_admin_signer.Identity().String()
 		// admins[super_admin_IDString] = []darc.Identity{}
 
+		if len(hospital.Admins) < 2 {
+			panic(errors.New("All hospitals should have at least 2 admins to avoid a single point of failure"))
+		}
+
 		for _, admin := range hospital.Admins {
 			admin_identity := medChainUtils.LoadIdentityEd25519(configuration.KeyDirectory + admin.PublicKey)
 			admin_metadata := metadata.NewGenericUser(admin_identity, admin.Name, hospital_metadata)

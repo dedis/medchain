@@ -2,6 +2,7 @@ CREATE TABLE ClientTransaction(
   uid TEXT PRIMARY KEY,
   client_transaction TEXT,
   description TEXT,
+  count INTEGER,
   status TEXT
 );
 

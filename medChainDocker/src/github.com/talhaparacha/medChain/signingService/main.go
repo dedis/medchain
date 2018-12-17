@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -36,9 +37,9 @@ func main() {
 
 	port, db_file := getFlags()
 
-	db, err := sql.Open("sqlite3", db_file)
+	var err error
+	db, err = sql.Open("sqlite3", db_file)
 	medChainUtils.Check(err)
-	db.Prepare("SELECT * FROM ClientTransaction")
 
 	// Register addresses
 	http.HandleFunc("/new/transactions", newTransactions)
@@ -53,9 +54,10 @@ func main() {
 }
 
 func validateTransactions(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/validate/transactions")
 	body, err := ioutil.ReadAll(r.Body)
 	medChainUtils.Check(err)
-	var transactions ExchangeMessage
+	var transactions medChainUtils.ExchangeMessage
 	err = json.Unmarshal(body, &transactions)
 	medChainUtils.Check(err)
 	for _, transaction := range transactions.Transactions {
@@ -64,9 +66,10 @@ func validateTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func newTransactions(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/transactions")
 	body, err := ioutil.ReadAll(r.Body)
 	medChainUtils.Check(err)
-	var transactions ExchangeMessage
+	var transactions medChainUtils.ExchangeMessage
 	err = json.Unmarshal(body, &transactions)
 	medChainUtils.Check(err)
 	for _, transaction := range transactions.Transactions {
@@ -78,19 +81,20 @@ func newTransactions(w http.ResponseWriter, r *http.Request) {
 	w.Write(reply)
 }
 
-func registerNewTransaction(transaction TransactionData) string {
+func registerNewTransaction(transaction medChainUtils.TransactionData) string {
+	fmt.Println("/add/transactions")
 	uid := uuid.New().String()
-	addNewTransToDB(uid, transaction.Transaction, transaction.Description, db)
+	addNewTransToDB(uid, transaction.Transaction, transaction.Description, transaction.Threshold, db)
 	for _, signer := range transaction.Signers {
 		addNewSignerToDB(uid, signer, db)
 	}
 	return uid
 }
 
-func addNewTransToDB(uid, transaction, description string, db *sql.DB) {
-	stmt, err := db.Prepare("INSERT INTO ClientTransaction(uid, client_transaction, description, status) VALUES(?,?,?,?);")
+func addNewTransToDB(uid, transaction, description string, threshold int, db *sql.DB) {
+	stmt, err := db.Prepare("INSERT INTO ClientTransaction(uid, client_transaction, description, threshold, count, status) VALUES(?,?,?,?,?);")
 	medChainUtils.Check(err)
-	_, err = stmt.Exec(uid, transaction, description, status_waiting)
+	_, err = stmt.Exec(uid, transaction, description, threshold, 0, status_waiting)
 	medChainUtils.Check(err)
 }
 
@@ -102,27 +106,29 @@ func addNewSignerToDB(uid, signer_identity string, db *sql.DB) {
 }
 
 func getTransactions(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/transactions")
 	identity := strings.Join(r.URL.Query()["identity"], "")
 	transactions := getTransactionsWaitingForId(identity, db)
-	reply := ExchangeMessage{Transactions: transactions}
+	reply := medChainUtils.ExchangeMessage{Transactions: transactions}
 	body, err := json.Marshal(reply)
 	medChainUtils.Check(err)
 	w.Write(body)
 }
 
-func getTransactionsWaitingForId(identity string, db *sql.DB) []TransactionData {
-	statement := "SELECT uid, description, client_transaction FROM ClientTransaction WHERE EXISTS(SELECT * FROM SignatureStatus WHERE transaction_uid=uid AND signer_identity=? AND status=?);"
+func getTransactionsWaitingForId(identity string, db *sql.DB) []medChainUtils.TransactionData {
+	statement := "SELECT uid, description, client_transaction, threshold FROM ClientTransaction WHERE EXISTS(SELECT * FROM SignatureStatus WHERE transaction_uid=uid AND signer_identity=? AND status=?);"
 	stmt, err := db.Prepare(statement)
 	medChainUtils.Check(err)
 	rows, err := stmt.Query(identity, status_waiting)
 	medChainUtils.Check(err)
-	transactions := []TransactionData{}
+	transactions := []medChainUtils.TransactionData{}
 	for rows.Next() {
 		var uid, description, transactionString string
-		err = rows.Scan(&uid, &description, &transactionString)
+		var threshold int
+		err = rows.Scan(&uid, &description, &transactionString, &threshold)
 		medChainUtils.Check(err)
 		signers := getSignersOfTransaction(uid)
-		transaction := TransactionData{Uid: uid, Description: description, Transaction: transactionString, Signers: signers}
+		transaction := medChainUtils.TransactionData{Uid: uid, Description: description, Transaction: transactionString, Signers: signers, Threshold: threshold}
 		transactions = append(transactions, transaction)
 	}
 	rows.Close()
@@ -147,67 +153,66 @@ func getSignersOfTransaction(uid string) []string {
 }
 
 func signTransactions(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/sign/transactions")
 	identity := strings.Join(r.URL.Query()["identity"], "")
 	body, err := ioutil.ReadAll(r.Body)
 	medChainUtils.Check(err)
-	var transactions ExchangeMessage
+	var transactions medChainUtils.ExchangeMessage
 	err = json.Unmarshal(body, &transactions)
 	medChainUtils.Check(err)
-	transactions_ready := []TransactionData{}
 	for _, transaction := range transactions.Transactions {
-		ready := signTransaction(identity, transaction)
-		if ready {
-			transactions_ready = append(transactions_ready, transaction)
-		}
+		signTransaction(identity, transaction)
 	}
-	reply := ExchangeMessage{Transactions: transactions_ready}
+	transactions_ready := getTransactionsReady()
+	reply := medChainUtils.ExchangeMessage{Transactions: transactions_ready}
 	reply_body, err := json.Marshal(reply)
 	medChainUtils.Check(err)
 	w.Write(reply_body)
 }
 
-func getTransactionsReady() []TransactionData {
+func getTransactionsReady() []medChainUtils.TransactionData {
 	statement := "SELECT uid,description,client_transaction FROM ClientTransaction WHERE status=?"
 	stmt, err := db.Prepare(statement)
 	medChainUtils.Check(err)
 	rows, err := stmt.Query(status_ready)
 	medChainUtils.Check(err)
-	transactions := []TransactionData{}
+	transactions := []medChainUtils.TransactionData{}
 	for rows.Next() {
 		var uid, description, transactionString string
 		err = rows.Scan(&uid, &description, &transactionString)
 		medChainUtils.Check(err)
 		signers := getSignersOfTransaction(uid)
-		transaction := TransactionData{Uid: uid, Description: description, Transaction: transactionString, Signers: signers}
+		transaction := medChainUtils.TransactionData{Uid: uid, Description: description, Transaction: transactionString, Signers: signers}
 		transactions = append(transactions, transaction)
 	}
 	rows.Close()
 	return transactions
 }
 
-func signTransaction(identity string, transaction TransactionData) bool {
+func signTransaction(identity string, transaction medChainUtils.TransactionData) bool {
 	uid := transaction.Uid
 	changeTransactionValue(uid, transaction.Transaction)
 	changeStatusToSigned(uid, identity)
-	return checkIfReady(uid)
+	return checkIfReady(uid, transaction.Threshold)
 }
 
-func checkIfReady(uid string) bool {
+func checkIfReady(uid string, threshold int) bool {
 	statuses := getSignatureStatus(uid)
-	if isReady(statuses) {
+	if isReady(statuses, threshold) {
 		setTransactionStatus(uid, status_ready)
 		return true
 	}
 	return false
 }
 
-func isReady(statuses []string) bool {
+func isReady(statuses []string, threshold int) bool {
+	count := 0
 	for _, status := range statuses {
-		if status != status_signed {
-			return false
+		if status == status_signed {
+			count += 1
 		}
 	}
-	return true
+	return count >= threshold
 }
 
 func setTransactionStatus(uid, status string) {
@@ -244,20 +249,9 @@ func changeStatusToSigned(uid, identity string) {
 }
 
 func changeTransactionValue(uid, transaction string) {
-	statement := "UPDATE ClientTransaction SET client_transaction=? WHERE uid=?;"
+	statement := "UPDATE ClientTransaction SET client_transaction=?, count=count+1 WHERE uid=?;"
 	stmt, err := db.Prepare(statement)
 	medChainUtils.Check(err)
 	_, err = stmt.Exec(transaction, uid)
 	medChainUtils.Check(err)
-}
-
-type TransactionData struct {
-	Uid         string
-	Description string
-	Signers     []string
-	Transaction string
-}
-
-type ExchangeMessage struct {
-	Transactions []TransactionData
 }

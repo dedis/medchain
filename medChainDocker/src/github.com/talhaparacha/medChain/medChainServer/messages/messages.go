@@ -61,8 +61,8 @@ type AddGenericUserRequest struct {
 }
 
 type AddGenericUserReply struct {
-	Id          string   `json:"user_id"`
-	Transaction string   `json:"transaction"`
-	Signers     []string `json:"signers"`
-	Threshold   int      `json:"threshold"`
+	Id                 string   `json:"user_id"`
+	Transaction        string   `json:"transaction"`
+	Signers            []string `json:"signers"`
+	InstructionDigests [][]byte `json:"instruction_digests"`
 }

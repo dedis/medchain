@@ -394,8 +394,7 @@ func tokenIntrospectionLogin(w http.ResponseWriter, r *http.Request) {
 func info(w http.ResponseWriter, r *http.Request) {
 
 	if systemStart {
-		allUsersDarcVal := metaData.BaseIdToDarcMap[metaData.AllUsersDarcBaseId]
-		allUsersDarc := b64.StdEncoding.EncodeToString(allUsersDarcVal.GetBaseID())
+		allUsersDarc := metaData.AllUsersDarcBaseId
 		allUsersDarcBaseId := metaData.AllUsersDarcBaseId
 		allManagersDarcBaseId := metaData.AllManagersDarcBaseId
 		allAdminsDarcBaseId := metaData.AllAdminsDarcBaseId

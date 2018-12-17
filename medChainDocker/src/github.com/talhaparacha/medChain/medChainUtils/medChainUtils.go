@@ -220,6 +220,10 @@ func IDToHexString(id darc.ID) string {
 	return hex.EncodeToString([]byte(id))
 }
 
+func IDToB64String(id darc.ID) string {
+	return base64.StdEncoding.EncodeToString(id)
+}
+
 func InitAtLeastTwoExpr(ids []string) expression.Expr {
 	if len(ids) <= 2 {
 		return expression.InitAndExpr(ids...)

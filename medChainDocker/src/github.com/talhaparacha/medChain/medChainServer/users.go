@@ -74,11 +74,11 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	identity, transaction, signers, threshold, err := prepareNewUser(&request, user_type)
+	identity, transaction, signers, digest, err := prepareNewUser(&request, user_type)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.AddGenericUserReply{Id: identity, Transaction: transaction, Signers: signers, Threshold: threshold}
+	reply := messages.AddGenericUserReply{Id: identity, Transaction: transaction, Signers: signers, InstructionDigests: digest}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -90,32 +90,74 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 	}
 }
 
-func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (string, string, []string, int, error) {
+func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (string, string, []string, [][]byte, error) {
 
 	hospital_metadata, identityPtr, err := getMetadata(request)
 	if err != nil {
-		return "", "", nil, 0, err
+		return "", "", nil, nil, err
 	}
 	identity := *identityPtr
 
-	owner_darc, signers, threshold, err := getSigners(hospital_metadata, user_type)
+	owner_darc, signers_ids, signers, err := getSigners(hospital_metadata, user_type)
 	if err != nil {
-		return "", "", nil, 0, err
+		return "", "", nil, nil, err
 	}
 
 	list_darc, err := getListDarc(hospital_metadata, user_type)
 	if err != nil {
-		return "", "", nil, 0, err
+		return "", "", nil, nil, err
 	}
 
-	transaction, new_darc, err := createNewGenericUserTransaction(identity, owner_darc, list_darc, user_type)
+	transaction, transaction_string, new_darc, err := createNewGenericUserTransaction(identity, owner_darc, list_darc, user_type)
 	if err != nil {
-		return "", "", nil, 0, err
+		return "", "", nil, nil, err
 	}
+
+	digest, err := computeTransactionDigests(transaction, signers_ids, owner_darc)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+
 	if err := addGenericUserToMetadata(metaData, hospital_metadata, identity, request.Name, user_type, new_darc); err != nil {
-		return "", "", nil, 0, err
+		return "", "", nil, nil, err
 	}
-	return identity.String(), transaction, signers, threshold, nil
+	return identity.String(), transaction_string, signers, digest, nil
+}
+
+func computeTransactionDigests(transaction *service.ClientTransaction, signers_ids []darc.Identity, owner_darc *darc.Darc) ([][]byte, error) {
+	result := [][]byte{}
+	for _, instruction := range transaction.Instructions {
+		digest, err := computeInstructionDigests(instruction, signers_ids, owner_darc)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, digest)
+	}
+	return result, nil
+}
+
+func computeInstructionDigests(instruction service.Instruction, signers_ids []darc.Identity, owner_darc *darc.Darc) ([]byte, error) {
+	// Create the request and populate it with the right identities.  We
+	// need to do this prior to signing because identities are a part of
+	// the digest of the Instruction.
+	sigs := make([]darc.Signature, len(signers_ids))
+	for i, signer := range signers_ids {
+		sigs[i].Signer = signer
+	}
+	instruction.Signatures = sigs
+
+	req, err := instruction.ToDarcRequest(owner_darc.GetBaseID())
+	if err != nil {
+		return nil, err
+	}
+
+	req.Identities = make([]darc.Identity, len(signers_ids))
+	for i, signer := range signers_ids {
+		req.Identities[i] = signer
+	}
+	// Sign the instruction and write the signatures to it.
+	digest := req.Hash()
+	return digest, nil
 }
 
 func addGenericUserToMetadata(metaData *metadata.Metadata, hospital_metadata *metadata.Hospital, identity darc.Identity, name, user_type string, new_darc *darc.Darc) error {
@@ -128,14 +170,14 @@ func addGenericUserToMetadata(metaData *metadata.Metadata, hospital_metadata *me
 	return nil
 }
 
-func createNewGenericUserTransaction(identity darc.Identity, owner_darc, list_darc *darc.Darc, user_type string) (string, *darc.Darc, error) {
+func createNewGenericUserTransaction(identity darc.Identity, owner_darc, list_darc *darc.Darc, user_type string) (*service.ClientTransaction, string, *darc.Darc, error) {
 
 	owners := []darc.Identity{darc.NewIdentityDarc(owner_darc.GetID())}
 	rules := darc.InitRulesWith(owners, []darc.Identity{identity}, "invoke:evolve")
 	new_darc := darc.NewDarc(rules, []byte("Darc for a single "+user_type))
 	new_darc_buff, err := new_darc.ToProto()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	new_list_darc := list_darc.Copy()
@@ -145,7 +187,7 @@ func createNewGenericUserTransaction(identity darc.Identity, owner_darc, list_da
 	new_list_darc.Rules.UpdateSign(new_sign_expr)
 	new_list_darc_buff, err := new_list_darc.ToProto()
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 
 	ctx := service.ClientTransaction{
@@ -181,10 +223,10 @@ func createNewGenericUserTransaction(identity darc.Identity, owner_darc, list_da
 
 	transaction_bytes, err := network.Marshal(&ctx)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	transaction_b64 := base64.StdEncoding.EncodeToString(transaction_bytes)
-	return transaction_b64, new_darc, nil
+	return &ctx, transaction_b64, new_darc, nil
 }
 
 func getMetadata(request *messages.AddGenericUserRequest) (*metadata.Hospital, *darc.Identity, error) {
@@ -224,7 +266,7 @@ func getListDarc(hospital_metadata *metadata.Hospital, user_type string) (*darc.
 	return list_darc, nil
 }
 
-func getSigners(hospital_metadata *metadata.Hospital, user_type string) (*darc.Darc, []string, int, error) {
+func getSigners(hospital_metadata *metadata.Hospital, user_type string) (*darc.Darc, []darc.Identity, []string, error) {
 	var owner_darc *darc.Darc
 	var threshold int
 	var ok bool
@@ -237,16 +279,39 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string) (*darc.D
 		threshold = 2
 	}
 	if !ok {
-		return nil, nil, 0, errors.New("Could not find the owner darc")
+		return nil, nil, nil, errors.New("Could not find the owner darc")
 	}
 	hash_map := make(map[string]bool)
 	err := recursivelyFindUsersOfDarc(owner_darc, &hash_map)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, nil, err
 	}
 	signers := []string{}
 	for user_id, _ := range hash_map {
 		signers = append(signers, user_id)
 	}
-	return owner_darc, signers, threshold, nil
+	chosen_signers := signers[:threshold]
+	chosen_signers_ids := []darc.Identity{}
+
+	for _, signer := range chosen_signers {
+		switch user_type {
+		case "Admin":
+			user_metadata, ok := metaData.Hospitals[signer]
+			if !ok {
+				return nil, nil, nil, errors.New("Could not find the signer identity")
+			}
+			id := user_metadata.Id
+			chosen_signers_ids = append(chosen_signers_ids, id)
+		default:
+			user_metadata, ok := metaData.Admins[signer]
+			if !ok {
+				return nil, nil, nil, errors.New("Could not find the signer identity")
+			}
+			id := user_metadata.Id
+			chosen_signers_ids = append(chosen_signers_ids, id)
+		}
+
+	}
+
+	return owner_darc, chosen_signers_ids, chosen_signers, nil
 }
