@@ -10,6 +10,11 @@ func GetAdminInfo(w http.ResponseWriter, r *http.Request) {
 	getGenericUserInfo(w, r, metaData.Admins)
 }
 
+func AddAdmin(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/admin")
+	replyNewGenericUserRequest(w, r, "User")
+}
+
 // func NewManagerMetadata(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	medChainUtils.Check(err)

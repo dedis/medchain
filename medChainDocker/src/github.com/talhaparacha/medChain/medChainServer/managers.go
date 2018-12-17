@@ -25,6 +25,11 @@ func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
 	getGenericUserInfo(w, r, metaData.Managers)
 }
 
+func AddManager(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/manager")
+	replyNewGenericUserRequest(w, r, "User")
+}
+
 // func NewUserMetadata(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	medChainUtils.Check(err)

@@ -36,6 +36,7 @@ type Metadata struct {
 	Admins                   map[string]*GenericUser
 	Managers                 map[string]*GenericUser
 	Users                    map[string]*GenericUser
+	WaitingForCreation       map[string]*GenericUser
 	Projects                 map[string]*Project
 	BaseIdToDarcMap          map[string]*darc.Darc
 	DarcIdToBaseIdMap        map[string]string
@@ -45,11 +46,11 @@ type Metadata struct {
 	AllUsersDarcBaseId       string
 	GenesisBlock             *service.CreateGenesisBlockResponse
 	GenesisMsg               *service.CreateGenesisBlock
-	GenesisDarc              *darc.Darc
+	GenesisDarcBaseId        string
 }
 
 func NewMetadata() *Metadata {
-	return &Metadata{Hospitals: make(map[string]*Hospital), Admins: make(map[string]*GenericUser), Managers: make(map[string]*GenericUser), Users: make(map[string]*GenericUser), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
+	return &Metadata{Hospitals: make(map[string]*Hospital), Admins: make(map[string]*GenericUser), Managers: make(map[string]*GenericUser), Users: make(map[string]*GenericUser), WaitingForCreation: make(map[string]*GenericUser), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
 }
 
 func NewHospital(IdValue darc.Identity, NameValue string) *Hospital {

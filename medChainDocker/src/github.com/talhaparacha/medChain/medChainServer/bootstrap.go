@@ -33,7 +33,7 @@ import (
 // }
 
 func addDarcToMaps(NewDarc *darc.Darc, metaData *metadata.Metadata) string {
-	IDHash := medChainUtils.IDToHexString(NewDarc.GetBaseID())
+	IDHash := medChainUtils.IDToB64String(NewDarc.GetBaseID())
 	metaData.BaseIdToDarcMap[IDHash] = NewDarc
 	metaData.DarcIdToBaseIdMap[NewDarc.GetIdentityString()] = IDHash
 	return IDHash
@@ -115,17 +115,22 @@ func createGenesis(metaData *metadata.Metadata) {
 	}
 	metaData.GenesisBlock = genesisBlock
 	metaData.GenesisMsg = genesisMsg
-	metaData.GenesisDarc = &genesisMsg.GenesisDarc
+	metaData.GenesisDarcBaseId = addDarcToMaps(&genesisMsg.GenesisDarc, metaData)
+
 }
 
 func createSuperAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 	// Create a DARC for admins of each hospital
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesisDarc"))
+	}
 	for IdString, hospital := range metaData.Hospitals {
-		darc_owners := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
+		darc_owners := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 		darc_signers := []darc.Identity{hospital.Id}
 		rules := darc.InitRulesWith(darc_owners, darc_signers, "invoke:evolve")
 		rules.AddRule("spawn:darc", rules.GetSignExpr()) // that's allright for super admins
-		tempDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Single Super Admin darc", signers...)
+		tempDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Single Super Admin darc", signers...)
 		if err != nil {
 			panic(err)
 		}
@@ -138,7 +143,12 @@ func createSuperAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) 
 func createAllSuperAdminsDarc(metaData *metadata.Metadata, signers []darc.Signer) {
 	darcIdList := []string{}
 
-	darc_owners := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesis Darc"))
+	}
+
+	darc_owners := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	for IdString, hospital := range metaData.Hospitals {
 
 		super_admin_darc, ok := metaData.BaseIdToDarcMap[hospital.DarcBaseId]
@@ -150,7 +160,7 @@ func createAllSuperAdminsDarc(metaData *metadata.Metadata, signers []darc.Signer
 	}
 	rules := darc.InitRulesWith(darc_owners, []darc.Identity{}, "invoke:evolve")
 	rules.UpdateSign(expression.InitOrExpr(darcIdList...)) // OR or AND ?
-	allSuperAdminsDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules,
+	allSuperAdminsDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules,
 		"All Super Admins darc", signers...)
 	if err != nil {
 		panic(err)
@@ -187,10 +197,14 @@ func createAllSuperAdminsDarc(metaData *metadata.Metadata, signers []darc.Signer
 // }
 
 func createGenericUserDarc(user_metadata *metadata.GenericUser, owner_darc *darc.Darc, user_type string, metaData *metadata.Metadata, signers []darc.Signer) *darc.Darc {
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesisDarc"))
+	}
 	darc_owners := []darc.Identity{darc.NewIdentityDarc(owner_darc.GetID())}
 	darc_signers := []darc.Identity{user_metadata.Id}
 	rules := darc.InitRulesWith(darc_owners, darc_signers, "invoke:evolve")
-	tempDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Darc for a single "+user_type, signers...)
+	tempDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Darc for a single "+user_type, signers...)
 	if err != nil {
 		panic(err)
 	}
@@ -203,6 +217,11 @@ func createGenericUserDarc(user_metadata *metadata.GenericUser, owner_darc *darc
 func createAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 
 	admins_list_darc_ids := []darc.Identity{}
+
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesisDarc"))
+	}
 
 	for IdString, hospital := range metaData.Hospitals {
 
@@ -224,16 +243,16 @@ func createAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 
 		rules := darc.InitRulesWith(owner_id, admin_darcs_ids, "invoke:evolve")
 		rules.AddRule("spawn:darc", medChainUtils.InitAtLeastTwoExpr(admin_darcs_ids_strings))
-		adminsListDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Admin of Hospital: "+hospital.Name, signers...)
+		adminsListDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Admin of Hospital: "+hospital.Name, signers...)
 		if err != nil {
 			panic(err)
 		}
 		hospital.AdminListDarcBaseId = addDarcToMaps(adminsListDarc, metaData)
 		admins_list_darc_ids = append(admins_list_darc_ids, darc.NewIdentityDarc(adminsListDarc.GetID()))
 	}
-	owner_id := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
+	owner_id := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, admins_list_darc_ids, "invoke:evolve")
-	allAdminsDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Admins darc", signers...)
+	allAdminsDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Admins darc", signers...)
 	if err != nil {
 		panic(err)
 	}
@@ -241,6 +260,11 @@ func createAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 }
 
 func createManagersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
+
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesisDarc"))
+	}
 
 	managers_list_darc_ids := []darc.Identity{}
 
@@ -262,16 +286,16 @@ func createManagersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		}
 
 		rules := darc.InitRulesWith(owner_id, manager_darcs_ids, "invoke:evolve")
-		managersListDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Managers of Hospital: "+hospital.Name, signers...)
+		managersListDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Managers of Hospital: "+hospital.Name, signers...)
 		if err != nil {
 			panic(err)
 		}
 		hospital.ManagerListDarcBaseId = addDarcToMaps(managersListDarc, metaData)
 		managers_list_darc_ids = append(managers_list_darc_ids, darc.NewIdentityDarc(managersListDarc.GetID()))
 	}
-	owner_id := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
+	owner_id := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, managers_list_darc_ids, "invoke:evolve")
-	allManagersDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Managers darc", signers...)
+	allManagersDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Managers darc", signers...)
 	if err != nil {
 		panic(err)
 	}
@@ -279,6 +303,11 @@ func createManagersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 }
 
 func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
+
+	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
+	if !ok {
+		panic(errors.New("Could not load the genesisDarc"))
+	}
 
 	users_list_darc_ids := []darc.Identity{}
 
@@ -300,7 +329,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		}
 
 		rules := darc.InitRulesWith(owner_id, user_darcs_ids, "invoke:evolve")
-		usersListDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Users of Hospital: "+hospital.Name, signers...)
+		usersListDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "List of Users of Hospital: "+hospital.Name, signers...)
 		if err != nil {
 			panic(err)
 		}
@@ -308,9 +337,9 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		users_list_darc_ids = append(users_list_darc_ids, darc.NewIdentityDarc(usersListDarc.GetID()))
 		hospital.IsCreated = true
 	}
-	owner_id := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
+	owner_id := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, users_list_darc_ids, "invoke:evolve")
-	allUsersDarc, err := createDarc(cl, metaData.GenesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Users darc", signers...)
+	allUsersDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Users darc", signers...)
 	if err != nil {
 		panic(err)
 	}

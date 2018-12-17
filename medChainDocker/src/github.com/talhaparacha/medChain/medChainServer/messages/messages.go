@@ -5,6 +5,16 @@ type UserInfoRequest struct {
 	Identity  string `json:"identity"`
 }
 
+type GeneralInfoReply struct {
+	GenesisDarcBaseId        string `json:"genesis_darc_base_id"`
+	AllSuperAdminsDarcBaseId string `json:"all_super_admins_darc_base_id"`
+	AllAdminsDarcBaseId      string `json:"all_admins_darc_base_id"`
+	AllManagersDarcBaseId    string `json:"all_managers_darc_base_id"`
+	AllUsersDarcBaseId       string `json:"all_users_darc_base_id"`
+	AllUsersDarc             string `json:"all_users_darc"`
+	UserProjectsMap          string `json:"user_projects_maps"`
+}
+
 type SuperAdminInfoReply struct {
 	DarcBaseId            string `json:"super_admin_darc_base_id"`
 	SuperAdminId          string `json:"super_admin_id"`
@@ -46,11 +56,12 @@ type ListReply struct {
 
 type AddGenericUserRequest struct {
 	PublicKey          string `json:"new_public_key"`
-	Identity           string `json:"new_identity"`
 	SuperAdminIdentity string `json:"super_admin_id"`
+	Name               string `json:"name"`
 }
 
 type AddGenericUserReply struct {
+	Id          string   `json:"user_id"`
 	Transaction string   `json:"transaction"`
 	Signers     []string `json:"signers"`
 	Threshold   int      `json:"threshold"`

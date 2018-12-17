@@ -15,6 +15,7 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
+	"github.com/talhaparacha/medChain/medChainServer/messages"
 	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
@@ -391,23 +392,32 @@ func tokenIntrospectionLogin(w http.ResponseWriter, r *http.Request) {
 
 // Communicate ID of the allUsersDarc if the system is running
 func info(w http.ResponseWriter, r *http.Request) {
-	var js []byte
-	var temp map[string]string
 
 	if systemStart {
-		allUsersDarc := metaData.BaseIdToDarcMap[metaData.AllUsersDarcBaseId]
-		temp = map[string]string{
-			"all_users_darc":     b64.StdEncoding.EncodeToString(allUsersDarc.GetBaseID()),
-			"user_projects_maps": b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice()),
-			"error":              "",
+		allUsersDarcVal := metaData.BaseIdToDarcMap[metaData.AllUsersDarcBaseId]
+		allUsersDarc := b64.StdEncoding.EncodeToString(allUsersDarcVal.GetBaseID())
+		allUsersDarcBaseId := metaData.AllUsersDarcBaseId
+		allManagersDarcBaseId := metaData.AllManagersDarcBaseId
+		allAdminsDarcBaseId := metaData.AllAdminsDarcBaseId
+		allSuperAdminsDarcBaseId := metaData.AllSuperAdminsDarcBaseId
+		userProjectsMapId := b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice())
+		genesisDarcBaseId := metaData.GenesisDarcBaseId
+		reply := messages.GeneralInfoReply{GenesisDarcBaseId: genesisDarcBaseId, AllSuperAdminsDarcBaseId: allSuperAdminsDarcBaseId, AllAdminsDarcBaseId: allAdminsDarcBaseId, AllManagersDarcBaseId: allManagersDarcBaseId, AllUsersDarcBaseId: allUsersDarcBaseId, AllUsersDarc: allUsersDarc, UserProjectsMap: userProjectsMapId}
+		json_val, err := json.Marshal(&reply)
+		if medChainUtils.CheckError(err, w, r) {
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(json_val)
+		if medChainUtils.CheckError(err, w, r) {
+			return
 		}
 	} else {
-		temp = map[string]string{"error": "MedChain not started yet"}
+		temp := map[string]string{"error": "MedChain not started yet"}
+		js, _ := json.Marshal(temp)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 	}
-
-	js, _ = json.Marshal(temp)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
 }
 
 // Simple web server
@@ -468,6 +478,7 @@ func main() {
 	}
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
+
 	http.HandleFunc("/info", info)
 	http.HandleFunc("/info/hospital", GetSuperAdminInfo)
 	http.HandleFunc("/info/admin", GetAdminInfo)
@@ -475,11 +486,17 @@ func main() {
 	http.HandleFunc("/info/user", GetUserInfo)
 	http.HandleFunc("/info/darc", GetDarcInfo)
 	http.HandleFunc("/list/darc", ListDarcUsers)
+
+	http.HandleFunc("/add/user", AddUser)
+	http.HandleFunc("/add/manager", AddManager)
+	http.HandleFunc("/add/admin", AddAdmin)
+
 	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
 	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
 	// http.HandleFunc("/metadata/add/user", NewUserMetadata)
 	// http.HandleFunc("/metadata/add/manager", NewManagerMetadata)
 	// http.HandleFunc("/metadata/add/admin", NewAdminMetadata)
+
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
