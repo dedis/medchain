@@ -15,7 +15,6 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
-	"github.com/talhaparacha/medChain/medChainServer/messages"
 	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
@@ -431,46 +430,6 @@ func getDarcFromId(id string, baseIdToDarcMap map[string]*darc.Darc, mapId map[s
 	return nil, ok
 }
 
-func GetDarcInfo(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.DarcInfoRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var baseId string
-	if request.BaseId != "" {
-		baseId = request.BaseId
-	} else if request.DarcId != "" {
-		var ok bool
-		baseId, ok = metaData.DarcIdToBaseIdMap[request.DarcId]
-		if !ok {
-			medChainUtils.CheckError(errors.New("No darc with this id"), w, r)
-			return
-		}
-	} else {
-		medChainUtils.CheckError(errors.New("No darc id Nor base id was given"), w, r)
-		return
-	}
-	darc, ok := metaData.BaseIdToDarcMap[baseId]
-	if !ok {
-		medChainUtils.CheckError(errors.New("No darc with this base id"), w, r)
-		return
-	}
-	reply := messages.DarcInfoReply{Description: string(darc.Description)}
-	json_val, err := json.Marshal(&reply)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	_, err = w.Write(json_val)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-}
-
 func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]*darc.Darc, map_id map[string]string, list_of_map_subordinates []map[string]string) {
 	identity := strings.Join(r.URL.Query()["identity"], "")
 	mainDarc, ok := getDarcFromId(identity, baseIdToDarcMap, map_id)
@@ -510,11 +469,12 @@ func main() {
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
 	http.HandleFunc("/info", info)
-	http.HandleFunc("/info/super_admin", GetSuperAdminInfo)
+	http.HandleFunc("/info/hospital", GetSuperAdminInfo)
 	http.HandleFunc("/info/admin", GetAdminInfo)
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
 	http.HandleFunc("/info/darc", GetDarcInfo)
+	http.HandleFunc("/list/darc", ListDarcUsers)
 	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
 	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
 	// http.HandleFunc("/metadata/add/user", NewUserMetadata)

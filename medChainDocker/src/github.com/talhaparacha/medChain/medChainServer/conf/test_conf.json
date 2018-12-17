@@ -11,6 +11,10 @@
           "Name":"Alice"
         },
         {
+          "PublicKey":"admins/3_public",
+          "Name":"Jack"
+        },
+        {
           "PublicKey":"admins/1_public",
           "Name":"Bob"
         }

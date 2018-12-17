@@ -195,7 +195,7 @@ func createGenericUserDarc(user_metadata *metadata.GenericUser, owner_darc *darc
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("add darc", user_metadata.Id.String())
+	fmt.Println("add "+user_type+" darc", user_metadata.Id.String())
 	user_metadata.DarcBaseId = addDarcToMaps(tempDarc, metaData)
 	return tempDarc
 }

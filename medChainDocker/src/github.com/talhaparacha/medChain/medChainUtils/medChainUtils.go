@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -226,7 +227,7 @@ func InitAtLeastTwoExpr(ids []string) expression.Expr {
 		result := expression.InitAndExpr(ids[0], ids[1])
 		for i := 0; i < len(ids); i++ {
 			for j := i + 1; j < len(ids); j++ {
-				if i != 0 && j != 1 {
+				if i != 0 || j != 1 {
 					new_pair := expression.InitAndExpr(ids[i], ids[j])
 					result = expression.InitOrExpr(string(result), string(new_pair))
 				}
@@ -234,4 +235,24 @@ func InitAtLeastTwoExpr(ids []string) expression.Expr {
 		}
 		return result
 	}
+}
+
+type TransactionData struct {
+	Uid         string
+	Description string
+	Signers     []string
+	Transaction string
+	Threshold   int
+}
+
+type ExchangeMessage struct {
+	Transactions []TransactionData
+}
+
+func CheckError(err error, w http.ResponseWriter, r *http.Request) bool {
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return true
+	}
+	return false
 }

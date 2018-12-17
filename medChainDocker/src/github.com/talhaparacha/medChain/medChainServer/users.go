@@ -3,14 +3,21 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/talhaparacha/medChain/medChainServer/messages"
+	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
-func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
+func GetUserInfo(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/info/user")
+	getGenericUserInfo(w, r, metaData.Users)
+}
+
+func getGenericUserInfo(w http.ResponseWriter, r *http.Request, user_metadata_map map[string]*metadata.GenericUser) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -30,12 +37,12 @@ func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
 		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
 		return
 	}
-	hospital_metadata, ok := metaData.Hospitals[identity]
+	user_metadata, ok := user_metadata_map[identity]
 	if !ok {
 		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
 		return
 	}
-	reply := messages.SuperAdminInfoReply{DarcBaseId: hospital_metadata.DarcBaseId, SuperAdminId: hospital_metadata.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId}
+	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.Id.String()}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -46,22 +53,3 @@ func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-// func NewAdminMetadata(w http.ResponseWriter, r *http.Request) {
-// 	body, err := ioutil.ReadAll(r.Body)
-// 	medChainUtils.Check(err)
-// 	var newDarcs medChainUtils.NewDarcsMetadata
-// 	err = json.Unmarshal(body, &newDarcs)
-// 	medChainUtils.Check(err)
-// 	id := newDarcs.Id
-// 	darcMap := newDarcs.Darcs
-// 	if id == "" || darcMap == nil {
-// 		http.Error(w, "", http.StatusNotFound)
-// 		return
-// 	}
-// 	adminDarc, ok1 := newDarcs.Darcs["admin_darc"]
-// 	if ok1 {
-// 		addDarcToMaps(adminDarc, id, adminsDarcsMap)
-// 	}
-// 	fmt.Println("add admin ", id)
-// }
