@@ -146,7 +146,6 @@ func createAllSuperAdminsDarc(metaData *metadata.Metadata, signers []darc.Signer
 			fmt.Println("failed super admin darc", IdString)
 			panic(errors.New("Could not load super admin darc"))
 		}
-
 		darcIdList = append(darcIdList, super_admin_darc.GetIdentityString())
 	}
 	rules := darc.InitRulesWith(darc_owners, []darc.Identity{}, "invoke:evolve")
@@ -197,6 +196,7 @@ func createGenericUserDarc(user_metadata *metadata.GenericUser, owner_darc *darc
 	}
 	fmt.Println("add "+user_type+" darc", user_metadata.Id.String())
 	user_metadata.DarcBaseId = addDarcToMaps(tempDarc, metaData)
+	user_metadata.IsCreated = true
 	return tempDarc
 }
 
@@ -306,6 +306,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		}
 		hospital.UserListDarcBaseId = addDarcToMaps(usersListDarc, metaData)
 		users_list_darc_ids = append(users_list_darc_ids, darc.NewIdentityDarc(usersListDarc.GetID()))
+		hospital.IsCreated = true
 	}
 	owner_id := []darc.Identity{darc.NewIdentityDarc(metaData.GenesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, users_list_darc_ids, "invoke:evolve")
@@ -314,6 +315,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		panic(err)
 	}
 	metaData.AllUsersDarcBaseId = addDarcToMaps(allUsersDarc, metaData)
+
 }
 
 // func createGenericUserListDarc(generic_user_list []*metadata.GenericUser, owner_darc *darc.Darc, rules []string, user_type string, metaData *metadata.Metadata, signers []*darc.Signer) string {

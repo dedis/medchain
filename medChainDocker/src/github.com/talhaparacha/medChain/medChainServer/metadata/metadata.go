@@ -15,6 +15,7 @@ type Hospital struct {
 	Admins                []*GenericUser
 	Managers              []*GenericUser
 	Users                 []*GenericUser
+	IsCreated             bool
 }
 
 type GenericUser struct {
@@ -22,6 +23,7 @@ type GenericUser struct {
 	Name       string
 	DarcBaseId string
 	Hospital   *Hospital
+	IsCreated  bool
 }
 
 type Project struct {
@@ -51,9 +53,9 @@ func NewMetadata() *Metadata {
 }
 
 func NewHospital(IdValue darc.Identity, NameValue string) *Hospital {
-	return &Hospital{Id: IdValue, Name: NameValue, Admins: make([]*GenericUser, 0), Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0)}
+	return &Hospital{Id: IdValue, Name: NameValue, Admins: make([]*GenericUser, 0), Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), IsCreated: false}
 }
 
 func NewGenericUser(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
-	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer}
+	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer, IsCreated: false}
 }
