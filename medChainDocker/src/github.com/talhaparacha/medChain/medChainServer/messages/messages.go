@@ -83,3 +83,7 @@ type AddHospitalReply struct {
 	InstructionDigests map[int][]byte `json:"instruction_digests"`
 	Signers            map[string]int `json:"signers"`
 }
+
+type CommitHospitalRequest struct {
+	Transaction string `json:"transaction"`
+}

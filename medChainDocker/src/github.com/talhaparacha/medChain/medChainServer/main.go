@@ -490,6 +490,7 @@ func main() {
 	http.HandleFunc("/commit/user", CommitUser)
 	http.HandleFunc("/commit/manager", CommitManager)
 	http.HandleFunc("/commit/admin", CommitAdmin)
+	http.HandleFunc("/commit/hospital", CommitHospital)
 
 	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
 	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
