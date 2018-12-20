@@ -55,14 +55,31 @@ type ListReply struct {
 }
 
 type AddGenericUserRequest struct {
-	PublicKey          string `json:"new_public_key"`
-	SuperAdminIdentity string `json:"super_admin_id"`
-	Name               string `json:"name"`
+	PublicKey          string   `json:"new_public_key"`
+	SuperAdminIdentity string   `json:"super_admin_id"`
+	Name               string   `json:"name"`
+	PreferredSigners   []string `json:"preferred_signers"`
 }
 
 type AddGenericUserReply struct {
-	Id                 string   `json:"user_id"`
-	Transaction        string   `json:"transaction"`
-	Signers            []string `json:"signers"`
-	InstructionDigests [][]byte `json:"instruction_digests"`
+	Id                 string         `json:"user_id"`
+	Transaction        string         `json:"transaction"`
+	InstructionDigests map[int][]byte `json:"instruction_digests"`
+	Signers            map[string]int `json:"signers"`
+}
+
+type CommitNewGenericUserRequest struct {
+	Transaction string `json:"transaction"`
+}
+
+type AddHospitalRequest struct {
+	PublicKey string `json:"new_public_key"`
+	Name      string `json:"name"`
+}
+
+type AddHospitalReply struct {
+	Id                 string         `json:"hospital_id"`
+	Transaction        string         `json:"transaction"`
+	InstructionDigests map[int][]byte `json:"instruction_digests"`
+	Signers            map[string]int `json:"signers"`
 }

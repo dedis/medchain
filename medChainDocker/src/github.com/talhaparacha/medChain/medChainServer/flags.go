@@ -4,11 +4,11 @@ import (
 	"flag"
 )
 
-func getFlags() (string, bool) {
+func getFlags() (string, string) {
 	var Port string
-	var TestConf bool
+	var Conf string
 	flag.StringVar(&Port, "port", "8989", "Port for the server")
-	flag.BoolVar(&TestConf, "test", false, "Bootstraps the medchain server with the test configuration")
+	flag.StringVar(&Conf, "conf", "conf/conf.json", "The json configuration file used for the bootstrap")
 	flag.Parse()
-	return Port, TestConf
+	return Port, Conf
 }

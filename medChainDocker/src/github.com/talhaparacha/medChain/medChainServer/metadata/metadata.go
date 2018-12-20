@@ -32,25 +32,26 @@ type Project struct {
 }
 
 type Metadata struct {
-	Hospitals                map[string]*Hospital
-	Admins                   map[string]*GenericUser
-	Managers                 map[string]*GenericUser
-	Users                    map[string]*GenericUser
-	WaitingForCreation       map[string]*GenericUser
-	Projects                 map[string]*Project
-	BaseIdToDarcMap          map[string]*darc.Darc
-	DarcIdToBaseIdMap        map[string]string
-	AllSuperAdminsDarcBaseId string
-	AllAdminsDarcBaseId      string
-	AllManagersDarcBaseId    string
-	AllUsersDarcBaseId       string
-	GenesisBlock             *service.CreateGenesisBlockResponse
-	GenesisMsg               *service.CreateGenesisBlock
-	GenesisDarcBaseId        string
+	Hospitals                  map[string]*Hospital
+	Admins                     map[string]*GenericUser
+	Managers                   map[string]*GenericUser
+	Users                      map[string]*GenericUser
+	WaitingForCreation         map[string]*GenericUser
+	HospitalWaitingForCreation map[string]*Hospital
+	Projects                   map[string]*Project
+	BaseIdToDarcMap            map[string]*darc.Darc
+	DarcIdToBaseIdMap          map[string]string
+	AllSuperAdminsDarcBaseId   string
+	AllAdminsDarcBaseId        string
+	AllManagersDarcBaseId      string
+	AllUsersDarcBaseId         string
+	GenesisBlock               *service.CreateGenesisBlockResponse
+	GenesisMsg                 *service.CreateGenesisBlock
+	GenesisDarcBaseId          string
 }
 
 func NewMetadata() *Metadata {
-	return &Metadata{Hospitals: make(map[string]*Hospital), Admins: make(map[string]*GenericUser), Managers: make(map[string]*GenericUser), Users: make(map[string]*GenericUser), WaitingForCreation: make(map[string]*GenericUser), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
+	return &Metadata{Hospitals: make(map[string]*Hospital), Admins: make(map[string]*GenericUser), Managers: make(map[string]*GenericUser), Users: make(map[string]*GenericUser), WaitingForCreation: make(map[string]*GenericUser), HospitalWaitingForCreation: make(map[string]*Hospital), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
 }
 
 func NewHospital(IdValue darc.Identity, NameValue string) *Hospital {

@@ -24,6 +24,10 @@
         {
           "PublicKey":"admins/2_public",
           "Name":"Charles"
+        },
+        {
+          "PublicKey":"admins/3_public",
+          "Name":"David"
         }
       ]
     }

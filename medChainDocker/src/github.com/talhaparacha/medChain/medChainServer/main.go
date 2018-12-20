@@ -44,9 +44,7 @@ var cl = service.NewClient()
 //
 // var projectsDarcsMap = make(map[string]string)
 
-var keysDirectory = "keys"
-
-var configFileName = "conf/conf.json"
+var configFileName string
 
 // // Genesis block
 // var genesisMsg *service.CreateGenesisBlock
@@ -259,7 +257,6 @@ func extractTransactionFromRequest(w http.ResponseWriter, r *http.Request) (*ser
 	}
 	testTransactionRetrieved, ok := tmp.(*service.ClientTransaction)
 	if !ok {
-
 		return nil, errors.New("could not retrieve the transaction")
 	}
 	return testTransactionRetrieved, nil
@@ -471,10 +468,9 @@ func main() {
 	//medChainUtils.InitKeys(3, "keys/admins")
 	//medChainUtils.InitKeys(3, "keys/managers")
 	//medChainUtils.InitKeys(3, "keys/users")
-	port, testConf := getFlags()
-	if testConf {
-		configFileName = "conf/test_conf.json"
-	}
+	port, conf := getFlags()
+	configFileName = conf
+
 	http.HandleFunc("/", sayHello)
 	http.HandleFunc("/start", start)
 
@@ -489,6 +485,11 @@ func main() {
 	http.HandleFunc("/add/user", AddUser)
 	http.HandleFunc("/add/manager", AddManager)
 	http.HandleFunc("/add/admin", AddAdmin)
+	http.HandleFunc("/add/hospital", AddHospital)
+
+	http.HandleFunc("/commit/user", CommitUser)
+	http.HandleFunc("/commit/manager", CommitManager)
+	http.HandleFunc("/commit/admin", CommitAdmin)
 
 	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
 	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)

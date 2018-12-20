@@ -42,6 +42,10 @@
         {
           "PublicKey":"admins/2_public",
           "Name":"Garry"
+        },
+        {
+          "PublicKey":"admins/4_public",
+          "Name":"Lola"
         }
       ],
       "Managers":[

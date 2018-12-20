@@ -30,6 +30,11 @@ func AddManager(w http.ResponseWriter, r *http.Request) {
 	replyNewGenericUserRequest(w, r, "User")
 }
 
+func CommitManager(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/commit/manager")
+	commitNewGenericUserToChain(w, r, "Manager")
+}
+
 // func NewUserMetadata(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	medChainUtils.Check(err)

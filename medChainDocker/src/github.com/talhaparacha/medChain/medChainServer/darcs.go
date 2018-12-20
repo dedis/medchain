@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/dedis/cothority/omniledger/darc"
@@ -52,6 +53,7 @@ func ListDarcUsers(w http.ResponseWriter, r *http.Request) {
 	for user_id, _ := range hash_map {
 		users = append(users, user_id)
 	}
+	sort.Strings(users)
 	reply := messages.ListReply{Users: users}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
@@ -96,6 +98,20 @@ func findDarc(w http.ResponseWriter, r *http.Request) (*darc.Darc, bool) {
 	return darcVal, true
 }
 
+func findSignersOfDarc(listDarc *darc.Darc) ([]string, error) {
+	hash_map := make(map[string]bool)
+	err := recursivelyFindUsersOfDarc(listDarc, &hash_map)
+	if err != nil {
+		return nil, err
+	}
+	users := []string{}
+	for user_id, _ := range hash_map {
+		users = append(users, user_id)
+	}
+	sort.Strings(users)
+	return users, nil
+}
+
 func recursivelyFindUsersOfDarc(listDarc *darc.Darc, hash_map *map[string]bool) error {
 	rules := listDarc.Rules
 	expr := rules.GetSignExpr()
@@ -118,6 +134,7 @@ func recursivelyFindUsersOfDarc(listDarc *darc.Darc, hash_map *map[string]bool) 
 		case strings.HasPrefix(signer_darc, "ed25519:"):
 			hash_map_value := *hash_map
 			hash_map_value[signer_darc] = true
+		case signer_darc == "":
 		default:
 			return errors.New("Unknown signing value")
 		}
