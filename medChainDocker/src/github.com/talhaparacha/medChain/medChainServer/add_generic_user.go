@@ -18,43 +18,6 @@ import (
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
-func getGenericUserInfo(w http.ResponseWriter, r *http.Request, user_metadata_map map[string]*metadata.GenericUser) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.UserInfoRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var identity string
-	if request.Identity != "" {
-		identity = request.Identity
-	} else if request.PublicKey != "" {
-		id := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
-		identity = id.String()
-	} else {
-		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
-		return
-	}
-	user_metadata, ok := user_metadata_map[identity]
-	if !ok {
-		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
-		return
-	}
-	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.Id.String(), IsCreated: user_metadata.IsCreated}
-	json_val, err := json.Marshal(&reply)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(json_val)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-}
-
 func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_type string) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
@@ -172,21 +135,10 @@ func computeInstructionDigests(instruction *service.Instruction, signers_ids map
 }
 
 func addGenericUserToMetadata(metaData *metadata.Metadata, hospital_metadata *metadata.Hospital, identity darc.Identity, name, user_type string, new_darc *darc.Darc) error {
-	var user_metadata_map map[string]*metadata.GenericUser
-	switch user_type {
-	case "Admin":
-		user_metadata_map = metaData.Admins
-	case "Manager":
-		user_metadata_map = metaData.Managers
-	case "User":
-		user_metadata_map = metaData.Users
-	default:
-		return errors.New("Unknown user type")
-	}
 	if name == "" {
 		return errors.New("You have to specify a name")
 	}
-	user_metadata, ok := user_metadata_map[identity.String()]
+	user_metadata, ok := metaData.GenericUsers[identity.String()]
 	if ok {
 		if user_metadata.IsCreated {
 			return errors.New("This user already exists")
@@ -194,9 +146,18 @@ func addGenericUserToMetadata(metaData *metadata.Metadata, hospital_metadata *me
 		base_id := medChainUtils.IDToB64String(new_darc.GetBaseID())
 		metaData.WaitingForCreation[base_id] = user_metadata
 	} else {
-		user_metadata := metadata.NewGenericUser(identity, name, hospital_metadata)
-		hospital_metadata.Users = append(hospital_metadata.Users, user_metadata)
-		metaData.Users[identity.String()] = user_metadata
+		var user_metadata *metadata.GenericUser
+		switch user_type {
+		case "Admin":
+			user_metadata = metadata.NewAdmin(identity, name, hospital_metadata)
+		case "Manager":
+			user_metadata = metadata.NewManager(identity, name, hospital_metadata)
+		case "User":
+			user_metadata = metadata.NewUser(identity, name, hospital_metadata)
+		default:
+			return errors.New("Unknown user type")
+		}
+		metaData.GenericUsers[identity.String()] = user_metadata
 		base_id := medChainUtils.IDToB64String(new_darc.GetBaseID())
 		metaData.WaitingForCreation[base_id] = user_metadata
 	}
@@ -279,7 +240,10 @@ func createNewGenericUserTransaction(identity darc.Identity, owner_darc, list_da
 func getMetadata(request *messages.AddGenericUserRequest) (*metadata.Hospital, *darc.Identity, error) {
 	var identity darc.Identity
 	if request.PublicKey != "" {
-		identity = medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
+		identity, err = medChainUtils.LoadIdentityEd25519FromBytesWithErr([]byte(request.PublicKey))
+		if err != nil {
+			return nil, nil, err
+		}
 	} else {
 		return nil, nil, errors.New("No public key was given for the new user")
 	}
@@ -319,7 +283,7 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string, preferre
 	var ok bool
 	switch user_type {
 	case "Admin":
-		owner_darc, ok = metaData.BaseIdToDarcMap[hospital_metadata.DarcBaseId]
+		owner_darc, ok = metaData.BaseIdToDarcMap[hospital_metadata.SuperAdmin.DarcBaseId]
 		threshold = 1
 	default:
 		owner_darc, ok = metaData.BaseIdToDarcMap[hospital_metadata.AdminListDarcBaseId]
@@ -369,10 +333,10 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string, preferre
 			if !ok {
 				return nil, nil, nil, errors.New("Could not find the signer identity")
 			}
-			id := user_metadata.Id
+			id := user_metadata.SuperAdmin.Id
 			chosen_signers_ids[i] = id
 		default:
-			user_metadata, ok := metaData.Admins[signer]
+			user_metadata, ok := metaData.GenericUsers[signer]
 			if !ok {
 				return nil, nil, nil, errors.New("Could not find the signer identity")
 			}

@@ -20,9 +20,8 @@ type Identity struct {
 
 type Hospital struct {
 	Name       string     `json:"Name"`
-	PublicKey  string     `json:"PublicKey"`
-	PrivateKey string     `json:"PrivateKey"`
-	Admins     []Signer   `json:"Admins,omitempty"`
+	SuperAdmin Signer     `json:"SuperAdmin"`
+	Admins     []Identity `json:"Admins"`
 	Managers   []Identity `json:"Managers,omitempty"`
 	Users      []Identity `json:"Users,omitempty"`
 }

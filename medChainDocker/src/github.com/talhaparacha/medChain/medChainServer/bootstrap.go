@@ -13,13 +13,6 @@ import (
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
-// Admins, Managers and Users as per the context defined in system diagram
-// var super_admins []darc.Signer
-// var super_admins_ids []darc.Identity
-// var admins map[string][]darc.Identity
-// var managers map[string][]darc.Identity
-// var users map[string][]darc.Identity
-
 // func findUser(userCoordinates conf.Coordinates) *darc.Identity {
 // 	super_admin_signer := super_admins[userCoordinates.I]
 // 	user_identity := users[super_admin_signer.Identity().String()][userCoordinates.J]
@@ -42,19 +35,13 @@ func addDarcToMaps(NewDarc *darc.Darc, metaData *metadata.Metadata) string {
 func loadKeys(configuration *conf.Configuration, metaData *metadata.Metadata) []darc.Signer {
 
 	super_admins := []darc.Signer{}
-	// super_admins_ids = []darc.Identity{}
-	// admins = make(map[string][]darc.Identity)
-	// managers = make(map[string][]darc.Identity)
-	// users = make(map[string][]darc.Identity)
 
 	for _, hospital := range configuration.Hospitals {
-		super_admin_signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+hospital.PublicKey, configuration.KeyDirectory+hospital.PrivateKey)
-		hospital_metadata := metadata.NewHospital(super_admin_signer.Identity(), hospital.Name)
-		metaData.Hospitals[hospital_metadata.Id.String()] = hospital_metadata
+		super_admin_signer := medChainUtils.LoadSignerEd25519(configuration.KeyDirectory+hospital.SuperAdmin.PublicKey, configuration.KeyDirectory+hospital.SuperAdmin.PrivateKey)
+		hospital_metadata, super_admin_metadata := metadata.NewHospital(super_admin_signer.Identity(), hospital.Name, hospital.SuperAdmin.Name)
+		metaData.Hospitals[super_admin_metadata.Id.String()] = hospital_metadata
+		metaData.GenericUsers[super_admin_metadata.Id.String()] = super_admin_metadata
 		super_admins = append(super_admins, super_admin_signer)
-		// super_admins_ids = append(super_admins_ids, super_admin_signer.Identity())
-		// super_admin_IDString := super_admin_signer.Identity().String()
-		// admins[super_admin_IDString] = []darc.Identity{}
 
 		if len(hospital.Admins) < 2 {
 			panic(errors.New("All hospitals should have at least 2 admins to avoid a single point of failure"))
@@ -62,28 +49,20 @@ func loadKeys(configuration *conf.Configuration, metaData *metadata.Metadata) []
 
 		for _, admin := range hospital.Admins {
 			admin_identity := medChainUtils.LoadIdentityEd25519(configuration.KeyDirectory + admin.PublicKey)
-			admin_metadata := metadata.NewGenericUser(admin_identity, admin.Name, hospital_metadata)
-			metaData.Admins[admin_identity.String()] = admin_metadata
-			hospital_metadata.Admins = append(hospital_metadata.Admins, admin_metadata)
-			// admins[super_admin_IDString] = append(admins[super_admin_IDString], admin_identity)
+			admin_metadata := metadata.NewAdmin(admin_identity, admin.Name, hospital_metadata)
+			metaData.GenericUsers[admin_metadata.Id.String()] = admin_metadata
 		}
 
-		// managers[super_admin_IDString] = []darc.Identity{}
 		for _, manager := range hospital.Managers {
 			manager_identity := medChainUtils.LoadIdentityEd25519(configuration.KeyDirectory + manager.PublicKey)
-			manager_metadata := metadata.NewGenericUser(manager_identity, manager.Name, hospital_metadata)
-			metaData.Managers[manager_identity.String()] = manager_metadata
-			hospital_metadata.Managers = append(hospital_metadata.Managers, manager_metadata)
-			// managers[super_admin_IDString] = append(managers[super_admin_IDString], manager_identity)
+			manager_metadata := metadata.NewManager(manager_identity, manager.Name, hospital_metadata)
+			metaData.GenericUsers[manager_metadata.Id.String()] = manager_metadata
 		}
 
-		// users[super_admin_IDString] = []darc.Identity{}
 		for _, user := range hospital.Users {
 			user_identity := medChainUtils.LoadIdentityEd25519(configuration.KeyDirectory + user.PublicKey)
-			user_metadata := metadata.NewGenericUser(user_identity, user.Name, hospital_metadata)
-			metaData.Users[user_identity.String()] = user_metadata
-			hospital_metadata.Users = append(hospital_metadata.Users, user_metadata)
-			// users[super_admin_IDString] = append(users[super_admin_IDString], user_identity)
+			user_metadata := metadata.NewUser(user_identity, user.Name, hospital_metadata)
+			metaData.GenericUsers[user_metadata.Id.String()] = user_metadata
 		}
 	}
 	return super_admins
@@ -94,7 +73,7 @@ func createGenesis(metaData *metadata.Metadata) {
 	super_adminsIDStrings := []string{}
 
 	for IdString, hospital := range metaData.Hospitals {
-		super_adminsIds = append(super_adminsIds, hospital.Id)
+		super_adminsIds = append(super_adminsIds, hospital.SuperAdmin.Id)
 		super_adminsIDStrings = append(super_adminsIDStrings, IdString)
 	}
 
@@ -131,7 +110,7 @@ func createSuperAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) 
 	}
 	for IdString, hospital := range metaData.Hospitals {
 		darc_owners := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
-		darc_signers := []darc.Identity{hospital.Id}
+		darc_signers := []darc.Identity{hospital.SuperAdmin.Id}
 		rules := darc.InitRulesWith(darc_owners, darc_signers, "invoke:evolve")
 		rules.AddRule("spawn:darc", rules.GetSignExpr()) // that's allright for super admins
 		tempDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Single Super Admin darc", signers...)
@@ -139,7 +118,7 @@ func createSuperAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) 
 			panic(err)
 		}
 		addDarcToMaps(tempDarc, metaData)
-		hospital.DarcBaseId = addDarcToMaps(tempDarc, metaData)
+		hospital.SuperAdmin.DarcBaseId = addDarcToMaps(tempDarc, metaData)
 		fmt.Println("add super admin darc", IdString)
 	}
 }
@@ -155,7 +134,7 @@ func createAllSuperAdminsDarc(metaData *metadata.Metadata, signers []darc.Signer
 	darc_owners := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	for IdString, hospital := range metaData.Hospitals {
 
-		super_admin_darc, ok := metaData.BaseIdToDarcMap[hospital.DarcBaseId]
+		super_admin_darc, ok := metaData.BaseIdToDarcMap[hospital.SuperAdmin.DarcBaseId]
 		if !ok {
 			fmt.Println("failed super admin darc", IdString)
 			panic(errors.New("Could not load super admin darc"))
@@ -229,7 +208,7 @@ func createAdminsDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 
 	for IdString, hospital := range metaData.Hospitals {
 
-		owner_darc, ok := metaData.BaseIdToDarcMap[hospital.DarcBaseId]
+		owner_darc, ok := metaData.BaseIdToDarcMap[hospital.SuperAdmin.DarcBaseId]
 		if !ok {
 			fmt.Println("failed super admin darc", IdString)
 			panic(errors.New("Could not load super admin darc"))
@@ -339,7 +318,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 		}
 		hospital.UserListDarcBaseId = addDarcToMaps(usersListDarc, metaData)
 		users_list_darc_ids = append(users_list_darc_ids, darc.NewIdentityDarc(usersListDarc.GetID()))
-		hospital.IsCreated = true
+		hospital.SuperAdmin.IsCreated = true
 	}
 	owner_id := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, users_list_darc_ids, "invoke:evolve")

@@ -20,8 +20,7 @@ type GeneralInfoReply struct {
 	UserProjectsMap          string `json:"user_projects_maps"`
 }
 
-type SuperAdminInfoReply struct {
-	DarcBaseId            string `json:"super_admin_darc_base_id"`
+type HospitalInfoReply struct {
 	SuperAdminId          string `json:"super_admin_id"`
 	HospitalName          string `json:"hospital_name"`
 	AdminListDarcBaseId   string `json:"admin_list_darc_base_id"`
@@ -36,6 +35,7 @@ type GenericUserInfoReply struct {
 	DarcBaseId   string `json:"darc_base_id"`
 	SuperAdminId string `json:"super_admin_id"`
 	IsCreated    bool   `json:"is_created"`
+	Role         string `json:"role"`
 }
 
 type DarcInfoRequest struct {
@@ -78,8 +78,9 @@ type CommitNewGenericUserRequest struct {
 }
 
 type AddHospitalRequest struct {
-	PublicKey string `json:"new_public_key"`
-	Name      string `json:"name"`
+	PublicKey      string `json:"new_public_key"`
+	HospitalName   string `json:"hospital_name"`
+	SuperAdminName string `json:"super_admin_name"`
 }
 
 type AddHospitalReply struct {

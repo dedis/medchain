@@ -6,16 +6,14 @@ import (
 )
 
 type Hospital struct {
-	Id                    darc.Identity
 	Name                  string
-	DarcBaseId            string
+	SuperAdmin            *GenericUser
 	AdminListDarcBaseId   string
 	ManagerListDarcBaseId string
 	UserListDarcBaseId    string
 	Admins                []*GenericUser
 	Managers              []*GenericUser
 	Users                 []*GenericUser
-	IsCreated             bool
 }
 
 type GenericUser struct {
@@ -24,6 +22,8 @@ type GenericUser struct {
 	DarcBaseId string
 	Hospital   *Hospital
 	IsCreated  bool
+	Role       string
+	Projects   []*Project
 }
 
 type Project struct {
@@ -32,33 +32,56 @@ type Project struct {
 }
 
 type Metadata struct {
-	Hospitals                  map[string]*Hospital
-	Admins                     map[string]*GenericUser
-	Managers                   map[string]*GenericUser
-	Users                      map[string]*GenericUser
-	WaitingForCreation         map[string]*GenericUser
-	HospitalWaitingForCreation map[string]*Hospital
-	Projects                   map[string]*Project
-	BaseIdToDarcMap            map[string]*darc.Darc
-	DarcIdToBaseIdMap          map[string]string
-	AllSuperAdminsDarcBaseId   string
-	AllAdminsDarcBaseId        string
-	AllManagersDarcBaseId      string
-	AllUsersDarcBaseId         string
-	GenesisBlock               *service.CreateGenesisBlockResponse
-	GenesisMsg                 *service.CreateGenesisBlock
-	GenesisDarcBaseId          string
-	SigningServiceUrl          string
+	Hospitals                map[string]*Hospital
+	GenericUsers             map[string]*GenericUser
+	WaitingForCreation       map[string]*GenericUser
+	Projects                 map[string]*Project
+	BaseIdToDarcMap          map[string]*darc.Darc
+	DarcIdToBaseIdMap        map[string]string
+	AllSuperAdminsDarcBaseId string
+	AllAdminsDarcBaseId      string
+	AllManagersDarcBaseId    string
+	AllUsersDarcBaseId       string
+	GenesisBlock             *service.CreateGenesisBlockResponse
+	GenesisMsg               *service.CreateGenesisBlock
+	GenesisDarcBaseId        string
+	SigningServiceUrl        string
 }
 
 func NewMetadata() *Metadata {
-	return &Metadata{Hospitals: make(map[string]*Hospital), Admins: make(map[string]*GenericUser), Managers: make(map[string]*GenericUser), Users: make(map[string]*GenericUser), WaitingForCreation: make(map[string]*GenericUser), HospitalWaitingForCreation: make(map[string]*Hospital), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
+	return &Metadata{Hospitals: make(map[string]*Hospital), GenericUsers: make(map[string]*GenericUser), WaitingForCreation: make(map[string]*GenericUser), Projects: make(map[string]*Project), BaseIdToDarcMap: make(map[string]*darc.Darc), DarcIdToBaseIdMap: make(map[string]string)}
 }
 
-func NewHospital(IdValue darc.Identity, NameValue string) *Hospital {
-	return &Hospital{Id: IdValue, Name: NameValue, Admins: make([]*GenericUser, 0), Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), IsCreated: false}
+func NewHospital(IdValue darc.Identity, HospitalNameValue string, SuperAdminNameValue string) (*Hospital, *GenericUser) {
+	hospital := Hospital{Name: HospitalNameValue, Admins: make([]*GenericUser, 0), Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0)}
+	super_admin := newSuperAdmin(IdValue, SuperAdminNameValue, &hospital)
+	return &hospital, super_admin
 }
 
-func NewGenericUser(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
-	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer, IsCreated: false}
+func newGenericUser(IdValue darc.Identity, NameValue string, role string, HospitalPointer *Hospital) *GenericUser {
+	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer, Role: role, IsCreated: false, Projects: make([]*Project, 0)}
+}
+
+func newSuperAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
+	super_admin := newGenericUser(IdValue, NameValue, "super_admin", HospitalPointer)
+	HospitalPointer.SuperAdmin = super_admin
+	return super_admin
+}
+
+func NewAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
+	admin_metadata := newGenericUser(IdValue, NameValue, "admin", HospitalPointer)
+	HospitalPointer.Admins = append(HospitalPointer.Admins, admin_metadata)
+	return admin_metadata
+}
+
+func NewManager(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
+	manager_metadata := newGenericUser(IdValue, NameValue, "manager", HospitalPointer)
+	HospitalPointer.Managers = append(HospitalPointer.Managers, manager_metadata)
+	return manager_metadata
+}
+
+func NewUser(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
+	user_metadata := newGenericUser(IdValue, NameValue, "user", HospitalPointer)
+	HospitalPointer.Users = append(HospitalPointer.Users, user_metadata)
+	return user_metadata
 }

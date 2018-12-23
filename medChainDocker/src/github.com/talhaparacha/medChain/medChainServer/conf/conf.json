@@ -3,31 +3,37 @@
   "Hospitals": [
     {
       "Name":"Hospital1",
-      "PublicKey":"super_admins/0_public",
-      "PrivateKey":"super_admins/0_private",
+      "SuperAdmin": {
+        "PublicKey":"super_admins/0_public",
+        "PrivateKey":"super_admins/0_private",
+        "Name":"Alice"
+      },
       "Admins":[
         {
           "PublicKey":"admins/0_public",
-          "Name":"Alice"
+          "Name":"Charles"
         },
         {
           "PublicKey":"admins/1_public",
-          "Name":"Bob"
+          "Name":"David"
         }
       ]
     },
     {
       "Name":"Hospital2",
-      "PublicKey":"super_admins/1_public",
-      "PrivateKey":"super_admins/1_private",
+      "SuperAdmin": {
+        "PublicKey":"super_admins/1_public",
+        "PrivateKey":"super_admins/1_private",
+        "Name":"Bob"
+      },
       "Admins":[
         {
           "PublicKey":"admins/2_public",
-          "Name":"Charles"
+          "Name":"Edward"
         },
         {
           "PublicKey":"admins/3_public",
-          "Name":"David"
+          "Name":"Fanny"
         }
       ]
     }

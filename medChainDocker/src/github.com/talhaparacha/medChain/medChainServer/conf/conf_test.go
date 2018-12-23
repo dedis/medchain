@@ -6,25 +6,22 @@ import (
 )
 
 func TestReadConf(t *testing.T) {
-	configuration, err := ReadConf("test_conf.json")
+	configuration, err := ReadConf("conf.json")
 	if err != nil {
 		t.FailNow()
 	}
 	fmt.Println("dir", configuration.KeyDirectory)
 	for _, hospital := range configuration.Hospitals {
 		fmt.Println(hospital.Name)
-		fmt.Println(hospital.PublicKey)
+		fmt.Println("Super Admin", hospital.SuperAdmin.Name, hospital.SuperAdmin.PublicKey, hospital.SuperAdmin.PrivateKey)
 		for _, admin := range hospital.Admins {
-			fmt.Println(admin.PublicKey)
-			fmt.Println(admin.Name)
+			fmt.Println("Admin", admin.Name, admin.PublicKey)
 		}
 		for _, manager := range hospital.Managers {
-			fmt.Println(manager.PublicKey)
-			fmt.Println(manager.Name)
+			fmt.Println("Manager", manager.Name, manager.PublicKey)
 		}
 		for _, user := range hospital.Users {
-			fmt.Println(user.PublicKey)
-			fmt.Println(user.Name)
+			fmt.Println("User", user.Name, user.PublicKey)
 		}
 	}
 

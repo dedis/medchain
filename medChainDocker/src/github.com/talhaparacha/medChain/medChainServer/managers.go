@@ -20,14 +20,9 @@ type NewUserTransaction struct {
 	Darc             darc.Darc                 `json:"darc"`
 }
 
-func GetManagerInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("/info/manager")
-	getGenericUserInfo(w, r, metaData.Managers)
-}
-
 func AddManager(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/add/manager")
-	replyNewGenericUserRequest(w, r, "User")
+	replyNewGenericUserRequest(w, r, "Manager")
 }
 
 func CommitManager(w http.ResponseWriter, r *http.Request) {

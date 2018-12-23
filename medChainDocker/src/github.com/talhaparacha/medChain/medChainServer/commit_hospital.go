@@ -40,7 +40,7 @@ func CommitHospital(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.SuperAdminInfoReply{DarcBaseId: hospital_metadata.DarcBaseId, SuperAdminId: hospital_metadata.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.IsCreated}
+	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -75,12 +75,12 @@ func checkTransactionForNewHospital(transaction *service.ClientTransaction) ([]*
 	}
 
 	new_darc_base_id := medChainUtils.IDToB64String(new_darcs[0].GetBaseID())
-	hospital_metadata, ok := metaData.HospitalWaitingForCreation[new_darc_base_id]
+	super_admin_metadata, ok := metaData.WaitingForCreation[new_darc_base_id]
 	if !ok {
 		return nil, nil, errors.New("Could not find the metadata of the new hospital")
 	}
 
-	if hospital_metadata.IsCreated {
+	if super_admin_metadata.IsCreated {
 		return nil, nil, errors.New("This hospital was already created")
 	}
 
@@ -99,18 +99,19 @@ func checkTransactionForNewHospital(transaction *service.ClientTransaction) ([]*
 
 func adaptMetadataForNewHospital(new_darcs, evolved_darcs []*darc.Darc) (*metadata.Hospital, error) {
 	new_darc_base_id := medChainUtils.IDToB64String(new_darcs[0].GetBaseID())
-	hospital_metadata, ok := metaData.HospitalWaitingForCreation[new_darc_base_id]
+	super_admin_metadata, ok := metaData.WaitingForCreation[new_darc_base_id]
 	if !ok {
 		return nil, errors.New("Could not find the metadata of the new hospital")
 	}
-	if hospital_metadata.IsCreated {
+	hospital_metadata := super_admin_metadata.Hospital
+	if super_admin_metadata.IsCreated {
 		return nil, errors.New("This user was already created")
 	}
-	hospital_metadata.DarcBaseId = addDarcToMaps(new_darcs[0], metaData)
+	super_admin_metadata.DarcBaseId = addDarcToMaps(new_darcs[0], metaData)
 	hospital_metadata.AdminListDarcBaseId = addDarcToMaps(new_darcs[1], metaData)
 	hospital_metadata.ManagerListDarcBaseId = addDarcToMaps(new_darcs[2], metaData)
 	hospital_metadata.UserListDarcBaseId = addDarcToMaps(new_darcs[3], metaData)
-	hospital_metadata.IsCreated = true
+	super_admin_metadata.IsCreated = true
 	addDarcToMaps(evolved_darcs[0], metaData)
 	addDarcToMaps(evolved_darcs[1], metaData)
 	addDarcToMaps(evolved_darcs[2], metaData)

@@ -28,7 +28,10 @@ func PublicKeyToIdString(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identity := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
+	identity, err := medChainUtils.LoadIdentityEd25519FromBytesWithErr([]byte(request.PublicKey))
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
 
 	reply := admin_messages.IdReply{Identity: identity.String()}
 	json_val, err := json.Marshal(&reply)

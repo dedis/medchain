@@ -5,14 +5,9 @@ import (
 	"net/http"
 )
 
-func GetAdminInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("/info/admin")
-	getGenericUserInfo(w, r, metaData.Admins)
-}
-
 func AddAdmin(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/add/admin")
-	replyNewGenericUserRequest(w, r, "User")
+	replyNewGenericUserRequest(w, r, "Admin")
 }
 
 func CommitAdmin(w http.ResponseWriter, r *http.Request) {

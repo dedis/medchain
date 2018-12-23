@@ -24,7 +24,10 @@ func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
 	if request.Identity != "" {
 		identity = request.Identity
 	} else if request.PublicKey != "" {
-		id := medChainUtils.LoadIdentityEd25519FromBytes([]byte(request.PublicKey))
+		id, err := medChainUtils.LoadIdentityEd25519FromBytesWithErr([]byte(request.PublicKey))
+		if medChainUtils.CheckError(err, w, r) {
+			return
+		}
 		identity = id.String()
 	} else {
 		medChainUtils.CheckError(errors.New("No identity Nor public key was given"), w, r)
@@ -35,7 +38,7 @@ func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
 		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
 		return
 	}
-	reply := messages.SuperAdminInfoReply{DarcBaseId: hospital_metadata.DarcBaseId, SuperAdminId: hospital_metadata.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.IsCreated}
+	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return

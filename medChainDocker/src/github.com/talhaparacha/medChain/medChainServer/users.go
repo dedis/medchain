@@ -5,11 +5,6 @@ import (
 	"net/http"
 )
 
-func GetUserInfo(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("/info/user")
-	getGenericUserInfo(w, r, metaData.Users)
-}
-
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/add/user")
 	replyNewGenericUserRequest(w, r, "User")

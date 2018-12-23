@@ -3,59 +3,65 @@
   "Hospitals": [
     {
       "Name":"Hospital1",
-      "PublicKey":"super_admins/0_public",
-      "PrivateKey":"super_admins/0_private",
+      "SuperAdmin": {
+        "PublicKey":"super_admins/0_public",
+        "PrivateKey":"super_admins/0_private",
+        "Name":"Alice"
+      },
       "Admins":[
         {
           "PublicKey":"admins/0_public",
-          "Name":"Alice"
-        },
-        {
-          "PublicKey":"admins/3_public",
-          "Name":"Jack"
+          "Name":"Charles"
         },
         {
           "PublicKey":"admins/1_public",
-          "Name":"Bob"
+          "Name":"David"
+        },
+        {
+          "PublicKey":"admins/2_public",
+          "Name":"Edward"
         }
       ],
       "Managers":[
         {
           "PublicKey":"managers/0_public",
-          "Name":"Charles"
+          "Name":"Henry"
         },
         {
           "PublicKey":"managers/1_public",
-          "Name":"Debra"
+          "Name":"Irene"
         }
       ],
       "Users":[
-        {"PublicKey":"users/0_public", "Name":"Eddy"},
-        {"PublicKey":"users/1_public", "Name":"Fanny"}
+        {"PublicKey":"users/0_public", "Name":"Lola"},
+        {"PublicKey":"users/1_public", "Name":"Marin"}
       ]
     },
     {
       "Name":"Hospital2",
-      "PublicKey":"super_admins/1_public",
-      "PrivateKey":"super_admins/1_private",
+      "SuperAdmin": {
+        "PublicKey":"super_admins/1_public",
+        "PrivateKey":"super_admins/1_private",
+        "Name":"Bob"
+      },
       "Admins":[
         {
-          "PublicKey":"admins/2_public",
-          "Name":"Garry"
+          "PublicKey":"admins/3_public",
+          "Name":"Fanny"
         },
         {
           "PublicKey":"admins/4_public",
-          "Name":"Lola"
+          "Name":"Garry"
         }
       ],
       "Managers":[
         {
           "PublicKey":"managers/2_public",
-          "Name":"Henry"
+          "Name":"Jack"
         }
       ],
       "Users":[
-        {"PublicKey":"users/2_public", "Name":"Irene"}
+        {"PublicKey":"users/2_public", "Name":"Noah"}
       ]
     }
   ]

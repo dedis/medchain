@@ -30,8 +30,10 @@ func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signer := medChainUtils.LoadSignerEd25519FromBytes([]byte(request.PublicKey), []byte(request.PrivateKey))
-
+	signer, err := medChainUtils.LoadSignerEd25519FromBytesWithErr([]byte(request.PublicKey), []byte(request.PrivateKey))
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
 	transaction_bytes, err := base64.StdEncoding.DecodeString(request.Transaction)
 	if medChainUtils.CheckError(err, w, r) {
 		return
