@@ -5,7 +5,12 @@ type UserInfoRequest struct {
 	Identity  string `json:"identity"`
 }
 
+type UserTypeReply struct {
+	Type string `json:"type"`
+}
+
 type GeneralInfoReply struct {
+	SigningServiceUrl        string `json:"signing_service_url"`
 	GenesisDarcBaseId        string `json:"genesis_darc_base_id"`
 	AllSuperAdminsDarcBaseId string `json:"all_super_admins_darc_base_id"`
 	AllAdminsDarcBaseId      string `json:"all_admins_darc_base_id"`

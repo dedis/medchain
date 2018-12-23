@@ -577,13 +577,11 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 // 	}
 // }
 
-func startSystem() *metadata.Metadata {
+func startSystem(metaData *metadata.Metadata) {
 	configuration, err := conf.ReadConf(configFileName)
 	if err != nil {
 		panic(err)
 	}
-
-	metaData := metadata.NewMetadata()
 
 	fmt.Println(len(configuration.Hospitals))
 	for _, hosp := range configuration.Hospitals {
@@ -616,7 +614,5 @@ func startSystem() *metadata.Metadata {
 	// createUsersListDarcs(metaData, signers)
 
 	// createProjectDarcs(configuration)
-
-	return metaData
 
 }

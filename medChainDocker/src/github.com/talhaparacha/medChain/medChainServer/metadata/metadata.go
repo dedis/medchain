@@ -48,6 +48,7 @@ type Metadata struct {
 	GenesisBlock               *service.CreateGenesisBlockResponse
 	GenesisMsg                 *service.CreateGenesisBlock
 	GenesisDarcBaseId          string
+	SigningServiceUrl          string
 }
 
 func NewMetadata() *Metadata {

@@ -13,3 +13,11 @@ type SignReply struct {
 	InstructionDigests map[int][]byte `json:"instruction_digests"`
 	Signers            map[string]int `json:"signers"`
 }
+
+type IdRequest struct {
+	PublicKey string `json:"public_key"`
+}
+
+type IdReply struct {
+	Identity string `json:"identity"`
+}

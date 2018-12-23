@@ -15,7 +15,7 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
-	"github.com/talhaparacha/medChain/medChainServer/messages"
+	"github.com/talhaparacha/medChain/medChainServer/admin_gui"
 	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
@@ -387,40 +387,11 @@ func tokenIntrospectionLogin(w http.ResponseWriter, r *http.Request) {
 	w.Write(js)
 }
 
-// Communicate ID of the allUsersDarc if the system is running
-func info(w http.ResponseWriter, r *http.Request) {
-
-	if systemStart {
-		allUsersDarc := metaData.AllUsersDarcBaseId
-		allUsersDarcBaseId := metaData.AllUsersDarcBaseId
-		allManagersDarcBaseId := metaData.AllManagersDarcBaseId
-		allAdminsDarcBaseId := metaData.AllAdminsDarcBaseId
-		allSuperAdminsDarcBaseId := metaData.AllSuperAdminsDarcBaseId
-		userProjectsMapId := b64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice())
-		genesisDarcBaseId := metaData.GenesisDarcBaseId
-		reply := messages.GeneralInfoReply{GenesisDarcBaseId: genesisDarcBaseId, AllSuperAdminsDarcBaseId: allSuperAdminsDarcBaseId, AllAdminsDarcBaseId: allAdminsDarcBaseId, AllManagersDarcBaseId: allManagersDarcBaseId, AllUsersDarcBaseId: allUsersDarcBaseId, AllUsersDarc: allUsersDarc, UserProjectsMap: userProjectsMapId}
-		json_val, err := json.Marshal(&reply)
-		if medChainUtils.CheckError(err, w, r) {
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(json_val)
-		if medChainUtils.CheckError(err, w, r) {
-			return
-		}
-	} else {
-		temp := map[string]string{"error": "MedChain not started yet"}
-		js, _ := json.Marshal(temp)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(js)
-	}
-}
-
 // Simple web server
 func start(w http.ResponseWriter, r *http.Request) {
 	if !systemStart {
 		// Initiate Omniledger with the MedCo context
-		metaData = startSystem()
+		startSystem(metaData)
 		systemStart = true
 	}
 	w.Header().Set("Content-Type", "text/plain")
@@ -468,10 +439,15 @@ func main() {
 	//medChainUtils.InitKeys(3, "keys/admins")
 	//medChainUtils.InitKeys(3, "keys/managers")
 	//medChainUtils.InitKeys(3, "keys/users")
-	port, conf := getFlags()
+	port, conf, signing_url := getFlags()
 	configFileName = conf
 
+	metaData = metadata.NewMetadata()
+	metaData.SigningServiceUrl = signing_url
+
 	http.HandleFunc("/", sayHello)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin_gui/templates/static"))))
+	http.HandleFunc("/gui", admin_gui.GUI_landing)
 	http.HandleFunc("/start", start)
 
 	http.HandleFunc("/info", info)
@@ -479,6 +455,7 @@ func main() {
 	http.HandleFunc("/info/admin", GetAdminInfo)
 	http.HandleFunc("/info/manager", GetManagerInfo)
 	http.HandleFunc("/info/user", GetUserInfo)
+	http.HandleFunc("/info/type", GetUserType)
 	http.HandleFunc("/info/darc", GetDarcInfo)
 	http.HandleFunc("/list/darc", ListDarcUsers)
 

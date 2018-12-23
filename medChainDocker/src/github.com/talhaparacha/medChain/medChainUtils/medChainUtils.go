@@ -64,6 +64,23 @@ func LoadIdentityEd25519FromBytes(publicBytes []byte) darc.Identity {
 	}
 }
 
+func LoadIdentityEd25519FromBytesWithErr(publicBytes []byte) (darc.Identity, error) {
+	kp := key.NewKeyPair(cothority.Suite)
+	bin, err := base64.StdEncoding.DecodeString(string(publicBytes[:]))
+	if err != nil {
+		return *new(darc.Identity), err
+	}
+	err = kp.Public.UnmarshalBinary(bin)
+	if err != nil {
+		return *new(darc.Identity), err
+	}
+	return darc.Identity{
+		Ed25519: &darc.IdentityEd25519{
+			Point: kp.Public,
+		},
+	}, nil
+}
+
 func LoadSignerEd25519(pathToPublic string, pathToPrivate string) darc.Signer {
 	dat, err := ioutil.ReadFile(pathToPrivate)
 	Check(err)
@@ -88,6 +105,22 @@ func LoadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Si
 		Point:  LoadIdentityEd25519FromBytes(publicBytes).Ed25519.Point,
 		Secret: kp.Private,
 	}}
+}
+
+func LoadSignerEd25519FromBytesWithErr(publicBytes []byte, privateBytes []byte) (darc.Signer, error) {
+	kp := key.NewKeyPair(cothority.Suite)
+	bin, err := base64.StdEncoding.DecodeString(string(privateBytes))
+	if err != nil {
+		return *new(darc.Signer), err
+	}
+	err = kp.Private.UnmarshalBinary(bin)
+	if err != nil {
+		return *new(darc.Signer), err
+	}
+	return darc.Signer{Ed25519: &darc.SignerEd25519{
+		Point:  LoadIdentityEd25519FromBytes(publicBytes).Ed25519.Point,
+		Secret: kp.Private,
+	}}, nil
 }
 
 func CreateQueryTransaction(projectDarc string, queryType string, query string, signer darc.Signer) string {
