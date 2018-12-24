@@ -38,7 +38,7 @@ func GetSuperAdminInfo(w http.ResponseWriter, r *http.Request) {
 		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
 		return
 	}
-	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
+	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, SuperAdminName: hospital_metadata.SuperAdmin.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return

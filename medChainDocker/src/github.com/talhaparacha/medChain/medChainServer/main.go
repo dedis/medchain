@@ -455,6 +455,8 @@ func main() {
 	http.HandleFunc("/info/user", GetGenericUserInfo)
 	http.HandleFunc("/info/darc", GetDarcInfo)
 	http.HandleFunc("/list/darc", ListDarcUsers)
+	http.HandleFunc("/list/users", ListGenericUser)
+	http.HandleFunc("/list/hospitals", ListHospitals)
 
 	http.HandleFunc("/add/user", AddUser)
 	http.HandleFunc("/add/manager", AddManager)

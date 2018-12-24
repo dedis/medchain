@@ -22,6 +22,7 @@ type GeneralInfoReply struct {
 
 type HospitalInfoReply struct {
 	SuperAdminId          string `json:"super_admin_id"`
+	SuperAdminName        string `json:"super_admin_name"`
 	HospitalName          string `json:"hospital_name"`
 	AdminListDarcBaseId   string `json:"admin_list_darc_base_id"`
 	ManagerListDarcBaseId string `json:"manager_list_darc_base_id"`
@@ -92,4 +93,17 @@ type AddHospitalReply struct {
 
 type CommitHospitalRequest struct {
 	Transaction string `json:"transaction"`
+}
+
+type ListGenericUserRequest struct {
+	SuperAdminId string `json:"super_admin_id"`
+	Role         string `json:"role"`
+}
+
+type ListGenericUserReply struct {
+	Users []GenericUserInfoReply `json:"users"`
+}
+
+type ListHospitalReply struct {
+	Hospitals []HospitalInfoReply `json:"hospitals"`
 }

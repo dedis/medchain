@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/talhaparacha/medChain/medChainServer/messages"
+	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
 )
 
@@ -69,6 +70,83 @@ func GetGenericUserInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated, Role: user_metadata.Role}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+}
+
+func ListGenericUser(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	var request messages.ListGenericUserRequest
+	err = json.Unmarshal(body, &request)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	var identity string
+	if request.SuperAdminId != "" {
+		identity = request.SuperAdminId
+	} else {
+		medChainUtils.CheckError(errors.New("No identity was given"), w, r)
+		return
+	}
+
+	hospital_metadata, ok := metaData.Hospitals[identity]
+	if !ok {
+		medChainUtils.CheckError(errors.New("Hospital unknown"), w, r)
+		return
+	}
+
+	var list []*metadata.GenericUser
+	switch request.Role {
+	case "admin":
+		list = hospital_metadata.Admins
+	case "manager":
+		list = hospital_metadata.Managers
+	case "user":
+		list = hospital_metadata.Users
+	default:
+		medChainUtils.CheckError(errors.New("Unknown role"), w, r)
+		return
+	}
+
+	userList := []messages.GenericUserInfoReply{}
+
+	for _, user_metadata := range list {
+		userReply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, IsCreated: user_metadata.IsCreated}
+		userList = append(userList, userReply)
+	}
+
+	reply := messages.ListGenericUserReply{Users: userList}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+}
+
+func ListHospitals(w http.ResponseWriter, r *http.Request) {
+
+	hospitalList := []messages.HospitalInfoReply{}
+
+	for _, hospital_metadata := range metaData.Hospitals {
+		hospitalReply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, SuperAdminName: hospital_metadata.SuperAdmin.Name, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
+		hospitalList = append(hospitalList, hospitalReply)
+	}
+
+	reply := messages.ListHospitalReply{Hospitals: hospitalList}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
