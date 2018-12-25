@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/dedis/cothority/omniledger/contracts"
@@ -142,6 +143,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 
 		for _, rule := range project.Rules {
 			usersIdString := []string{}
+			project_metadata.Queries[rule.Action] = []*metadata.GenericUser{}
 			for _, user_index := range rule.Users {
 				user_metadata := project_metadata.Users[user_index]
 				user_darc, ok := metaData.BaseIdToDarcMap[user_metadata.DarcBaseId]
@@ -150,6 +152,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 				}
 				idString := user_darc.GetIdentityString()
 				usersIdString = append(usersIdString, idString)
+				project_metadata.Queries[rule.Action] = append(project_metadata.Queries[rule.Action], user_metadata)
 			}
 			expr := expression.InitOrExpr(usersIdString...)
 			projectDarcRules.AddRule(darc.Action(rule.Action), expr)
@@ -162,7 +165,8 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 		}
 
 		project_metadata.DarcBaseId = addDarcToMaps(projectDarc, metaData)
-
+		project_metadata.IsCreated = true
+		fmt.Printf("Added project: %s with id: %s\n", project_metadata.Name, project_metadata.Id)
 		metaData.Projects[project_metadata.Id] = project_metadata
 
 		list_of_projects = append(list_of_projects, projectDarc.GetIdentityString())

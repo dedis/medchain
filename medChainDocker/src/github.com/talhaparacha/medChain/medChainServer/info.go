@@ -41,6 +41,10 @@ func info(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func genericUserMetadataToInfoReply(user_metadata *metadata.GenericUser) messages.GenericUserInfoReply {
+	return messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated, Role: user_metadata.Role}
+}
+
 func GetGenericUserInfo(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
@@ -69,7 +73,7 @@ func GetGenericUserInfo(w http.ResponseWriter, r *http.Request) {
 		medChainUtils.CheckError(errors.New("Identity unknown"), w, r)
 		return
 	}
-	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated, Role: user_metadata.Role}
+	reply := genericUserMetadataToInfoReply(user_metadata)
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -121,7 +125,7 @@ func ListGenericUser(w http.ResponseWriter, r *http.Request) {
 	userList := []messages.GenericUserInfoReply{}
 
 	for _, user_metadata := range list {
-		userReply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, IsCreated: user_metadata.IsCreated}
+		userReply := genericUserMetadataToInfoReply(user_metadata)
 		userList = append(userList, userReply)
 	}
 

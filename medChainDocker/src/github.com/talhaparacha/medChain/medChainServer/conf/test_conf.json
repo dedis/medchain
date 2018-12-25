@@ -73,14 +73,6 @@
       "SigningUsers":[{"i":0, "j":0}, {"i":1, "j":0}],
       "Rules": [
         {
-          "Action":"spawn:AuthGrant",
-          "Users":[0,1]
-        },
-        {
-          "Action":"spawn:CreateQuery",
-          "Users":[0,1]
-        },
-        {
           "Action":"spawn:ObfuscatedQuery",
           "Users":[0,1]
         },

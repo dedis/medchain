@@ -107,3 +107,21 @@ type ListGenericUserReply struct {
 type ListHospitalReply struct {
 	Hospitals []HospitalInfoReply `json:"hospitals"`
 }
+
+type ProjectInfoRequest struct {
+	Id string `json:"id"`
+}
+
+type ProjectInfoReply struct {
+	Id      string                        `json:"id"`
+	Name    string                        `json:"name"`
+	Queries map[string][]GeneralInfoReply `json:"queries"`
+}
+
+type ListProjectRequest struct {
+	Id string `json:"id"`
+}
+
+type ListProjectReply struct {
+	Projects []ProjectInfoReply
+}

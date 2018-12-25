@@ -33,6 +33,7 @@ type Project struct {
 	DarcBaseId string
 	Managers   []*GenericUser
 	Users      []*GenericUser
+	Queries    map[string][]*GenericUser
 	Rules      map[string][]*GenericUser
 	IsCreated  bool
 }
@@ -80,7 +81,7 @@ func NewProject(name string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Rules: make(map[string][]*GenericUser), IsCreated: false}, nil
+	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Rules: make(map[string][]*GenericUser), Queries: make(map[string][]*GenericUser), IsCreated: false}, nil
 }
 
 func NewAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
