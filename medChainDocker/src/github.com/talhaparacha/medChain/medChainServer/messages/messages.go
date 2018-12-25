@@ -113,9 +113,13 @@ type ProjectInfoRequest struct {
 }
 
 type ProjectInfoReply struct {
-	Id      string                        `json:"id"`
-	Name    string                        `json:"name"`
-	Queries map[string][]GeneralInfoReply `json:"queries"`
+	Id         string                            `json:"id"`
+	Name       string                            `json:"name"`
+	DarcBaseId string                            `json:"darc_base_id"`
+	Managers   []GenericUserInfoReply            `json:"managers"`
+	Users      []GenericUserInfoReply            `json:"users"`
+	Queries    map[string][]GenericUserInfoReply `json:"queries"`
+	IsCreated  bool                              `json:"is_created"`
 }
 
 type ListProjectRequest struct {
@@ -123,5 +127,5 @@ type ListProjectRequest struct {
 }
 
 type ListProjectReply struct {
-	Projects []ProjectInfoReply
+	Projects []ProjectInfoReply `json:"projects"`
 }

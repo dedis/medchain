@@ -1,7 +1,7 @@
 var info = {};
 
 function initInfo() {
-  return {logged_in:false, all_super_admins_id:"", signer:{role:"", public_key:"", id:"", name:"", created:false, darc_base_id:"", projects:[]},   hospital_list:[], hospital:{id:"", name:"", created:false, super_admin_name:"",admin_list_id:"", manager_list_id:"", user_list_id:"", user_list:[], manager_list:[], admin_list:[]}};
+  return {logged_in:false, all_super_admins_id:"", signer:{role:"", public_key:"", id:"", name:"", created:false, darc_base_id:""},   project_list:[], hospital_list:[], hospital:{id:"", name:"", created:false, super_admin_name:"",admin_list_id:"", manager_list_id:"", user_list_id:"", user_list:[], manager_list:[], admin_list:[]}};
 }
 
 function DoLogin(){
@@ -58,12 +58,14 @@ function UpdateUserInfo(data){
     case "admin":
       GetManagerList();
       GetUserList();
+      GetProjectList();
       break;
     case "manager":
       GetUserList();
+      GetProjectList();
       break;
     case "user":
-      // GetProjectList();
+      GetProjectList();
   }
   DisplaySignerInfo();
 }
@@ -183,7 +185,7 @@ function GetHospitalList(){
 
 
 function GetProjectList(){
-  var json_val = {"identity": info.signer.id};
+  var json_val = {"id": info.signer.id};
   $.ajax
     ({
         type: "POST",
@@ -237,7 +239,12 @@ function UpdateAdminList(data){
 }
 
 function UpdateProjectList(data){
-  alert(JSON.stringify(data));
+  var project_array = data["projects"];
+  for (var i in project_array) {
+    var project_info = project_array[i];
+    info.project_list.push({name:project_info["name"], id:project_info["id"], created:project_info["is_created"]});
+  }
+  DisplayProjectList();
 }
 
 function DisplayUserList(){
@@ -402,6 +409,17 @@ function AddHospital(){
 function AddHospitalCallback(data){
   GetHospitalList();
 }
+
+function DisplayProjectList(){
+  $('#project_list_table tbody').html("");
+  for( var project_index in info.project_list){
+    var project_info = info.project_list[project_index];
+    var status = project_info.created ? "Approved" : "Not Approved";
+    $('#project_list_table tbody').append('<tr><td>'+project_info.name+'</td><td>'+project_info.id+'</td><td>'+status+'</td></tr>');
+  }
+  $("#list_project_div").show();
+}
+
 
 function showLogin(){
   $("#login_div").show();

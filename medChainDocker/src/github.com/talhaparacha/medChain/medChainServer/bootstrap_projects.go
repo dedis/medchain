@@ -106,20 +106,21 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			id := manager_darc.GetIdentityString()
 			darc_managers = append(darc_managers, id)
 			project_metadata.Managers = append(project_metadata.Managers, manager_metadata)
-			manager_metadata.Projects = append(manager_metadata.Projects, project_metadata)
+			manager_metadata.Projects[project_metadata.Id] = project_metadata
 			project_hospitals[manager_metadata.Hospital.SuperAdmin.Id.String()] = manager_metadata.Hospital
 		}
 
-		darc_admins := []string{}
+		admin_list_darcs := []string{}
 		for _, hospital_metadata := range project_hospitals {
-			for _, admin_metadata := range hospital_metadata.Admins {
-				admin_darc, ok := metaData.BaseIdToDarcMap[admin_metadata.DarcBaseId]
-				if !ok {
-					panic(errors.New("Could not load admin darc"))
-				}
-				darc_admins = append(darc_admins, admin_darc.GetIdentityString())
+			admin_list_darc, ok := metaData.BaseIdToDarcMap[hospital_metadata.AdminListDarcBaseId]
+			if !ok {
+				panic(errors.New("Could not load admin list darc"))
 			}
-			hospital_metadata.SuperAdmin.Projects = append(hospital_metadata.SuperAdmin.Projects, project_metadata)
+			admin_list_darcs = append(admin_list_darcs, admin_list_darc.GetIdentityString())
+			for _, admin_metadata := range hospital_metadata.Admins {
+				admin_metadata.Projects[project_metadata.Id] = project_metadata
+			}
+			hospital_metadata.SuperAdmin.Projects[project_metadata.Id] = project_metadata
 		}
 
 		darc_signers := []string{}
@@ -133,11 +134,12 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			darc_signers = append(darc_signers, id)
 			user_ids = append(user_ids, user_metadata.Id.String())
 			project_metadata.Users = append(project_metadata.Users, user_metadata)
-			user_metadata.Projects = append(user_metadata.Projects, project_metadata)
+			user_metadata.Projects[project_metadata.Id] = project_metadata
 		}
 
 		projectDarcRules := darc.InitRulesWith([]darc.Identity{}, []darc.Identity{}, "invoke:evolve")
-		projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(medChainUtils.InitAtLeastTwoExpr(darc_admins))))
+		projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(medChainUtils.InitAtLeastTwoExpr(admin_list_darcs))))
+		projectDarcRules.UpdateSign(expression.InitOrExpr(darc_signers...))
 		projectDarcRules.AddRule("spawn:AuthGrant", projectDarcRules.GetSignExpr())
 		projectDarcRules.AddRule("spawn:CreateQuery", projectDarcRules.GetSignExpr())
 

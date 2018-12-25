@@ -24,7 +24,7 @@ type GenericUser struct {
 	Hospital   *Hospital
 	IsCreated  bool
 	Role       string
-	Projects   []*Project
+	Projects   map[string]*Project
 }
 
 type Project struct {
@@ -34,7 +34,6 @@ type Project struct {
 	Managers   []*GenericUser
 	Users      []*GenericUser
 	Queries    map[string][]*GenericUser
-	Rules      map[string][]*GenericUser
 	IsCreated  bool
 }
 
@@ -67,7 +66,7 @@ func NewHospital(IdValue darc.Identity, HospitalNameValue string, SuperAdminName
 }
 
 func newGenericUser(IdValue darc.Identity, NameValue string, role string, HospitalPointer *Hospital) *GenericUser {
-	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer, Role: role, IsCreated: false, Projects: make([]*Project, 0)}
+	return &GenericUser{Id: IdValue, Name: NameValue, Hospital: HospitalPointer, Role: role, IsCreated: false, Projects: make(map[string]*Project)}
 }
 
 func newSuperAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
@@ -81,7 +80,7 @@ func NewProject(name string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Rules: make(map[string][]*GenericUser), Queries: make(map[string][]*GenericUser), IsCreated: false}, nil
+	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Queries: make(map[string][]*GenericUser), IsCreated: false}, nil
 }
 
 func NewAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {
