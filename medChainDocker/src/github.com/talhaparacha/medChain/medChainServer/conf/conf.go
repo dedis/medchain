@@ -32,9 +32,8 @@ type Coordinates struct {
 }
 
 type Rule struct {
-	Action   string        `json:"Action"`
-	ExprType string        `json:"ExprType"`
-	Users    []Coordinates `json:"Users,omitempty"`
+	Action string `json:"Action"`
+	Users  []int  `json:"Users,omitempty"`
 }
 
 type Project struct {

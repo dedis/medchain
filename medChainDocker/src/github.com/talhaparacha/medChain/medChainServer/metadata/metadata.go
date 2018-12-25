@@ -3,6 +3,7 @@ package metadata
 import (
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/service"
+	"github.com/google/uuid"
 )
 
 type Hospital struct {
@@ -27,8 +28,13 @@ type GenericUser struct {
 }
 
 type Project struct {
+	Id         string
 	Name       string
 	DarcBaseId string
+	Managers   []*GenericUser
+	Users      []*GenericUser
+	Rules      map[string][]*GenericUser
+	IsCreated  bool
 }
 
 type Metadata struct {
@@ -42,6 +48,7 @@ type Metadata struct {
 	AllAdminsDarcBaseId      string
 	AllManagersDarcBaseId    string
 	AllUsersDarcBaseId       string
+	ProjectCreatorDarcBaseId string
 	GenesisBlock             *service.CreateGenesisBlockResponse
 	GenesisMsg               *service.CreateGenesisBlock
 	GenesisDarcBaseId        string
@@ -66,6 +73,14 @@ func newSuperAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hos
 	super_admin := newGenericUser(IdValue, NameValue, "super_admin", HospitalPointer)
 	HospitalPointer.SuperAdmin = super_admin
 	return super_admin
+}
+
+func NewProject(name string) (*Project, error) {
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return nil, err
+	}
+	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Rules: make(map[string][]*GenericUser), IsCreated: false}, nil
 }
 
 func NewAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {

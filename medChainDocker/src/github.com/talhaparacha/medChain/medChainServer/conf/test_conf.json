@@ -74,20 +74,19 @@
       "Rules": [
         {
           "Action":"spawn:AuthGrant",
-          "ExprType":"SIGNERS"
+          "Users":[0,1]
         },
         {
           "Action":"spawn:CreateQuery",
-          "ExprType":"SIGNERS"
+          "Users":[0,1]
         },
         {
           "Action":"spawn:ObfuscatedQuery",
-          "ExprType":"SIGNERS"
+          "Users":[0,1]
         },
         {
           "Action":"spawn:AggregatedQuery",
-          "ExprType":"OR",
-          "Users":[{"i":0, "j":0}]
+          "Users":[0]
         }
       ]
     }
