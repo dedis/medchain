@@ -119,11 +119,10 @@ type ListProjectReply struct {
 }
 
 type AddProjectRequest struct {
-	Initiator        string              `json:"initiator"`
-	Name             string              `json:"name"`
-	Managers         []string            `json:"managers"`
-	Queries          map[string][]string `json:"queries"`
-	PreferredSigners []string            `json:"preferred_signers"`
+	Initiator string              `json:"initiator"`
+	Name      string              `json:"name"`
+	Managers  []string            `json:"managers"`
+	Queries   map[string][]string `json:"queries"`
 }
 
 type ActionReply struct {

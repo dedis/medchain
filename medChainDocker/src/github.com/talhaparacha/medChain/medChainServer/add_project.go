@@ -9,6 +9,7 @@ import (
 
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/darc/expression"
+	"github.com/dedis/cothority/omniledger/service"
 	"github.com/talhaparacha/medChain/medChainServer/messages"
 	"github.com/talhaparacha/medChain/medChainServer/metadata"
 	"github.com/talhaparacha/medChain/medChainUtils"
@@ -25,20 +26,20 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// identity, transaction, signers, digests, err := prepareNewProject(&request)
-	// if medChainUtils.CheckError(err, w, r) {
-	// 	return
-	// }
-	// reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
-	// json_val, err := json.Marshal(&reply)
-	// if medChainUtils.CheckError(err, w, r) {
-	// 	return
-	// }
-	// w.Header().Set("Content-Type", "application/json")
-	// _, err = w.Write(json_val)
-	// if medChainUtils.CheckError(err, w, r) {
-	// 	return
-	// }
+	identity, transaction, signers, digests, err := prepareNewProject(&request)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
 }
 
 func prepareNewProject(request *messages.AddProjectRequest) (string, string, map[string]int, map[int][]byte, error) {
@@ -75,34 +76,24 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 
 	user_bytes := getUpdatedUserMapBytes(user_metadata_list)
 
-	transaction, err := createTransactionForNewProject(spawner_darc, project_darc, project_bytes, project_darc)
+	project_creator_darc, ok := metaData.BaseIdToDarcMap[metaData.ProjectCreatorDarcBaseId]
+	if !ok {
+		return "", "", nil, nil, errors.New("Could not load the project creator darc")
+	}
 
-	// spawner_darc, signers_ids, signers, err := getProjectSigners(request.PreferredSigners)
-	// if err != nil {
-	// 	return "", "", nil, nil, err
-	// }
+	transaction, err := createTransactionForNewProject(spawner_darc, project_creator_darc, project_darc, project_bytes, user_bytes)
+	base_darcs := []*darc.Darc{spawner_darc, project_creator_darc, project_creator_darc}
+	digests, err := computeTransactionDigests(transaction, signers_ids, base_darcs)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
 
-	// transaction, new_darcs, err := createNewProjectTransaction(request.HospitalName, identity, genesis_darc)
-	// if err != nil {
-	// 	return "", "", nil, nil, err
-	// }
-	//
-	// base_darcs := []*darc.Darc{genesis_darc, genesis_darc, genesis_darc, genesis_darc, new_darcs[1], new_darcs[2], new_darcs[3], new_darcs[4]}
-	// digests, err := computeTransactionDigests(transaction, signers_ids, base_darcs)
-	// if err != nil {
-	// 	return "", "", nil, nil, err
-	// }
-	//
-	// if err := addHospitalToMetadata(metaData, identity, request.HospitalName, request.SuperAdminName, new_darcs[0]); err != nil {
-	// 	return "", "", nil, nil, err
-	// }
-	//
-	// transaction_string, err := transactionToString(transaction)
-	// if err != nil {
-	// 	return "", "", nil, nil, err
-	// }
-	//
-	// return identity.String(), transaction_string, signers, digests, nil
+	transaction_string, err := transactionToString(transaction)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+
+	return project_metadata.Id, transaction_string, signers, digests, nil
 }
 
 func loadProjectManagers(request *messages.AddProjectRequest) ([]*metadata.GenericUser, error) {
@@ -259,4 +250,59 @@ func getSpawnProjectDarcSigners(initiator_metadata *metadata.GenericUser, manage
 		}
 	}
 	return getSigners(hospital_metadata, "User", []string{initiator_metadata.Id.String()})
+}
+
+func createTransactionForNewProject(spawner_darc, project_creator_darc, project_darc *darc.Darc, project_bytes, users_bytes []byte) (*service.ClientTransaction, error) {
+
+	project_darc_buff, err := project_darc.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{
+			service.Instruction{
+				InstanceID: service.NewInstanceID(spawner_darc.GetBaseID()),
+				Nonce:      service.Nonce{},
+				Index:      0,
+				Length:     3,
+				Spawn: &service.Spawn{
+					ContractID: service.ContractDarcID,
+					Args: []service.Argument{{
+						Name:  "darc",
+						Value: project_darc_buff,
+					}},
+				},
+			},
+			service.Instruction{
+				InstanceID: metaData.AllProjectsListInstanceID,
+				Nonce:      service.Nonce{},
+				Index:      1,
+				Length:     3,
+				Invoke: &service.Invoke{
+					Command: "update",
+					Args: []service.Argument{{
+						Name:  "value",
+						Value: project_bytes,
+					}},
+				},
+			},
+			service.Instruction{
+				InstanceID: metaData.UserProjectsMapInstanceID,
+				Nonce:      service.Nonce{},
+				Index:      0,
+				Length:     1,
+				Invoke: &service.Invoke{
+					Command: "update",
+					Args: []service.Argument{{
+						Name:  "allProjectsListInstanceID",
+						Value: []byte(metaData.AllProjectsListInstanceID.Slice()),
+					}, {
+						Name:  "users",
+						Value: users_bytes,
+					}},
+				},
+			},
+		},
+	}
+	return &ctx, nil
 }
