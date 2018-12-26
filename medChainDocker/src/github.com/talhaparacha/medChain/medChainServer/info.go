@@ -21,7 +21,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 		allManagersDarcBaseId := metaData.AllManagersDarcBaseId
 		allAdminsDarcBaseId := metaData.AllAdminsDarcBaseId
 		allSuperAdminsDarcBaseId := metaData.AllSuperAdminsDarcBaseId
-		userProjectsMapId := base64.StdEncoding.EncodeToString(userProjectsMapInstanceID.Slice())
+		userProjectsMapId := base64.StdEncoding.EncodeToString(metaData.UserProjectsMapInstanceID.Slice())
 		genesisDarcBaseId := metaData.GenesisDarcBaseId
 		reply := messages.GeneralInfoReply{SigningServiceUrl: metaData.SigningServiceUrl, GenesisDarcBaseId: genesisDarcBaseId, AllSuperAdminsDarcBaseId: allSuperAdminsDarcBaseId, AllAdminsDarcBaseId: allAdminsDarcBaseId, AllManagersDarcBaseId: allManagersDarcBaseId, AllUsersDarcBaseId: allUsersDarcBaseId, AllUsersDarc: allUsersDarc, UserProjectsMap: userProjectsMapId}
 		json_val, err := json.Marshal(&reply)

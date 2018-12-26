@@ -62,7 +62,7 @@ var configFileName string
 
 var metaData *metadata.Metadata
 
-var userProjectsMapInstanceID service.InstanceID
+// var userProjectsMapInstanceID service.InstanceID
 var err error
 var systemStart = false
 

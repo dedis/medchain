@@ -61,17 +61,11 @@ type ListReply struct {
 }
 
 type AddGenericUserRequest struct {
+	Initiator          string   `json:"initiator"`
 	PublicKey          string   `json:"new_public_key"`
 	SuperAdminIdentity string   `json:"super_admin_id"`
 	Name               string   `json:"name"`
 	PreferredSigners   []string `json:"preferred_signers"`
-}
-
-type AddGenericUserReply struct {
-	Id                 string         `json:"user_id"`
-	Transaction        string         `json:"transaction"`
-	InstructionDigests map[int][]byte `json:"instruction_digests"`
-	Signers            map[string]int `json:"signers"`
 }
 
 type CommitNewGenericUserRequest struct {
@@ -79,16 +73,10 @@ type CommitNewGenericUserRequest struct {
 }
 
 type AddHospitalRequest struct {
+	Initiator      string `json:"initiator"`
 	PublicKey      string `json:"new_public_key"`
 	HospitalName   string `json:"hospital_name"`
 	SuperAdminName string `json:"super_admin_name"`
-}
-
-type AddHospitalReply struct {
-	Id                 string         `json:"hospital_id"`
-	Transaction        string         `json:"transaction"`
-	InstructionDigests map[int][]byte `json:"instruction_digests"`
-	Signers            map[string]int `json:"signers"`
 }
 
 type CommitHospitalRequest struct {
@@ -128,4 +116,21 @@ type ListProjectRequest struct {
 
 type ListProjectReply struct {
 	Projects []ProjectInfoReply `json:"projects"`
+}
+
+type AddProjectRequest struct {
+	Initiator        string              `json:"initiator"`
+	Name             string              `json:"name"`
+	Managers         []string            `json:"managers"`
+	Queries          map[string][]string `json:"queries"`
+	PreferredSigners []string            `json:"preferred_signers"`
+}
+
+type ActionReply struct {
+	Initiator          string         `json:"initiator"`
+	ActionType         string         `json:"action_type"`
+	Ids                []string       `json:"ids"`
+	Transaction        string         `json:"transaction"`
+	InstructionDigests map[int][]byte `json:"instruction_digests"`
+	Signers            map[string]int `json:"signers"`
 }

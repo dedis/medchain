@@ -32,7 +32,7 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.AddGenericUserReply{Id: identity, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new " + user_type, Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -45,6 +45,20 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 }
 
 func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (string, string, map[string]int, map[int][]byte, error) {
+
+	initiator_metadata, ok := metaData.GenericUsers[request.Initiator]
+	if !ok {
+		return "", "", nil, nil, errors.New("Could not find the initiator metadata")
+	}
+	if !initiator_metadata.IsCreated {
+		return "", "", nil, nil, errors.New("The initiator was not approved")
+	}
+	if user_type == "Admin" && initiator_metadata.Role != "super_admin" {
+		return "", "", nil, nil, errors.New("You need to be the head of hospital to add a new admin")
+	}
+	if user_type != "Admin" && initiator_metadata.Role != "admin" {
+		return "", "", nil, nil, errors.New("You need to be an admin to add a new " + user_type)
+	}
 
 	hospital_metadata, identityPtr, err := getMetadata(request)
 	if err != nil {
@@ -254,6 +268,9 @@ func getMetadata(request *messages.AddGenericUserRequest) (*metadata.Hospital, *
 	hospital_metadata, ok := metaData.Hospitals[super_admin_id]
 	if !ok {
 		return nil, nil, errors.New("No super admin with this id")
+	}
+	if !hospital_metadata.SuperAdmin.IsCreated {
+		return nil, nil, errors.New("This hospital wasn't approved")
 	}
 	return hospital_metadata, &identity, nil
 }

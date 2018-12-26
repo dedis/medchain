@@ -28,7 +28,7 @@ func AddHospital(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.AddHospitalReply{Id: identity, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new hospital", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -41,6 +41,17 @@ func AddHospital(w http.ResponseWriter, r *http.Request) {
 }
 
 func prepareNewHospital(request *messages.AddHospitalRequest) (string, string, map[string]int, map[int][]byte, error) {
+
+	initiator_metadata, ok := metaData.GenericUsers[request.Initiator]
+	if !ok {
+		return "", "", nil, nil, errors.New("Could not find the initiator metadata")
+	}
+	if !initiator_metadata.IsCreated {
+		return "", "", nil, nil, errors.New("The initiator was not approved")
+	}
+	if initiator_metadata.Role != "super_admin" {
+		return "", "", nil, nil, errors.New("You need to be the head of hospital to add a new hospital")
+	}
 
 	identityPtr, err := getSuperAdminId(request)
 	if err != nil {
