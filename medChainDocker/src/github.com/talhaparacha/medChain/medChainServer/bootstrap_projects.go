@@ -80,8 +80,6 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 		panic(errors.New("Could not load the genesisDarc"))
 	}
 
-	var allProjectsListInstanceID service.InstanceID
-
 	list_of_projects := []string{}
 
 	user_ids := []string{}
@@ -206,7 +204,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 	}
 
 	metaData.AllProjectsListInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err := cl.WaitProof(allProjectsListInstanceID, metaData.GenesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(metaData.AllProjectsListInstanceID, metaData.GenesisMsg.BlockInterval, nil)
 	if pr.InclusionProof.Match() != true {
 		panic(err)
 	}
@@ -223,7 +221,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 				ContractID: contracts.ContractUserProjectsMapID,
 				Args: []service.Argument{{
 					Name:  "allProjectsListInstanceID",
-					Value: []byte(allProjectsListInstanceID.Slice()),
+					Value: []byte(metaData.AllProjectsListInstanceID.Slice()),
 				}, {
 					Name:  "users",
 					Value: usersByte,

@@ -104,7 +104,7 @@ func loadProjectManagers(request *messages.AddProjectRequest) ([]*metadata.Gener
 			return nil, errors.New("Could not find the manager's data")
 		}
 		if manager_meta.Role != "manager" {
-			return nil, errors.New("Given id is not a manager")
+			return nil, errors.New("Given id " + manager_id + " is not a manager")
 		}
 		if !manager_meta.IsCreated {
 			return nil, errors.New("Given manager was not approved")

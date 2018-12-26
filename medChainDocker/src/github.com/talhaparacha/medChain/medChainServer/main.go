@@ -464,6 +464,7 @@ func main() {
 	http.HandleFunc("/add/manager", AddManager)
 	http.HandleFunc("/add/admin", AddAdmin)
 	http.HandleFunc("/add/hospital", AddHospital)
+	http.HandleFunc("/add/project", AddProject)
 
 	http.HandleFunc("/commit/user", CommitUser)
 	http.HandleFunc("/commit/manager", CommitManager)
