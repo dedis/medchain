@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/dedis/cothority/omniledger/darc"
@@ -88,6 +89,8 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 		return "", "", nil, nil, err
 	}
 
+	addProjectToMetadata(project_metadata, project_darc)
+
 	transaction_string, err := transactionToString(transaction)
 	if err != nil {
 		return "", "", nil, nil, err
@@ -158,7 +161,6 @@ func createProjectDarc(name string, manager_metadata_list, user_metadata_list []
 		id := manager_darc.GetIdentityString()
 		darc_managers = append(darc_managers, id)
 		project_metadata.Managers = append(project_metadata.Managers, manager_metadata)
-		manager_metadata.Projects[project_metadata.Id] = project_metadata
 		project_hospitals[manager_metadata.Hospital.SuperAdmin.Id.String()] = manager_metadata.Hospital
 	}
 
@@ -169,10 +171,6 @@ func createProjectDarc(name string, manager_metadata_list, user_metadata_list []
 			return nil, nil, errors.New("Could not load admin list darc")
 		}
 		admin_list_darcs = append(admin_list_darcs, admin_list_darc.GetIdentityString())
-		for _, admin_metadata := range hospital_metadata.Admins {
-			admin_metadata.Projects[project_metadata.Id] = project_metadata
-		}
-		hospital_metadata.SuperAdmin.Projects[project_metadata.Id] = project_metadata
 	}
 
 	darc_signers := []string{}
@@ -184,13 +182,10 @@ func createProjectDarc(name string, manager_metadata_list, user_metadata_list []
 		id := user_darc.GetIdentityString()
 		darc_signers = append(darc_signers, id)
 		project_metadata.Users = append(project_metadata.Users, user_metadata)
-		user_metadata.Projects[project_metadata.Id] = project_metadata
 	}
 
-	metaData.Projects[project_metadata.Id] = project_metadata
-
 	projectDarcRules := darc.InitRulesWith([]darc.Identity{}, []darc.Identity{}, "invoke:evolve")
-	projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(medChainUtils.InitAtLeastTwoExpr(admin_list_darcs))))
+	projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(expression.InitOrExpr(admin_list_darcs...))))
 	projectDarcRules.UpdateSign(expression.InitOrExpr(darc_signers...))
 	projectDarcRules.AddRule("spawn:AuthGrant", projectDarcRules.GetSignExpr())
 	projectDarcRules.AddRule("spawn:CreateQuery", projectDarcRules.GetSignExpr())
@@ -223,8 +218,9 @@ func getUpdatedUserMapBytes(user_metadata_list []*metadata.GenericUser) []byte {
 	return []byte(strings.Join(user_ids, ";"))
 }
 
-func getUpdatedProjectListBytes(project_darc *darc.Darc) ([]byte, error) {
+func getUpdatedProjectListBytes(new_project_darc *darc.Darc) ([]byte, error) {
 	list_of_projects := []string{}
+	new_id := new_project_darc.GetIdentityString()
 	for _, project := range metaData.Projects {
 		if project.IsCreated {
 			projectDarc, ok := metaData.BaseIdToDarcMap[project.DarcBaseId]
@@ -232,8 +228,13 @@ func getUpdatedProjectListBytes(project_darc *darc.Darc) ([]byte, error) {
 				return nil, errors.New("Could not load the darc of an exisiting project")
 			}
 			list_of_projects = append(list_of_projects, projectDarc.GetIdentityString())
+			if projectDarc.GetIdentityString() == new_id {
+				return nil, errors.New("The project is already existing")
+			}
 		}
 	}
+	list_of_projects = append(list_of_projects, new_id)
+	sort.Strings(list_of_projects)
 	return []byte(strings.Join(list_of_projects, ";")), nil
 }
 
@@ -289,8 +290,8 @@ func createTransactionForNewProject(spawner_darc, project_creator_darc, project_
 			service.Instruction{
 				InstanceID: metaData.UserProjectsMapInstanceID,
 				Nonce:      service.Nonce{},
-				Index:      0,
-				Length:     1,
+				Index:      2,
+				Length:     3,
 				Invoke: &service.Invoke{
 					Command: "update",
 					Args: []service.Argument{{
@@ -305,4 +306,21 @@ func createTransactionForNewProject(spawner_darc, project_creator_darc, project_
 		},
 	}
 	return &ctx, nil
+}
+
+func addProjectToMetadata(project_metadata *metadata.Project, project_darc *darc.Darc) {
+	for _, user_metadata := range project_metadata.Users {
+		user_metadata.Projects[project_metadata.Id] = project_metadata
+	}
+	for _, manager_metadata := range project_metadata.Managers {
+		manager_metadata.Projects[project_metadata.Id] = project_metadata
+		hospital_metadata := manager_metadata.Hospital
+		hospital_metadata.SuperAdmin.Projects[project_metadata.Id] = project_metadata
+		for _, admin_metadata := range hospital_metadata.Admins {
+			admin_metadata.Projects[project_metadata.Id] = project_metadata
+		}
+	}
+	metaData.Projects[project_metadata.Id] = project_metadata
+	base_id := medChainUtils.IDToB64String(project_darc.GetBaseID())
+	metaData.ProjectsWaitingForCreation[base_id] = project_metadata
 }

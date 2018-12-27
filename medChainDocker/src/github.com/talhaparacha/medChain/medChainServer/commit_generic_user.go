@@ -181,7 +181,7 @@ func checkEvolveDarcInstructionForGenericUser(instruction service.Instruction) (
 		return nil, errors.New("First instruction wasn't an invoke")
 	}
 	if invoke.Command != "evolve" {
-		return nil, errors.New("Spawn instruction wasn't invoke:evolve")
+		return nil, errors.New("Invoke instruction wasn't invoke:evolve")
 	}
 	args := invoke.Args
 	if len(args) < 1 {

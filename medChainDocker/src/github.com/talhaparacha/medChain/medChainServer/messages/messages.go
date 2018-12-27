@@ -133,3 +133,7 @@ type ActionReply struct {
 	InstructionDigests map[int][]byte `json:"instruction_digests"`
 	Signers            map[string]int `json:"signers"`
 }
+
+type CommitNewProjectRequest struct {
+	Transaction string `json:"transaction"`
+}
