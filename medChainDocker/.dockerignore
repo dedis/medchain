@@ -1,6 +1,7 @@
 *
+!src/github.com/DPPH/MedChain
+!src/github.com/google/uuid
 !src/github.com/dedis/
-!src/github.com/talhaparacha
 !src/rsc.io/goversion/
 !src/gopkg.in/
 !src/golang.org/
