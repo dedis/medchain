@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
 	"github.com/DPPH/MedChain/medChainUtils"
+	"github.com/DPPH/MedChain/signingService/signing_messages"
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/dedis/cothority/omniledger/service"
@@ -32,6 +34,11 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 		return
 	}
 	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new " + user_type, Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	err = sendNewActionToSigningService(&reply)
+	if err != nil {
+		medChainUtils.CheckError(errors.New("Could not contact the signing service"), w, r)
+		return
+	}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -360,4 +367,22 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string, preferre
 	}
 
 	return owner_darc, chosen_signers_ids, chosen_signers_to_index, nil
+}
+
+func sendNewActionToSigningService(action *messages.ActionReply) error {
+	request := signing_messages.AddNewActionRequest{Action: action}
+	request_bytes, err := json.Marshal(&request)
+	if err != nil {
+		return err
+	}
+	response, err := http.Post(metaData.SigningServiceUrl+"/add/action", "application/json", bytes.NewBuffer(request_bytes))
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(response.Body)
+		print("submit error", string(body))
+		return errors.New("Could not send the new action to the signing service")
+	}
+	return nil
 }

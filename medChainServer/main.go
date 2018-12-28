@@ -21,9 +21,9 @@ import (
 )
 
 // Configure cothority here...
-var local = onet.NewTCPTest(cothority.Suite)
-var _, roster, _ = local.GenTree(3, true)
-var cl = service.NewClient()
+var local *onet.LocalTest
+var roster *onet.Roster
+var cl *service.Client
 
 // var baseIdToDarcMap = make(map[string]*darc.Darc)
 // var darcIdToBaseIdMap = make(map[string]string)
@@ -439,7 +439,13 @@ func main() {
 	//medChainUtils.InitKeys(3, "keys/admins")
 	//medChainUtils.InitKeys(3, "keys/managers")
 	//medChainUtils.InitKeys(3, "keys/users")
+
 	port, conf, signing_url := getFlags()
+
+	local = onet.NewTCPTest(cothority.Suite)
+	_, roster, _ = local.GenTree(3, true)
+	cl = service.NewClient()
+
 	configFileName = conf
 
 	metaData = metadata.NewMetadata()

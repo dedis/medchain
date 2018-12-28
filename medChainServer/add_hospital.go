@@ -29,6 +29,11 @@ func AddHospital(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new hospital", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	err = sendNewActionToSigningService(&reply)
+	if err != nil {
+		medChainUtils.CheckError(errors.New("Could not contact the signing service"), w, r)
+		return
+	}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return

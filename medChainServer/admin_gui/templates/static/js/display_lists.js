@@ -33,7 +33,9 @@ function DisplayManagerList(){
     var user_info = info.hospital.manager_list[user_index]
     var status = user_info.created ? "Approved" : "Not Approved";
     $('#manager_list_table tbody').append('<tr><td>'+user_info.name+'</td><td>'+user_info.id+'</td><td>'+status+'</td></tr>');
-    $('#new_project_managers_table tbody').append('<tr><td>'+user_info.name+'</td><td><input type="checkbox" name="new_project_managers" value="'+user_info.id+'"></td></tr>');
+    if(user_info.created){
+        $('#new_project_managers_table tbody').append('<tr><td>'+user_info.name+'</td><td><input type="checkbox" name="new_project_managers" value="'+user_info.id+'"></td></tr>');
+    }
   }
   $("#list_manager_div").show();
   if(info.signer.role == "admin"){
@@ -48,7 +50,9 @@ function DisplayUserList(){
     var user_info = info.hospital.user_list[user_index];
     var status = user_info.created ? "Approved" : "Not Approved";
     $('#user_list_table tbody').append('<tr><td>'+user_info.name+'</td><td>'+user_info.id+'</td><td>'+status+'</td></tr>');
-    $('#new_project_authorizations_table tbody').append('<tr><td>'+user_info.name+'</td><td><input type="checkbox" name="new_project_aggregated_users" value="'+user_info.id+'"></td><td><input type="checkbox" name="new_project_obfuscated_users" value="'+user_info.id+'"></td></tr>');
+    if(user_info.created){
+      $('#new_project_authorizations_table tbody').append('<tr><td>'+user_info.name+'</td><td><input type="checkbox" name="new_project_aggregated_users" value="'+user_info.id+'"></td><td><input type="checkbox" name="new_project_obfuscated_users" value="'+user_info.id+'"></td></tr>');
+    }
   }
   $("#list_user_div").show();
   if(info.signer.role == "admin"){

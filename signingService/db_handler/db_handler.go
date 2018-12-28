@@ -3,6 +3,7 @@ package db_handler
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/signingService/status"
@@ -10,6 +11,7 @@ import (
 )
 
 func RegisterNewAction(action *messages.ActionReply, db *sql.DB) (string, error) {
+	fmt.Println("adding new action to the db")
 	id := uuid.New().String()
 	action_bytes, err := json.Marshal(action)
 	if err != nil {
@@ -30,6 +32,7 @@ func RegisterNewAction(action *messages.ActionReply, db *sql.DB) (string, error)
 }
 
 func addNewActionToDB(id, initiator, status, action_string string, db *sql.DB) error {
+	fmt.Println("adding new action to the db")
 	stmt, err := db.Prepare("INSERT INTO Action(id, initiator, status, action_value) VALUES(?,?,?,?);")
 	if err != nil {
 		return err
@@ -39,6 +42,7 @@ func addNewActionToDB(id, initiator, status, action_string string, db *sql.DB) e
 }
 
 func addNewSignerToDB(id, signer_identity string, signed bool, db *sql.DB) error {
+	fmt.Println("adding new signer to the db")
 	stmt, err := db.Prepare("INSERT INTO SignatureStatus(action_id, signer_identity, signed) VALUES(?,?,?);")
 	if err != nil {
 		return err
