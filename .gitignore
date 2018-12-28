@@ -1,4 +1,5 @@
 .idea/
 medChainAdmin/medChainAdmin
+medChainServer/keys/
 medChainServer/medChainServer
 signingService/signingService
