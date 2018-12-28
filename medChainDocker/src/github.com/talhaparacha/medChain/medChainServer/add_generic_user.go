@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -114,7 +113,6 @@ func computeTransactionDigests(transaction *service.ClientTransaction, signers_i
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("==================== len of instru sig 3:", len(instruction.Signatures))
 		transaction.Instructions[i] = instruction
 		result[i] = digest
 	}
@@ -126,7 +124,6 @@ func computeInstructionDigests(instruction *service.Instruction, signers_ids map
 	// Create the request and populate it with the right identities.  We
 	// need to do this prior to signing because identities are a part of
 	// the digest of the Instruction.
-	fmt.Println("==================== len of signer_ids :", len(signers_ids))
 	sigs := make([]darc.Signature, len(signers_ids))
 	for i, signer := range signers_ids {
 		sigs[i].Signer = signer
@@ -144,7 +141,6 @@ func computeInstructionDigests(instruction *service.Instruction, signers_ids map
 	}
 	// Sign the instruction and write the signatures to it.
 	digest := req.Hash()
-	fmt.Println("==================== len of instru sig 2:", len(instruction.Signatures))
 	return digest, nil
 }
 

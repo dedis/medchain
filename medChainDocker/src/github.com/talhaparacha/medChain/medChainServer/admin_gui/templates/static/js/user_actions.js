@@ -137,11 +137,23 @@ function AddProject(){
 }
 
 function GetNewProjectManagers(){
-  return ["ed25519:d26dc4c38731fef9d9270b5b1a0149f683ecdd636903b30d3bb6efe38b8002d0"]
+  var result = [];
+  $('input[type="checkbox"][name="new_project_managers"]:checked').each(function(){
+    result.push($(this).val());
+  });
+  return result
 }
 
 function GetNewProjectQueryMapping(){
-  return {"AggregatedQuery":["ed25519:07bb05922b600fba97d687f314ea5cb0c9dce3268979de470ef65140430066a8"]}
+  var AggregatedQueryUsers = [];
+  $('input[type="checkbox"][name="new_project_aggregated_users"]:checked').each(function(){
+    AggregatedQueryUsers.push($(this).val());
+  });
+  var ObfuscatedQueryUsers = [];
+  $('input[type="checkbox"][name="new_project_obfuscated_users"]:checked').each(function(){
+    ObfuscatedQueryUsers.push($(this).val());
+  });
+  return {"AggregatedQuery":AggregatedQueryUsers, "ObfuscatedQuery":ObfuscatedQueryUsers}
 }
 
 function AddProjectCallback(data){
