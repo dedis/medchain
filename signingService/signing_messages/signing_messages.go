@@ -19,12 +19,11 @@ type ActionInfoRequest struct {
 }
 
 type ActionInfoReply struct {
-	Id          string
-	Initiator   string
-	Description string
-	Status      string
-	Action      *messages.ActionReply
-	Signatures  map[string]bool
+	Id         string                `json:"action_id"`
+	Initiator  string                `json:"initiator_id"`
+	Status     string                `json:"status"`
+	Action     *messages.ActionReply `json:"action"`
+	Signatures map[string]bool       `json:"signatures"`
 }
 
 type ListReply struct {

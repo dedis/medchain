@@ -35,22 +35,30 @@ function UpdateUserInfo(data){
   info.signer.darc_base_id = data["darc_base_id"];
   info.logged_in = true;
   GetHospitalInfo();
-  switch (info.signer.role) {
-    case "super_admin":
-      GetHospitalList();
-      GetAdminList();
-      break;
-    case "admin":
-      GetManagerList();
-      GetUserList();
-      GetProjectList();
-      break;
-    case "manager":
-      GetUserList();
-      GetProjectList();
-      break;
-    case "user":
-      GetProjectList();
+  if(info.signer.created){
+    switch (info.signer.role) {
+      case "super_admin":
+        GetSignerActions();
+        GetWaitingActions();
+        GetHospitalList();
+        GetAdminList();
+        break;
+      case "admin":
+        GetSignerActions();
+        GetWaitingActions();
+        GetManagerList();
+        GetUserList();
+        GetProjectList();
+        break;
+      case "manager":
+        GetSignerActions();
+        GetWaitingActions();
+        GetUserList();
+        GetProjectList();
+        break;
+      case "user":
+        GetProjectList();
+    }
   }
   DisplaySignerInfo();
 }
@@ -129,6 +137,10 @@ function ShowLoginError(error) {
   $("#login_div").show();
   showLogin();
   info = initInfo();
+}
+
+function ShowActionError(error) {
+  $("#action_error").text("Error: "+ error["responseText"]);
 }
 
 function GetUserList(){
@@ -231,4 +243,42 @@ function UpdateProjectList(data){
     info.project_list.push({name:project_info["name"], id:project_info["id"], created:project_info["is_created"]});
   }
   DisplayProjectList();
+}
+
+function GetSignerActions(){
+  var json_val = {"id": info.signer.id};
+  $.ajax
+    ({
+        type: "POST",
+        url: '/list/actions',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success: UpdateSignerActionList,
+        failure: ShowActionError,
+        contentType: 'application/json'
+    });
+}
+
+function UpdateSignerActionList(data){
+  info.signer.actions = data.actions;
+  DisplaySignerActionList();
+}
+
+function GetWaitingActions(){
+  var json_val = {"id": info.signer.id};
+  $.ajax
+    ({
+        type: "POST",
+        url: '/list/actions/waiting',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success: UpdateWaitingActionList,
+        failure: ShowActionError,
+        contentType: 'application/json'
+    });
+}
+
+function UpdateWaitingActionList(data){
+  info.signer.waiting_actions = data.actions;
+  DisplayWaitingActionList();
 }

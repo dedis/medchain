@@ -22,6 +22,7 @@ function AddUser(){
 }
 
 function AddUserCallback(data){
+  AddAction(data);
   GetUserList();
 }
 
@@ -51,6 +52,7 @@ function AddManager(){
 }
 
 function AddManagerCallback(data){
+  AddAction(data);
   GetManagerList();
 }
 
@@ -79,6 +81,7 @@ function AddAdmin(){
 }
 
 function AddAdminCallback(data){
+  AddAction(data);
   GetAdminList();
 }
 
@@ -109,6 +112,7 @@ function AddHospital(){
 }
 
 function AddHospitalCallback(data){
+  AddAction(data);
   GetHospitalList();
 }
 
@@ -157,5 +161,23 @@ function GetNewProjectQueryMapping(){
 }
 
 function AddProjectCallback(data){
+  AddAction(data);
   GetProjectList();
+}
+
+function AddAction(data_val){
+  json_val = {"action": data_val}
+  $.ajax
+    ({
+        type: "POST",
+        url: '/add/action',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:function(){
+          GetSignerActions();
+          GetWaitingActions();
+        },
+        failure:ShowActionError,
+        contentType: 'application/json'
+    });
 }

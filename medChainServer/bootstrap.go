@@ -323,6 +323,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 }
 
 func startSystem(metaData *metadata.Metadata) {
+	fmt.Println("####### Starting Bootstraping #######")
 	configuration, err := conf.ReadConf(configFileName)
 	if err != nil {
 		panic(err)
@@ -354,5 +355,7 @@ func startSystem(metaData *metadata.Metadata) {
 	createProjectCreatorDarc(metaData, signers)
 
 	createProjectDarcs(configuration, metaData, signers)
+
+	fmt.Println("####### Finished Bootstraping #######")
 
 }

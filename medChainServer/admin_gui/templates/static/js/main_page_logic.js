@@ -1,7 +1,7 @@
 var info = {};
 
 function initInfo() {
-  return {logged_in:false, all_super_admins_id:"", signer:{role:"", public_key:"", id:"", name:"", created:false, darc_base_id:""},   project_list:[], hospital_list:[], hospital:{id:"", name:"", created:false, super_admin_name:"",admin_list_id:"", manager_list_id:"", user_list_id:"", user_list:[], manager_list:[], admin_list:[]}};
+  return {logged_in:false, all_super_admins_id:"", signer:{role:"", public_key:"", id:"", name:"", created:false, darc_base_id:"", actions:[], waiting_actions:[]},   project_list:[], hospital_list:[], hospital:{id:"", name:"", created:false, super_admin_name:"",admin_list_id:"", manager_list_id:"", user_list_id:"", user_list:[], manager_list:[], admin_list:[]}};
 }
 
 function DoLogin(){
@@ -28,7 +28,9 @@ function showLogin(){
   $("#list_user_div").hide();
   $("#add_user_div").hide();
   $("#list_project_div").hide();
-  $("#add_project_div").show();
+  $("#add_project_div").hide();
+  $("#list_signer_action_div").hide();
+  $("#list_waiting_action_div").hide();
 }
 
 $(document).ready(

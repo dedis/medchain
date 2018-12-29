@@ -72,3 +72,41 @@ function DisplayProjectList(){
     AllowAddProject();
   }
 }
+
+function DisplaySignerActionList(){
+  $('#signer_action_list_table tbody').html("");
+  for( var action_index in info.signer.actions){
+    var action_info = info.signer.actions[action_index];
+    var display_string = '<tr><td>'+action_info.action_id+'</td><td>'+action_info.action.action_type+'</td><td>'+action_info.status+'</td><td><ul>'
+    for(var signer_id in action_info.signatures){
+      var has_signed = action_info.signatures[signer_id]
+      display_string += "<li>"+signer_id + " : "
+      if(has_signed){
+        display_string += "<span class='text-success'>Approved</span>"
+      }else{
+        display_string += "<span>Waiting</span>"
+      }
+      display_string +="</li>"
+    }
+    display_string += "</ul></td><td>"
+    if(action_info.status == "Approved"){
+      display_string += '<button class="btn btn-success">Commit</button>'
+    }
+    if(action_info.status == "Waiting" || action_info.status == "Approved"){
+      display_string += '<button class="btn btn-danger">Cancel</button>'
+    }
+    display_string += "</td></tr>"
+    $('#signer_action_list_table tbody').append(display_string);
+  }
+  $("#list_signer_action_div").show();
+}
+
+function DisplayWaitingActionList(){
+  $('#waiting_action_list_table tbody').html("");
+  for( var action_index in info.signer.waiting_actions){
+    var action_info = info.signer.waiting_actions[action_index];
+    var display_string = '<tr><td>'+action_info.action_id+'</td><td>'+action_info.action.action_type+'</td><td>'+action_info.initiator_id+'</td><td><button class="btn btn-success">Approve</button><button class="btn btn-danger">Deny</button></td></tr>'
+    $('#waiting_action_list_table tbody').append(display_string);
+  }
+  $("#list_waiting_action_div").show();
+}

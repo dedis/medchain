@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,42 +27,11 @@ var local *onet.LocalTest
 var roster *onet.Roster
 var cl *service.Client
 
-// var baseIdToDarcMap = make(map[string]*darc.Darc)
-// var darcIdToBaseIdMap = make(map[string]string)
-// var IdToHospitalIdMap = make(map[string]string)
-//
-// var superAdminsDarcsMap = make(map[string]string)
-//
-// var adminsDarcsMap = make(map[string]string)
-// var adminsListDarcsMap = make(map[string]string)
-//
-// var managersDarcsMap = make(map[string]string)
-// var managersListDarcsMap = make(map[string]string)
-//
-// var usersDarcsMap = make(map[string]string)
-// var usersListDarcsMap = make(map[string]string)
-//
-// var powerfulDarcsMap = make(map[string]string)
-//
-// var projectsDarcsMap = make(map[string]string)
-
 var configFileName string
 
-// // Genesis block
-// var genesisMsg *service.CreateGenesisBlock
-// var genesisBlock *service.CreateGenesisBlockResponse
-//
-// // Stuff required by the token introspection services
-// var allSuperAdminsDarc *darc.Darc
-// var allSuperAdminsBaseID string
-// var allAdminsDarc *darc.Darc
-// var allAdminsBaseID string
-// var allManagersDarc *darc.Darc
-// var allManagersBaseID string
-// var allUsersDarc *darc.Darc
-// var allUsersBaseID string
-
 var metaData *metadata.Metadata
+
+var signingProxy *httputil.ReverseProxy
 
 // var userProjectsMapInstanceID service.InstanceID
 var err error
@@ -166,78 +137,6 @@ func sayHello(w http.ResponseWriter, r *http.Request) {
 	message = "Hello " + message
 	w.Write([]byte(message))
 }
-
-// func applyNewDarcTransaction(w http.ResponseWriter, r *http.Request) {
-// 	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
-// 	if err != nil {
-// 		fmt.Println("failed to retrieve transaction")
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	darc, err := extractNewDarcFromTransaction(testTransactionRetrieved)
-// 	if err != nil {
-// 		fmt.Println("failed to extract darc")
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	tempDarc, err := submitSignedTransactionForNewDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
-// 	if err != nil {
-// 		fmt.Println("failed to submit new darc transaction")
-// 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
-// 		return
-// 	} else {
-// 		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
-// 		baseIdToDarcMap[darcBaseID] = tempDarc
-// 		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
-// 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
-// 	}
-// }
-
-// func applyEvolveDarcTransaction(w http.ResponseWriter, r *http.Request) {
-// 	testTransactionRetrieved, err := extractTransactionFromRequest(w, r)
-// 	if err != nil {
-// 		fmt.Println("failed to retrieve transaction")
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	darc, err := extractEvolvedDarcFromTransaction(testTransactionRetrieved)
-// 	if err != nil {
-// 		fmt.Println("failed to extract darc")
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	tempDarc, err := submitSignedTransactionForEvolveDARC(cl, darc, genesisMsg.BlockInterval, testTransactionRetrieved)
-// 	if err != nil {
-// 		fmt.Println("failed to submit evolve darc transaction")
-// 		w.Write([]byte("Failed to commit the transaction to the MedChain"))
-// 		return
-// 	} else {
-// 		darcBaseID := medChainUtils.IDToHexString(tempDarc.GetBaseID())
-// 		baseIdToDarcMap[darcBaseID] = tempDarc
-// 		darcIdToBaseIdMap[tempDarc.GetIdentityString()] = darcBaseID
-// 		w.Write([]byte("Success " + tempDarc.GetIdentityString()))
-// 	}
-// }
-
-// func extractEvolvedDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
-// 	instruction := transaction.Instructions[0]
-// 	invoke := instruction.Invoke
-// 	args := invoke.Args
-// 	arg := args[0]
-// 	darcBuf := arg.Value
-// 	newDarc, err := darc.NewFromProtobuf(darcBuf)
-// 	return newDarc, err
-// }
-
-// func extractNewDarcFromTransaction(transaction *service.ClientTransaction) (*darc.Darc, error) {
-// 	instruction := transaction.Instructions[0]
-// 	spawn := instruction.Spawn
-// 	args := spawn.Args
-// 	arg := args[0]
-// 	darcBuf := arg.Value
-// 	newDarc, err := darc.NewFromProtobuf(darcBuf)
-// 	return newDarc, err
-// }
 
 func extractTransactionFromRequest(w http.ResponseWriter, r *http.Request) (*service.ClientTransaction, error) {
 	// Fetch the transaction provided in the GET request
@@ -451,6 +350,13 @@ func main() {
 	metaData = metadata.NewMetadata()
 	metaData.SigningServiceUrl = signing_url
 
+	proxy_url, err := url.Parse(signing_url)
+	if err != nil {
+		panic(err)
+	}
+
+	signingProxy = httputil.NewSingleHostReverseProxy(proxy_url)
+
 	http.HandleFunc("/", sayHello)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin_gui/templates/static"))))
 	http.HandleFunc("/gui", admin_gui.GUI_landing)
@@ -461,6 +367,7 @@ func main() {
 	http.HandleFunc("/info/user", GetGenericUserInfo)
 	http.HandleFunc("/info/project", GetProjectInfo)
 	http.HandleFunc("/info/darc", GetDarcInfo)
+
 	http.HandleFunc("/list/darc", ListDarcUsers)
 	http.HandleFunc("/list/users", ListGenericUser)
 	http.HandleFunc("/list/hospitals", ListHospitals)
@@ -478,15 +385,15 @@ func main() {
 	http.HandleFunc("/commit/hospital", CommitHospital)
 	http.HandleFunc("/commit/project", CommitProject)
 
-	// http.HandleFunc("/add/darc", applyNewDarcTransaction)
-	// http.HandleFunc("/evolve/darc", applyEvolveDarcTransaction)
-	// http.HandleFunc("/metadata/add/user", NewUserMetadata)
-	// http.HandleFunc("/metadata/add/manager", NewManagerMetadata)
-	// http.HandleFunc("/metadata/add/admin", NewAdminMetadata)
+	http.HandleFunc("/add/action", forwardToSigning)
+	http.HandleFunc("/info/action", forwardToSigning)
+	http.HandleFunc("/list/actions", forwardToSigning)
+	http.HandleFunc("/list/actions/waiting", forwardToSigning)
 
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)
 	http.HandleFunc("/tokenIntrospectionQuery", tokenIntrospectionQuery)
+
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		panic(err)
 	}
