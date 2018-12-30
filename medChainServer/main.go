@@ -357,7 +357,6 @@ func main() {
 
 	signingProxy = httputil.NewSingleHostReverseProxy(proxy_url)
 
-	http.HandleFunc("/", sayHello)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin_gui/templates/static"))))
 	http.HandleFunc("/gui", admin_gui.GUI_landing)
 	http.HandleFunc("/start", start)
@@ -389,6 +388,7 @@ func main() {
 	http.HandleFunc("/info/action", forwardToSigning)
 	http.HandleFunc("/list/actions", forwardToSigning)
 	http.HandleFunc("/list/actions/waiting", forwardToSigning)
+	http.HandleFunc("/approve/action", forwardToSigning)
 
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)

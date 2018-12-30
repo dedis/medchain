@@ -80,11 +80,12 @@ function DisplaySignerActionList(){
     var display_string = '<tr><td>'+action_info.action_id+'</td><td>'+action_info.action.action_type+'</td><td>'+action_info.status+'</td><td><ul>'
     for(var signer_id in action_info.signatures){
       var has_signed = action_info.signatures[signer_id]
-      display_string += "<li>"+signer_id + " : "
-      if(has_signed){
-        display_string += "<span class='text-success'>Approved</span>"
-      }else{
-        display_string += "<span>Waiting</span>"
+      if(has_signed == "Approved"){
+        display_string += "<li>"+signer_id + " : <span class='text-success'>Approved</span>"
+      }else if (has_signed == "Waiting"){
+        display_string += "<li>"+signer_id + " : <span>Waiting</span>"
+      }else if (has_signed == "Denied"){
+        display_string += "<li>"+signer_id + " : <span class='text-danger'>Denied</span>"
       }
       display_string +="</li>"
     }
@@ -104,9 +105,17 @@ function DisplaySignerActionList(){
 function DisplayWaitingActionList(){
   $('#waiting_action_list_table tbody').html("");
   for( var action_index in info.signer.waiting_actions){
-    var action_info = info.signer.waiting_actions[action_index];
-    var display_string = '<tr><td>'+action_info.action_id+'</td><td>'+action_info.action.action_type+'</td><td>'+action_info.initiator_id+'</td><td><button class="btn btn-success">Approve</button><button class="btn btn-danger">Deny</button></td></tr>'
+    let action_info = info.signer.waiting_actions[action_index];
+    var display_string = '<tr><td>'+action_info.action_id+'</td><td>'+action_info.action.action_type+'</td><td>'+action_info.initiator_id+'</td><td><button class="btn btn-success" id="approve_button_action_id_'+action_info.action_id+'">Approve</button><button class="btn btn-danger" id="deny_button_action_id_'+action_info.action_id+'">Deny</button></td></tr>'
     $('#waiting_action_list_table tbody').append(display_string);
+    $('#approve_button_action_id_'+action_info.action_id).click(function(){
+      let action_info_copy = action_info;
+      ApproveAction(action_info_copy);
+    });
+    $('#deny_button_action_id_'+action_info.action_id).click(function(){
+      let action_info_copy = action_info;
+      DenyAction(action_info_copy);
+    });
   }
   $("#list_waiting_action_div").show();
 }

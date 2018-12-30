@@ -30,11 +30,16 @@ func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if request.ActionInfo == nil || request.ActionInfo.Action == nil {
+		medChainUtils.CheckError(errors.New("No action was provided to sign"), w, r)
+		return
+	}
+
 	signer, err := medChainUtils.LoadSignerEd25519FromBytesWithErr([]byte(request.PublicKey), []byte(request.PrivateKey))
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	transaction_bytes, err := base64.StdEncoding.DecodeString(request.Transaction)
+	transaction_bytes, err := base64.StdEncoding.DecodeString(request.ActionInfo.Action.Transaction)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -50,7 +55,7 @@ func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
 		medChainUtils.CheckError(errors.New("could not retrieve the transaction"), w, r)
 		return
 	}
-	err = signTransaction(transaction, request.InstructionDigests, request.Signers, signer)
+	err = signTransaction(transaction, request.ActionInfo.Action.InstructionDigests, request.ActionInfo.Action.Signers, signer)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -58,8 +63,7 @@ func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	delete(request.Signers, signer.Identity().String())
-	reply := admin_messages.SignReply{Transaction: transaction_string, InstructionDigests: request.InstructionDigests, Signers: request.Signers}
+	reply := admin_messages.SignReply{SignerId: signer.Identity().String(), ActionInfo: request.ActionInfo, OldTransaction: request.ActionInfo.Action.Transaction, SignedTransaction: transaction_string}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return

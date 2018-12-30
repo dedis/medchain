@@ -8,7 +8,7 @@ CREATE TABLE Action(
 CREATE TABLE SignatureStatus(
   action_id TEXT,
   signer_identity TEXT,
-  signed INTEGER DEFAULT 0,
+  status TEXT DEFAULT "APPROVED",
   FOREIGN KEY(action_id) REFERENCES Action(id),
   PRIMARY KEY(action_id, signer_identity)
 );

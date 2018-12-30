@@ -181,3 +181,11 @@ function AddAction(data_val){
         contentType: 'application/json'
     });
 }
+
+function ApproveAction(action_info){
+  alert("Approve: "+ action_info.action_id);
+}
+
+function DenyAction(action_info){
+  alert("Deny: "+ action_info.action_id);
+}

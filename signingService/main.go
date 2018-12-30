@@ -33,10 +33,10 @@ func main() {
 
 	// Register addresses
 	http.HandleFunc("/add/action", addAction)
+	http.HandleFunc("/approve/action", ApproveAction)
 	http.HandleFunc("/info/action", getActionInfo)
 	http.HandleFunc("/list/actions", getUserActions)
 	http.HandleFunc("/list/actions/waiting", getActionsWaiting)
-	// http.HandleFunc("/update/action", updateAction)
 
 	// Start server
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

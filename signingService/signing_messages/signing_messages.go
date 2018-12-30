@@ -23,7 +23,7 @@ type ActionInfoReply struct {
 	Initiator  string                `json:"initiator_id"`
 	Status     string                `json:"status"`
 	Action     *messages.ActionReply `json:"action"`
-	Signatures map[string]bool       `json:"signatures"`
+	Signatures map[string]string     `json:"signatures"`
 }
 
 type ListReply struct {

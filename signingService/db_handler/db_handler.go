@@ -16,17 +16,17 @@ func RegisterNewAction(action *messages.ActionReply, db *sql.DB) (string, error)
 	id := uuid.New().String()
 	action_bytes, err := json.Marshal(action)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	action_string := string(action_bytes)
 	err = addNewActionToDB(id, action.Initiator, status.Waiting, action_string, db)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	for signer, _ := range action.Signers {
-		err = addNewSignerToDB(id, signer, false, db)
+		err = addNewSignerToDB(id, signer, status.SignerWaiting, db)
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 	}
 	return id, nil
@@ -42,13 +42,13 @@ func addNewActionToDB(id, initiator, status, action_string string, db *sql.DB) e
 	return err
 }
 
-func addNewSignerToDB(id, signer_identity string, signed bool, db *sql.DB) error {
+func addNewSignerToDB(id, signer_identity string, status string, db *sql.DB) error {
 	// fmt.Println("adding new signer to the db")
-	stmt, err := db.Prepare("INSERT INTO SignatureStatus(action_id, signer_identity, signed) VALUES(?,?,?);")
+	stmt, err := db.Prepare("INSERT INTO SignatureStatus(action_id, signer_identity, status) VALUES(?,?,?);")
 	if err != nil {
 		return err
 	}
-	_, err = stmt.Exec(id, signer_identity, signed)
+	_, err = stmt.Exec(id, signer_identity, status)
 	return err
 }
 
@@ -88,12 +88,12 @@ func GetActionsWaitingFor(id string, db *sql.DB) ([]*signing_messages.ActionInfo
 }
 
 func getActionIdsWaitingFor(id string, db *sql.DB) ([]string, error) {
-	statement := "SELECT action_id FROM SignatureStatus, Action WHERE id = action_id AND status =? AND signer_identity=? AND signed=0;"
+	statement := "SELECT action_id FROM SignatureStatus AS Sig, Action WHERE Action.id = Sig.action_id AND Action.status =? AND Sig.signer_identity=? AND Sig.Status=?;"
 	stmt, err := db.Prepare(statement)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := stmt.Query(status.Waiting, id)
+	rows, err := stmt.Query(status.Waiting, id, status.SignerWaiting)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func GetInfoForAction(action_id string, db *sql.DB) (*signing_messages.ActionInf
 		fmt.Println("could not scan info")
 		return nil, err
 	}
-	signatures, err := getActionSignatureMap(action_id, db)
+	signatures, err := GetActionSignatureMap(action_id, db)
 	if err != nil {
 		fmt.Println("could not scan signature")
 		return nil, err
@@ -155,8 +155,24 @@ func GetInfoForAction(action_id string, db *sql.DB) (*signing_messages.ActionInf
 	return &signing_messages.ActionInfoReply{Id: action_id, Initiator: initiator, Status: status, Action: action_reply, Signatures: signatures}, nil
 }
 
-func getActionSignatureMap(action_id string, db *sql.DB) (map[string]bool, error) {
-	statement := "SELECT signer_identity, signed FROM SignatureStatus WHERE action_id=?;"
+func GetActionString(action_id string, db *sql.DB) (string, error) {
+	statement := "SELECT action_value FROM Action WHERE id=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return "", err
+	}
+	row := stmt.QueryRow(action_id)
+	var action_value string
+	err = row.Scan(&action_value)
+	if err != nil {
+		fmt.Println("could not scan info")
+		return "", err
+	}
+	return action_value, nil
+}
+
+func GetActionSignatureMap(action_id string, db *sql.DB) (map[string]string, error) {
+	statement := "SELECT signer_identity, status FROM SignatureStatus WHERE action_id=?;"
 	stmt, err := db.Prepare(statement)
 	if err != nil {
 		return nil, err
@@ -165,16 +181,15 @@ func getActionSignatureMap(action_id string, db *sql.DB) (map[string]bool, error
 	if err != nil {
 		return nil, err
 	}
-	signature_map := make(map[string]bool)
+	signature_map := make(map[string]string)
 	for rows.Next() {
-		var signer_id string
-		var signed int
-		err = rows.Scan(&signer_id, &signed)
+		var signer_id, status_val string
+		err = rows.Scan(&signer_id, &status_val)
 		if err != nil {
 			fmt.Println("could not scan signature")
 			return nil, err
 		}
-		signature_map[signer_id] = (signed != 0)
+		signature_map[signer_id] = status_val
 	}
 	rows.Close()
 	return signature_map, nil
@@ -187,4 +202,34 @@ func fromJSONStringToActionReply(action_value string) (*messages.ActionReply, er
 		return nil, err
 	}
 	return &reply, nil
+}
+
+func UpdateActionValue(id string, new_action_string string, db *sql.DB) error {
+	statement := "UPDATE Action SET action_value=? WHERE id=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(new_action_string, id)
+	return err
+}
+
+func UdpdateSignatureStatus(action_id string, signer_id string, status_val string, db *sql.DB) error {
+	statement := "UPDATE SignatureStatus SET status=? WHERE action_id=? AND signer_identity=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(status_val, action_id, signer_id)
+	return err
+}
+
+func UdpdateActionStatus(action_id, status_val string, db *sql.DB) error {
+	statement := "UPDATE Action SET status=? WHERE id=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return err
+	}
+	_, err = stmt.Exec(status_val, action_id)
+	return err
 }
