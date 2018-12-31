@@ -58,7 +58,7 @@ func UpdateDatabaseWithApproval(request *admin_messages.SignReply) error {
 	if err != nil {
 		return err
 	}
-	err = db_handler.UdpdateSignatureStatus(request.ActionInfo.Id, request.SignerId, status.SignerApproved, db)
+	err = db_handler.UdpdateSignatureStatus(request.ActionInfo.Id, request.SignerId, status.Approved, db)
 	if err != nil {
 		return err
 	}
@@ -94,6 +94,17 @@ func actionReplyToString(action *messages.ActionReply) (string, error) {
 func CheckForApproval(request *admin_messages.SignReply) error {
 	if request.ActionInfo == nil {
 		return errors.New("You need to provide the information of the action to approve")
+	}
+
+	action_status, err := db_handler.GetActionStatus(request.ActionInfo.Id, db)
+	if err == sql.ErrNoRows {
+		return errors.New("No Action With Such Id")
+	} else if err != nil {
+		return err
+	}
+
+	if action_status != status.Waiting {
+		return errors.New("The action is not waiting for approval")
 	}
 
 	local_action_string, err := db_handler.GetActionString(request.ActionInfo.Id, db)

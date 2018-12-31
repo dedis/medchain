@@ -389,6 +389,9 @@ func main() {
 	http.HandleFunc("/list/actions", forwardToSigning)
 	http.HandleFunc("/list/actions/waiting", forwardToSigning)
 	http.HandleFunc("/approve/action", forwardToSigning)
+	http.HandleFunc("/deny/action", forwardToSigning)
+	http.HandleFunc("/update/action/done", forwardToSigning)
+	http.HandleFunc("/update/action/cancel", forwardToSigning)
 
 	http.HandleFunc("/applyTransaction", applyTransaction)
 	http.HandleFunc("/tokenIntrospectionLogin", tokenIntrospectionLogin)

@@ -3,7 +3,7 @@ package status
 var Waiting = "Waiting"
 var Approved = "Approved"
 var Denied = "Denied"
-var Canceled = "Cancelled"
+var Cancelled = "Cancelled"
 var Done = "Done"
 
 var SignerWaiting = "Waiting"

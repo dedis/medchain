@@ -155,6 +155,36 @@ func GetInfoForAction(action_id string, db *sql.DB) (*signing_messages.ActionInf
 	return &signing_messages.ActionInfoReply{Id: action_id, Initiator: initiator, Status: status, Action: action_reply, Signatures: signatures}, nil
 }
 
+func GetActionStatus(action_id string, db *sql.DB) (string, error) {
+	statement := "SELECT status FROM Action WHERE id=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return "", err
+	}
+	row := stmt.QueryRow(action_id)
+	var status_val string
+	err = row.Scan(&status_val)
+	if err != nil {
+		return "", err
+	}
+	return status_val, nil
+}
+
+func GetActionInitiator(action_id string, db *sql.DB) (string, error) {
+	statement := "SELECT initiator FROM Action WHERE id=?;"
+	stmt, err := db.Prepare(statement)
+	if err != nil {
+		return "", err
+	}
+	row := stmt.QueryRow(action_id)
+	var status_val string
+	err = row.Scan(&status_val)
+	if err != nil {
+		return "", err
+	}
+	return status_val, nil
+}
+
 func GetActionString(action_id string, db *sql.DB) (string, error) {
 	statement := "SELECT action_value FROM Action WHERE id=?;"
 	stmt, err := db.Prepare(statement)

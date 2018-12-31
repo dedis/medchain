@@ -31,8 +31,6 @@ type ListReply struct {
 }
 
 type ActionUpdate struct {
-	SignerId          string `json:"signer_id"`
-	UpdateType        string `json:"type"`
-	SignedTransaction string `json:"signed_transaction"`
-	OldTransaction    string `json:"old_transaction"`
+	SignerId string `json:"signer_id"`
+	ActionId string `json:"action_id"`
 }

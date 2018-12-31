@@ -34,6 +34,9 @@ func main() {
 	// Register addresses
 	http.HandleFunc("/add/action", addAction)
 	http.HandleFunc("/approve/action", ApproveAction)
+	http.HandleFunc("/deny/action", DenyAction)
+	http.HandleFunc("/update/action/done", DoneAction)
+	http.HandleFunc("/update/action/cancel", CancelAction)
 	http.HandleFunc("/info/action", getActionInfo)
 	http.HandleFunc("/list/actions", getUserActions)
 	http.HandleFunc("/list/actions/waiting", getActionsWaiting)
