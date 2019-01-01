@@ -27,7 +27,7 @@ func projectMetadataToInfoReply(project_metadata *metadata.Project) messages.Pro
 			queries[query_type] = append(queries[query_type], genericUserMetadataToInfoReply(user_metadata))
 		}
 	}
-	return messages.ProjectInfoReply{Id: project_metadata.Id, Name: project_metadata.Name, DarcBaseId: project_metadata.DarcBaseId, Managers: managers, Users: users, Queries: queries, IsCreated: project_metadata.IsCreated}
+	return messages.ProjectInfoReply{Name: project_metadata.Name, DarcBaseId: project_metadata.DarcBaseId, Managers: managers, Users: users, Queries: queries, IsCreated: project_metadata.IsCreated}
 }
 
 func ListProjects(w http.ResponseWriter, r *http.Request) {

@@ -3,7 +3,6 @@ package metadata
 import (
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/service"
-	"github.com/google/uuid"
 )
 
 type Hospital struct {
@@ -28,7 +27,6 @@ type GenericUser struct {
 }
 
 type Project struct {
-	Id         string
 	Name       string
 	DarcBaseId string
 	Managers   []*GenericUser
@@ -79,11 +77,7 @@ func newSuperAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hos
 }
 
 func NewProject(name string) (*Project, error) {
-	id, err := uuid.NewUUID()
-	if err != nil {
-		return nil, err
-	}
-	return &Project{Id: id.String() + name, Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Queries: make(map[string][]*GenericUser), IsCreated: false}, nil
+	return &Project{Name: name, Managers: make([]*GenericUser, 0), Users: make([]*GenericUser, 0), Queries: make(map[string][]*GenericUser), IsCreated: false}, nil
 }
 
 func NewAdmin(IdValue darc.Identity, NameValue string, HospitalPointer *Hospital) *GenericUser {

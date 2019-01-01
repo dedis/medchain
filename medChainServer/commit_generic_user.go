@@ -16,12 +16,44 @@ import (
 	"github.com/dedis/onet/network"
 )
 
+func CommitAction(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	var request messages.ActionReply
+	err = json.Unmarshal(body, &request)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	switch request.ActionType {
+	case "add new project":
+		CommitProject(w, r)
+		return
+	case "add new Admin":
+		commitNewGenericUserToChain(w, r, "Admin")
+		return
+	case "add new Manager":
+		commitNewGenericUserToChain(w, r, "Manager")
+		return
+	case "add new User":
+		commitNewGenericUserToChain(w, r, "User")
+		return
+	case "add new hospital":
+		CommitHospital(w, r)
+		return
+	default:
+		medChainUtils.CheckError(errors.New("Unknown Action Type"), w, r)
+		return
+	}
+}
+
 func commitNewGenericUserToChain(w http.ResponseWriter, r *http.Request, user_type string) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	var request messages.CommitNewGenericUserRequest
+	var request messages.ActionReply
 	err = json.Unmarshal(body, &request)
 	if medChainUtils.CheckError(err, w, r) {
 		return

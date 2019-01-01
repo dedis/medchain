@@ -6,12 +6,36 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/DPPH/MedChain/medChainAdmin/admin_messages"
 	"github.com/DPPH/MedChain/medChainUtils"
+	"github.com/gorilla/mux"
 )
 
 var client *http.Client
+
+// CORSRouterDecorator applies CORS headers to a mux.Router
+type CORSRouterDecorator struct {
+	R               *mux.Router
+	AcceptedOrigins []string
+}
+
+// ServeHTTP wraps the HTTP server enabling CORS headers.
+// For more info about CORS, visit https://www.w3.org/TR/cors/
+func (c *CORSRouterDecorator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if origin := req.Header.Get("Origin"); origin != "" {
+		rw.Header().Set("Access-Control-Allow-Origin", strings.Join(c.AcceptedOrigins, ", "))
+		rw.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		rw.Header().Set("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Type, content-type")
+	}
+	// Stop here if its Preflighted OPTIONS request
+	if req.Method == "OPTIONS" {
+		return
+	}
+
+	c.R.ServeHTTP(rw, req)
+}
 
 func PublicKeyToIdString(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
@@ -56,14 +80,12 @@ func main() {
 		return nil
 	}
 
-	port := getFlags()
+	port, medchain_url := getFlags()
 
-	// Register addresses
-	http.HandleFunc("/sign", processSignTransactionRequest)
-	http.HandleFunc("/id", PublicKeyToIdString)
+	router := mux.NewRouter()
 
-	// Start server
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		panic(err)
-	}
+	router.HandleFunc("/sign", processSignTransactionRequest)
+	router.HandleFunc("/id", PublicKeyToIdString)
+
+	http.ListenAndServe(":"+port, &CORSRouterDecorator{R: router, AcceptedOrigins: []string{medchain_url}})
 }

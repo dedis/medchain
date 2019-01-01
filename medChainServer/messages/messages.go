@@ -101,7 +101,6 @@ type ProjectInfoRequest struct {
 }
 
 type ProjectInfoReply struct {
-	Id         string                            `json:"id"`
 	Name       string                            `json:"name"`
 	DarcBaseId string                            `json:"darc_base_id"`
 	Managers   []GenericUserInfoReply            `json:"managers"`

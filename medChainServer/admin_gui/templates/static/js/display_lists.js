@@ -65,7 +65,7 @@ function DisplayProjectList(){
   for( var project_index in info.project_list){
     var project_info = info.project_list[project_index];
     var status = project_info.created ? "Approved" : "Not Approved";
-    $('#project_list_table tbody').append('<tr><td>'+project_info.name+'</td><td>'+project_info.id+'</td><td>'+status+'</td></tr>');
+    $('#project_list_table tbody').append('<tr><td>'+project_info.name+'</td><td>'+status+'</td></tr>');
   }
   $("#list_project_div").show();
   if(info.signer.role == "admin"){
@@ -86,6 +86,8 @@ function DisplaySignerActionList(){
         display_string += "<li>"+signer_id + " : <span>Waiting</span>"
       }else if (has_signed == "Denied"){
         display_string += "<li>"+signer_id + " : <span class='text-danger'>Denied</span>"
+      }else if (has_signed == "NA") {
+        display_string += "<li>"+signer_id + " : <span>Unknown</span>"
       }
       display_string +="</li>"
     }

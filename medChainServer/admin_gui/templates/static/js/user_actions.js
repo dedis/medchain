@@ -166,7 +166,7 @@ function AddProjectCallback(data){
 }
 
 function AddAction(data_val){
-  json_val = {"action": data_val}
+  var json_val = {"action": data_val}
   $.ajax
     ({
         type: "POST",
@@ -183,9 +183,51 @@ function AddAction(data_val){
 }
 
 function ApproveAction(action_info){
-  alert("Approve: "+ action_info.action_id);
+  var client_url = $("#local_signer_url_input").val();
+  var private_key = $("#private_key_input").val();
+  var json_val = {"action_info":action_info, "public_key":info.signer.public_key, "private_key":private_key}
+  $.ajax
+    ({
+        type: "POST",
+        url: client_url + '/sign',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success: ApproveActionStatus,
+        failure: ShowActionError,
+        contentType: 'application/json'
+    });
+}
+
+function ApproveActionStatus(data){
+  alert(JSON.stringify(data));
+  $.ajax
+    ({
+        type: "POST",
+        url: '/approve/action',
+        dataType: 'json',
+        data: JSON.stringify(data),
+        success: function(){
+          GetSignerActions();
+          GetWaitingActions();
+        },
+        failure: ShowActionError,
+        contentType: 'application/json'
+    });
 }
 
 function DenyAction(action_info){
-  alert("Deny: "+ action_info.action_id);
+  var json_val = {"action_id": action_info.action_id, "signer_id": info.signer.id}
+  $.ajax
+    ({
+        type: "POST",
+        url: '/deny/action',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:function(){
+          GetSignerActions();
+          GetWaitingActions();
+        },
+        failure:ShowActionError,
+        contentType: 'application/json'
+    });
 }

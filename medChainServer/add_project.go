@@ -27,11 +27,11 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identity, transaction, signers, digests, err := prepareNewProject(&request)
+	name, transaction, signers, digests, err := prepareNewProject(&request)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{name}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
 	json_val, err := json.Marshal(&reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -54,6 +54,10 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 	}
 	if initiator_metadata.Role != "admin" {
 		return "", "", nil, nil, errors.New("You need to be an Admin to add a project")
+	}
+
+	if _, ok := metaData.Projects[request.Name]; ok {
+		return "", "", nil, nil, errors.New("There is already a project with that name")
 	}
 
 	manager_metadata_list, err := loadProjectManagers(request)
@@ -96,7 +100,7 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 		return "", "", nil, nil, err
 	}
 
-	return project_metadata.Id, transaction_string, signers, digests, nil
+	return project_metadata.Name, transaction_string, signers, digests, nil
 }
 
 func loadProjectManagers(request *messages.AddProjectRequest) ([]*metadata.GenericUser, error) {
@@ -310,17 +314,17 @@ func createTransactionForNewProject(spawner_darc, project_creator_darc, project_
 
 func addProjectToMetadata(project_metadata *metadata.Project, project_darc *darc.Darc) {
 	for _, user_metadata := range project_metadata.Users {
-		user_metadata.Projects[project_metadata.Id] = project_metadata
+		user_metadata.Projects[project_metadata.Name] = project_metadata
 	}
 	for _, manager_metadata := range project_metadata.Managers {
-		manager_metadata.Projects[project_metadata.Id] = project_metadata
+		manager_metadata.Projects[project_metadata.Name] = project_metadata
 		hospital_metadata := manager_metadata.Hospital
-		hospital_metadata.SuperAdmin.Projects[project_metadata.Id] = project_metadata
+		hospital_metadata.SuperAdmin.Projects[project_metadata.Name] = project_metadata
 		for _, admin_metadata := range hospital_metadata.Admins {
-			admin_metadata.Projects[project_metadata.Id] = project_metadata
+			admin_metadata.Projects[project_metadata.Name] = project_metadata
 		}
 	}
-	metaData.Projects[project_metadata.Id] = project_metadata
+	metaData.Projects[project_metadata.Name] = project_metadata
 	base_id := medChainUtils.IDToB64String(project_darc.GetBaseID())
 	metaData.ProjectsWaitingForCreation[base_id] = project_metadata
 }

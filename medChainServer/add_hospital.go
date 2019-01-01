@@ -59,6 +59,10 @@ func prepareNewHospital(request *messages.AddHospitalRequest) (string, string, m
 	}
 	identity := *identityPtr
 
+	if _, ok := metaData.Hospitals[identity.String()]; ok {
+		return "", "", nil, nil, errors.New("There is already a super admin with that public key")
+	}
+
 	genesis_darc, signers_ids, signers, err := getGenesisDarcSigners()
 	if err != nil {
 		return "", "", nil, nil, err
@@ -367,23 +371,17 @@ func evolveAllUserListWithNewDarc(all_darc *darc.Darc, new_darc *darc.Darc) (*da
 }
 
 func addHospitalToMetadata(metaData *metadata.Metadata, identity darc.Identity, hospital_name, super_admin_name string, new_hospital_darc *darc.Darc) error {
-
 	if hospital_name == "" || super_admin_name == "" {
 		return errors.New("You have to specify a name for the hospital and one for its super admin")
 	}
-	hospital_metadata, ok := metaData.Hospitals[identity.String()]
-	if ok {
-		if hospital_metadata.SuperAdmin.IsCreated {
-			return errors.New("This hospitals already exists")
-		}
-		base_id := medChainUtils.IDToB64String(new_hospital_darc.GetBaseID())
-		metaData.WaitingForCreation[base_id] = hospital_metadata.SuperAdmin
-	} else {
-		hospital_metadata, super_admin_metadata := metadata.NewHospital(identity, hospital_name, super_admin_name)
-		metaData.Hospitals[identity.String()] = hospital_metadata
-		metaData.GenericUsers[identity.String()] = super_admin_metadata
-		base_id := medChainUtils.IDToB64String(new_hospital_darc.GetBaseID())
-		metaData.WaitingForCreation[base_id] = super_admin_metadata
+
+	if _, ok := metaData.Hospitals[identity.String()]; ok {
+		return errors.New("This hospitals already exists")
 	}
+	hospital_metadata, super_admin_metadata := metadata.NewHospital(identity, hospital_name, super_admin_name)
+	metaData.Hospitals[identity.String()] = hospital_metadata
+	metaData.GenericUsers[identity.String()] = super_admin_metadata
+	base_id := medChainUtils.IDToB64String(new_hospital_darc.GetBaseID())
+	metaData.WaitingForCreation[base_id] = super_admin_metadata
 	return nil
 }

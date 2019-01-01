@@ -18,7 +18,7 @@ func CommitProject(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	var request messages.CommitNewProjectRequest
+	var request messages.ActionReply
 	err = json.Unmarshal(body, &request)
 	if medChainUtils.CheckError(err, w, r) {
 		return

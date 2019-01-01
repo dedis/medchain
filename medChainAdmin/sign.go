@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -16,6 +17,7 @@ import (
 )
 
 func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/sign")
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
 		return

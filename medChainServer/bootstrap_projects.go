@@ -104,7 +104,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			id := manager_darc.GetIdentityString()
 			darc_managers = append(darc_managers, id)
 			project_metadata.Managers = append(project_metadata.Managers, manager_metadata)
-			manager_metadata.Projects[project_metadata.Id] = project_metadata
+			manager_metadata.Projects[project_metadata.Name] = project_metadata
 			project_hospitals[manager_metadata.Hospital.SuperAdmin.Id.String()] = manager_metadata.Hospital
 		}
 
@@ -116,9 +116,9 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			}
 			admin_list_darcs = append(admin_list_darcs, admin_list_darc.GetIdentityString())
 			for _, admin_metadata := range hospital_metadata.Admins {
-				admin_metadata.Projects[project_metadata.Id] = project_metadata
+				admin_metadata.Projects[project_metadata.Name] = project_metadata
 			}
-			hospital_metadata.SuperAdmin.Projects[project_metadata.Id] = project_metadata
+			hospital_metadata.SuperAdmin.Projects[project_metadata.Name] = project_metadata
 		}
 
 		darc_signers := []string{}
@@ -132,7 +132,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			darc_signers = append(darc_signers, id)
 			user_ids = append(user_ids, user_metadata.Id.String())
 			project_metadata.Users = append(project_metadata.Users, user_metadata)
-			user_metadata.Projects[project_metadata.Id] = project_metadata
+			user_metadata.Projects[project_metadata.Name] = project_metadata
 		}
 
 		projectDarcRules := darc.InitRulesWith([]darc.Identity{}, []darc.Identity{}, "invoke:evolve")
@@ -166,8 +166,8 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 
 		project_metadata.DarcBaseId = addDarcToMaps(projectDarc, metaData)
 		project_metadata.IsCreated = true
-		fmt.Printf("Added project: %s with id: %s\n", project_metadata.Name, project_metadata.Id)
-		metaData.Projects[project_metadata.Id] = project_metadata
+		fmt.Printf("Added project: %s\n", project_metadata.Name)
+		metaData.Projects[project_metadata.Name] = project_metadata
 
 		list_of_projects = append(list_of_projects, projectDarc.GetIdentityString())
 	}

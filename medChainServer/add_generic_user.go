@@ -67,6 +67,10 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 	}
 	identity := *identityPtr
 
+	if _, ok := metaData.GenericUsers[identity.String()]; ok {
+		return "", "", nil, nil, errors.New("There is already a user with that public key")
+	}
+
 	owner_darc, signers_ids, signers, err := getSigners(hospital_metadata, user_type, request.PreferredSigners)
 	if err != nil {
 		return "", "", nil, nil, err
@@ -150,13 +154,9 @@ func addGenericUserToMetadata(metaData *metadata.Metadata, hospital_metadata *me
 	if name == "" {
 		return errors.New("You have to specify a name")
 	}
-	user_metadata, ok := metaData.GenericUsers[identity.String()]
-	if ok {
-		if user_metadata.IsCreated {
-			return errors.New("This user already exists")
-		}
-		base_id := medChainUtils.IDToB64String(new_darc.GetBaseID())
-		metaData.WaitingForCreation[base_id] = user_metadata
+
+	if _, ok := metaData.GenericUsers[identity.String()]; ok {
+		return errors.New("This user already exists")
 	} else {
 		var user_metadata *metadata.GenericUser
 		switch user_type {
