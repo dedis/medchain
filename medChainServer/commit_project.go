@@ -3,28 +3,17 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net/http"
 
-	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
 	"github.com/DPPH/MedChain/medChainUtils"
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/service"
 )
 
-func CommitProject(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.ActionReply
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
+func CommitProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
-	transaction, err := extractTransactionFromString(request.Transaction)
+	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}

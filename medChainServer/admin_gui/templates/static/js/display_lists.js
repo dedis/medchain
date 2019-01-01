@@ -93,13 +93,21 @@ function DisplaySignerActionList(){
     }
     display_string += "</ul></td><td>"
     if(action_info.status == "Approved"){
-      display_string += '<button class="btn btn-success">Commit</button>'
+      display_string += '<button id="commit_button_action_id_'+action_info.action_id+'" class="btn btn-success">Commit</button>'
     }
     if(action_info.status == "Waiting" || action_info.status == "Approved"){
-      display_string += '<button class="btn btn-danger">Cancel</button>'
+      display_string += '<button id="cancel_button_action_id_'+action_info.action_id+'" class="btn btn-danger">Cancel</button>'
     }
     display_string += "</td></tr>"
     $('#signer_action_list_table tbody').append(display_string);
+    $('#commit_button_action_id_'+action_info.action_id).click(function(){
+      let action_info_copy = action_info;
+      CommitAction(action_info_copy);
+    });
+    $('#cancel_button_action_id_'+action_info.action_id).click(function(){
+      let action_info_copy = action_info;
+      CancelAction(action_info_copy);
+    });
   }
   $("#list_signer_action_div").show();
 }

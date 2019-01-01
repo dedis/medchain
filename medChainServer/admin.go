@@ -10,11 +10,6 @@ func AddAdmin(w http.ResponseWriter, r *http.Request) {
 	replyNewGenericUserRequest(w, r, "Admin")
 }
 
-func CommitAdmin(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("/commit/admin")
-	commitNewGenericUserToChain(w, r, "Admin")
-}
-
 // func NewManagerMetadata(w http.ResponseWriter, r *http.Request) {
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	medChainUtils.Check(err)

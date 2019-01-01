@@ -231,3 +231,24 @@ function DenyAction(action_info){
         contentType: 'application/json'
     });
 }
+
+function CommitAction(action_info){
+  var json_val = {"transaction": action_info.action.transaction, "action_type": action_info.action.action_type}
+  $.ajax
+    ({
+        type: "POST",
+        url: '/commit/action',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:function(){
+          GetSignerActions();
+          GetWaitingActions();
+        },
+        failure:ShowActionError,
+        contentType: 'application/json'
+    });
+}
+
+function CancelAction(action_info){
+  alert("Cancel "+action_info.action_id);
+}

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
@@ -13,18 +12,9 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
-func CommitHospital(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.ActionReply
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
+func CommitHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
-	transaction, err := extractTransactionFromString(request.Transaction)
+	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}

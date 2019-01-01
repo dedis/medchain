@@ -79,8 +79,9 @@ type AddHospitalRequest struct {
 	SuperAdminName string `json:"super_admin_name"`
 }
 
-type CommitHospitalRequest struct {
+type CommitRequest struct {
 	Transaction string `json:"transaction"`
+	ActionType  string `json:"action_type"`
 }
 
 type ListGenericUserRequest struct {
