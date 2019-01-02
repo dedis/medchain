@@ -241,14 +241,54 @@ function CommitAction(action_info){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success:function(){
-          GetSignerActions();
-          GetWaitingActions();
+          let id = action_info.action_id;
+          ChangeActionStatusToDone(id);
+        },
+        contentType: 'application/json'
+    });
+}
+
+function CancelAction(action_info){
+  var json_val = {"transaction": action_info.action.transaction, "action_type": action_info.action.action_type}
+  $.ajax
+    ({
+        type: "POST",
+        url: '/cancel/action',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:function(){
+          let id = action_info.action_id;
+          ChangeActionStatusToCancelled(id);
         },
         failure:ShowActionError,
         contentType: 'application/json'
     });
 }
 
-function CancelAction(action_info){
-  alert("Cancel "+action_info.action_id);
+function ChangeActionStatusToDone(id){
+  var json_val = {"action_id": id, "signer_id": info.signer.id}
+  $.ajax
+    ({
+        type: "POST",
+        url: '/update/action/done',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:RefreshAllInfo,
+        failure:ShowActionError,
+        contentType: 'application/json'
+    });
+}
+
+function ChangeActionStatusToCancelled(id){
+  var json_val = {"action_id": id, "signer_id": info.signer.id};
+  $.ajax
+    ({
+        type: "POST",
+        url: '/update/action/cancel',
+        dataType: 'json',
+        data: JSON.stringify(json_val),
+        success:RefreshAllInfo,
+        failure:ShowActionError,
+        contentType: 'application/json'
+    });
 }

@@ -35,6 +35,11 @@ function UpdateUserInfo(data){
   info.signer.darc_base_id = data["darc_base_id"];
   info.logged_in = true;
   GetHospitalInfo();
+  RefreshAllInfo();
+  DisplaySignerInfo();
+}
+
+function RefreshAllInfo(){
   if(info.signer.created){
     switch (info.signer.role) {
       case "super_admin":
@@ -60,7 +65,6 @@ function UpdateUserInfo(data){
         GetProjectList();
     }
   }
-  DisplaySignerInfo();
 }
 
 

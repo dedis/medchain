@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -14,6 +15,7 @@ import (
 )
 
 func DoneAction(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("done")
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
 		return

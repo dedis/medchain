@@ -12,6 +12,47 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+func cancelNewHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
+	transaction, err := extractTransactionFromString(transaction_string)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	new_darcs, evolved_darcs, err := checkTransactionForNewHospital(transaction)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	err = CancelAndRemoveHospitalFromMetadata(new_darcs, evolved_darcs)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	reply := messages.CommitRequest{Transaction: transaction_string}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+}
+
+func CancelAndRemoveHospitalFromMetadata(new_darcs, evolved_darcs []*darc.Darc) error {
+	new_darc_base_id := medChainUtils.IDToB64String(new_darcs[0].GetBaseID())
+	super_admin_metadata, ok := metaData.WaitingForCreation[new_darc_base_id]
+	if !ok {
+		return errors.New("Could not find the metadata of the new hospital")
+	}
+	hospital_metadata := super_admin_metadata.Hospital
+	if super_admin_metadata.IsCreated {
+		return errors.New("This hospital was already created")
+	}
+	delete(metaData.Hospitals, hospital_metadata.SuperAdmin.Id.String())
+	delete(metaData.GenericUsers, super_admin_metadata.Id.String())
+	delete(metaData.WaitingForCreation, new_darc_base_id)
+	return nil
+}
+
 func CommitHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
 	transaction, err := extractTransactionFromString(transaction_string)
@@ -106,6 +147,7 @@ func adaptMetadataForNewHospital(new_darcs, evolved_darcs []*darc.Darc) (*metada
 	addDarcToMaps(evolved_darcs[1], metaData)
 	addDarcToMaps(evolved_darcs[2], metaData)
 	addDarcToMaps(evolved_darcs[3], metaData)
+	delete(metaData.WaitingForCreation, new_darc_base_id)
 	return hospital_metadata, nil
 }
 

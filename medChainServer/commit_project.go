@@ -5,11 +5,64 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
 	"github.com/DPPH/MedChain/medChainUtils"
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/service"
 )
+
+func cancelNewProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
+
+	transaction, err := extractTransactionFromString(transaction_string)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+
+	project_darc, _, _, err := checkTransactionForNewProject(transaction)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	err = CancelAndRemoveProjectFromMetadata(project_darc)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+
+	reply := messages.CommitRequest{Transaction: transaction_string}
+	json_val, err := json.Marshal(&reply)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(json_val)
+	if medChainUtils.CheckError(err, w, r) {
+		return
+	}
+}
+
+func CancelAndRemoveProjectFromMetadata(project_darc *darc.Darc) error {
+	project_darc_base_id := medChainUtils.IDToB64String(project_darc.GetBaseID())
+	project_metadata, ok := metaData.ProjectsWaitingForCreation[project_darc_base_id]
+	if !ok {
+		return errors.New("The commited project needs to be added first")
+	}
+	if project_metadata.IsCreated {
+		errors.New("The project was already created")
+	}
+	for _, user_metadata := range project_metadata.Users {
+		delete(user_metadata.Projects, project_metadata.Name)
+	}
+	for _, manager_metadata := range project_metadata.Managers {
+		delete(manager_metadata.Projects, project_metadata.Name)
+		for _, admin_metadata := range manager_metadata.Hospital.Admins {
+			delete(admin_metadata.Projects, project_metadata.Name)
+		}
+		delete(manager_metadata.Hospital.SuperAdmin.Projects, project_metadata.Name)
+	}
+	delete(metaData.Projects, project_metadata.Name)
+	delete(metaData.ProjectsWaitingForCreation, project_darc_base_id)
+	return nil
+}
 
 func CommitProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
@@ -157,8 +210,6 @@ func submitTransactionForNewProject(transaction *service.ClientTransaction, proj
 		return errors.New("Could not get proof of the project list update")
 	}
 
-	//TODO : verify user map is getting updated
-
 	return nil
 }
 
@@ -170,5 +221,6 @@ func adaptMetadataForNewProject(project_darc *darc.Darc) (*metadata.Project, err
 	}
 	project_metadata.DarcBaseId = addDarcToMaps(project_darc, metaData)
 	project_metadata.IsCreated = true
+	delete(metaData.ProjectsWaitingForCreation, project_darc_base_id)
 	return project_metadata, nil
 }

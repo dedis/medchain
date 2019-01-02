@@ -379,6 +379,7 @@ func main() {
 	http.HandleFunc("/add/project", AddProject)
 
 	http.HandleFunc("/commit/action", CommitAction)
+	http.HandleFunc("/cancel/action", CancelAction)
 
 	http.HandleFunc("/add/action", forwardToSigning)
 	http.HandleFunc("/info/action", forwardToSigning)
