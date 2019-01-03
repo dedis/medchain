@@ -73,11 +73,11 @@
       "SigningUsers":[{"i":0, "j":0}, {"i":1, "j":0}],
       "Rules": [
         {
-          "Action":"spawn:ObfuscatedQuery",
+          "Action":"ObfuscatedQuery",
           "Users":[0,1]
         },
         {
-          "Action":"spawn:AggregatedQuery",
+          "Action":"AggregatedQuery",
           "Users":[0]
         }
       ]

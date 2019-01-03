@@ -61,6 +61,11 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 		return "", "", nil, nil, errors.New("You need to be an admin to add a new " + user_type)
 	}
 
+	err = checkRequestForNewUser(request)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+
 	hospital_metadata, identityPtr, err := getMetadata(request)
 	if err != nil {
 		return "", "", nil, nil, err
@@ -101,6 +106,16 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 	}
 
 	return identity.String(), transaction_string, signers, digests, nil
+}
+
+func checkRequestForNewUser(request *messages.AddGenericUserRequest) error {
+	if request.Name == "" {
+		return errors.New("You need to provide a name")
+	}
+	if request.PublicKey == "" {
+		return errors.New("You need to provide a public_key")
+	}
+	return nil
 }
 
 func transactionToString(transaction *service.ClientTransaction) (string, error) {

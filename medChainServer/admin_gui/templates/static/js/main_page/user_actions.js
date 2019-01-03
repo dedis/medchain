@@ -1,5 +1,5 @@
 function AllowAddUser(){
-  $("#add_user_div").show();
+  $("#open_new_user_dialog_button").show();
 }
 
 function AddUser(){
@@ -29,7 +29,7 @@ function AddUserCallback(data){
 
 
 function AllowAddManager(){
-  $("#add_manager_div").show();
+  $("#open_new_manager_dialog_button").show();
 }
 
 function AddManager(){
@@ -58,7 +58,7 @@ function AddManagerCallback(data){
 
 
 function AllowAddAdmin(){
-  $("#add_admin_div").show();
+  $("#open_new_admin_dialog_button").show();
 }
 
 function AddAdmin(){
@@ -88,7 +88,7 @@ function AddAdminCallback(data){
 
 
 function AllowAddHospital(){
-  $("#add_hospital_div").show();
+  $("#open_new_hospital_dialog_button").show();
 }
 
 function AddHospital(){
@@ -117,7 +117,7 @@ function AddHospitalCallback(data){
 }
 
 function AllowAddProject(){
-  $("#add_project_div").show();
+  $("#open_new_project_dialog_button").show();
 }
 
 function AddProject(){

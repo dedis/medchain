@@ -155,7 +155,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 				project_metadata.Queries[rule.Action] = append(project_metadata.Queries[rule.Action], user_metadata)
 			}
 			expr := expression.InitOrExpr(usersIdString...)
-			projectDarcRules.AddRule(darc.Action(rule.Action), expr)
+			projectDarcRules.AddRule(darc.Action("spawn:"+rule.Action), expr)
 		}
 
 		projectDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, projectDarcRules,

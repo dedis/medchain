@@ -42,7 +42,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 }
 
 func genericUserMetadataToInfoReply(user_metadata *metadata.GenericUser) messages.GenericUserInfoReply {
-	return messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated, Role: user_metadata.Role}
+	return messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), HospitalName: user_metadata.Hospital.Name, IsCreated: user_metadata.IsCreated, Role: user_metadata.Role}
 }
 
 func GetGenericUserInfo(w http.ResponseWriter, r *http.Request) {

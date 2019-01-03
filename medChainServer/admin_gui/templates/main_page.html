@@ -9,27 +9,29 @@
     <script src="static/js/popper.min.js"></script>
     <link href="static/css/bootstrap.min.css" rel="stylesheet" type="text/css">
     <script src="static/js/bootstrap.min.js"></script>
-    <script src="static/js/user_actions.js"></script>
-    <script src="static/js/display_lists.js"></script>
-    <script src="static/js/get_user_info.js"></script>
-    <script src="static/js/main_page_logic.js"></script>
+    <script src="static/js/jquery-ui.js"></script>
+    <link rel="stylesheet" href="static/css/jquery-ui.css" />
+    <script src="static/js/main_page/user_actions.js"></script>
+    <script src="static/js/main_page/display_lists.js"></script>
+    <script src="static/js/main_page/get_user_info.js"></script>
+    <script src="static/js/main_page/main_page_logic.js"></script>
 </head>
 
 <body>
 
-  <h1>Welcome to Medchain</h1>
+  <h1 class="text-center">Welcome to Medchain</h1>
 
-  <div id="login_div">
+  <div id="login_div" class="container-fluid">
     <h2>Login</h2>
     <label>Public Key: </label>
     <input id="public_key_input" type="text"></input><br/>
     <button id="login_button" class="btn">Log In</button>
-    <span id="login_error"></span>
+    <span id="login_error" class="text-danger"></span>
   </div>
 
   <div id="display_div">
 
-    <div id="hospital_info_div">
+    <div id="hospital_info_div" class="container-fluid">
       <h3>Institution Information</h3>
       <label>Name: </label>
       <span id="hospital_name"></span><br/>
@@ -39,7 +41,7 @@
       <span id="hospital_status"></span><br/>
     </div>
 
-    <div id="signer_info_div">
+    <div id="signer_info_div" class="container-fluid">
       <h3>Your Information</h3>
       <label>Role: </label>
       <span id="signer_role"></span><br/>
@@ -51,7 +53,7 @@
       <span id="signer_status"></span><br/>
     </div>
 
-    <div id="list_signer_action_div">
+    <div id="list_signer_action_div" class="container-fluid">
       <h3>Your Actions: </h3>
       <table id = "signer_action_list_table" class="table table-bordered">
         <thead class="thead-dark">
@@ -68,7 +70,7 @@
       </table>
     </div>
 
-    <div id="list_waiting_action_div">
+    <div id="list_waiting_action_div" class="container-fluid">
       <h3>Actions To Approve: </h3>
       <table id = "waiting_action_list_table" class="table table-bordered">
         <thead class="thead-dark">
@@ -84,31 +86,31 @@
       </table>
     </div>
 
-    <div id="signature information">
+    <div id="signature information" class="container-fluid">
       <label>Local Signer Client URL: </label>
       <input id="local_signer_url_input" type="text" value="http://localhost:6161"></input><br/>
       <label>Private Key: </label>
       <input id="private_key_input" type="password" default=""></input><br/>
     </div>
 
-    <div id="list_hospital_div">
+    <div id="list_hospital_div" class="container-fluid">
       <h3>Hospitals</h3>
       <table id = "hospital_list_table" class="table table-bordered">
         <thead class="thead-dark">
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Id</th>
-            <th scope="col">Head</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
         </tbody>
       </table>
+      <div class="text-center"><button id="open_new_hospital_dialog_button" class="btn btn-success">Add Hospital</button></div>
     </div>
 
+
+
     <div id="add_hospital_div">
-      <h3>Add Hospital</h3>
       <label>Hospital Name: </label>
       <input id="new_hospital_name_input" type="text"></input><br/>
       <label>Name of Head of Hospital: </label>
@@ -116,85 +118,88 @@
       <label>Public Key of Head of Hospital: </label>
       <input id="new_hospital_public_key_input" type="text"></input><br/>
       <button id="new_hospital_button" class="btn">Submit</button>
-      <span id="new_hospital_error"></span>
+      <span id="new_hospital_error" class="text-danger"></span>
     </div>
 
-    <div id="list_admin_div">
+    <div id="list_admin_div" class="container-fluid">
       <h3>Admins</h3>
       <table id = "admin_list_table"  class="table table-bordered">
         <thead class="thead-dark">
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Id</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
         </tbody>
       </table>
+      <div class="text-center"><button id="open_new_admin_dialog_button" class="btn btn-success">Add Administrator</button></div>
     </div>
 
+
+
     <div id="add_admin_div">
-      <h3>Add Administrator</h3>
       <label>Name: </label>
       <input id="new_admin_name_input" type="text"></input><br/>
       <label>Public Key: </label>
       <input id="new_admin_public_key_input" type="text"></input><br/>
       <button id="new_admin_button" class="btn">Submit</button>
-      <span id="new_admin_error"></span>
+      <span id="new_admin_error" class="text-danger"></span>
     </div>
 
-    <div id="list_manager_div">
+    <div id="list_manager_div" class="container-fluid">
       <h3>Managers</h3>
       <table id = "manager_list_table"  class="table table-bordered">
         <thead class="thead-dark">
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Id</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
         </tbody>
       </table>
+      <div class="text-center"><button id="open_new_manager_dialog_button" class="btn btn-success">Add Manager</button></div>
     </div>
 
+
+
     <div id="add_manager_div">
-      <h3>Add Manager</h3>
       <label>Name: </label>
       <input id="new_manager_name_input" type="text"></input><br/>
       <label>Public Key: </label>
       <input id="new_manager_public_key_input" type="text"></input><br/>
       <button id="new_manager_button" class="btn">Submit</button>
-      <span id="new_manager_error"></span>
+      <span id="new_manager_error" class="text-danger"></span>
     </div>
 
-    <div id="list_user_div">
+    <div id="list_user_div" class="container-fluid">
       <h3>Users</h3>
       <table id = "user_list_table"  class="table table-bordered">
         <thead class="thead-dark">
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Id</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
         </tbody>
       </table>
+      <div class="text-center"><button id="open_new_user_dialog_button" class="btn btn-success">Add User</button></div>
     </div>
 
+
+
     <div id="add_user_div">
-      <h3>Add User</h3>
       <label>Name: </label>
       <input id="new_user_name_input" type="text"></input><br/>
       <label>Public Key: </label>
       <input id="new_user_public_key_input" type="text"></input><br/>
       <button id="new_user_button" class="btn">Submit</button>
-      <span id="new_user_error"></span>
+      <span id="new_user_error" class="text-danger"></span>
     </div>
 
-    <div id="list_project_div">
+    <div id="list_project_div" class="container-fluid">
       <h3>Projects</h3>
       <table id = "project_list_table"  class="table table-bordered">
         <thead class="thead-dark">
@@ -206,10 +211,10 @@
         <tbody>
         </tbody>
       </table>
+      <div class="text-center"><button id="open_new_project_dialog_button" class="btn btn-success">Add Project</button></div>
     </div>
 
     <div id="add_project_div">
-      <h3>Add Project</h3>
       <label>Name: </label>
       <input id="new_project_name_input" type="text"></input><br/>
       <label>Managers: </label><br/>
@@ -240,7 +245,7 @@
         </table>
       </div>
       <button id="new_project_button" class="btn">Submit</button>
-      <span id="new_project_error"></span>
+      <span id="new_project_error" class="text-danger"></span>
     </div>
   </div>
 </body>

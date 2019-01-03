@@ -35,6 +35,7 @@ type GenericUserInfoReply struct {
 	Name         string `json:"name"`
 	DarcBaseId   string `json:"darc_base_id"`
 	SuperAdminId string `json:"super_admin_id"`
+	HospitalName string `json:"hospital_name"`
 	IsCreated    bool   `json:"is_created"`
 	Role         string `json:"role"`
 }
@@ -98,7 +99,7 @@ type ListHospitalReply struct {
 }
 
 type ProjectInfoRequest struct {
-	Id string `json:"id"`
+	Name string `json:"name"`
 }
 
 type ProjectInfoReply struct {

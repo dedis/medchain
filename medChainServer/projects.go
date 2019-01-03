@@ -81,7 +81,7 @@ func GetProjectInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project_metadata, ok := metaData.Projects[request.Id]
+	project_metadata, ok := metaData.Projects[request.Name]
 	if !ok {
 		medChainUtils.CheckError(errors.New("Could not find the project's metadata"), w, r)
 		return

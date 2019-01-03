@@ -130,14 +130,6 @@ func createDarc(client *service.Client, baseDarc *darc.Darc, interval time.Durat
 	return submitSignedTransactionForNewDARC(client, tempDarc, interval, ctx)
 }
 
-// Simple web server
-func sayHello(w http.ResponseWriter, r *http.Request) {
-	message := r.URL.Path
-	message = strings.TrimPrefix(message, "/")
-	message = "Hello " + message
-	w.Write([]byte(message))
-}
-
 func extractTransactionFromRequest(w http.ResponseWriter, r *http.Request) (*service.ClientTransaction, error) {
 	// Fetch the transaction provided in the GET request
 	transaction := r.Header.Get("transaction")
@@ -358,7 +350,14 @@ func main() {
 	signingProxy = httputil.NewSingleHostReverseProxy(proxy_url)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin_gui/templates/static"))))
+
 	http.HandleFunc("/gui", admin_gui.GUI_landing)
+	http.HandleFunc("/gui/user", admin_gui.UserInfoPage)
+	http.HandleFunc("/gui/darc", admin_gui.DarcInfoPage)
+	http.HandleFunc("/gui/hospital", admin_gui.HospitalInfoPage)
+	http.HandleFunc("/gui/action", admin_gui.ActionInfoPage)
+	http.HandleFunc("/gui/project", admin_gui.ProjectInfoPage)
+
 	http.HandleFunc("/start", start)
 
 	http.HandleFunc("/info", info)

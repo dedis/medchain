@@ -53,6 +53,11 @@ func prepareNewHospital(request *messages.AddHospitalRequest) (string, string, m
 		return "", "", nil, nil, errors.New("You need to be the head of hospital to add a new hospital")
 	}
 
+	err := checkRequestForNewHospital(request)
+	if err != nil {
+		return "", "", nil, nil, err
+	}
+
 	identityPtr, err := getSuperAdminId(request)
 	if err != nil {
 		return "", "", nil, nil, err
@@ -89,6 +94,19 @@ func prepareNewHospital(request *messages.AddHospitalRequest) (string, string, m
 	}
 
 	return identity.String(), transaction_string, signers, digests, nil
+}
+
+func checkRequestForNewHospital(request *messages.AddHospitalRequest) error {
+	if request.HospitalName == "" {
+		return errors.New("You need to provide a name for the hospital")
+	}
+	if request.SuperAdminName == "" {
+		return errors.New("You need to provide a name for the head of hospital")
+	}
+	if request.PublicKey == "" {
+		return errors.New("You need to provide a public_key")
+	}
+	return nil
 }
 
 func getSuperAdminId(request *messages.AddHospitalRequest) (*darc.Identity, error) {

@@ -11,6 +11,7 @@ import (
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
 	"github.com/DPPH/MedChain/medChainUtils"
+	"github.com/dedis/cothority/omniledger/contracts"
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/dedis/cothority/omniledger/service"
@@ -54,6 +55,11 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 	}
 	if initiator_metadata.Role != "admin" {
 		return "", "", nil, nil, errors.New("You need to be an Admin to add a project")
+	}
+
+	err := checkRequestForNewProject(request)
+	if err != nil {
+		return "", "", nil, nil, err
 	}
 
 	if _, ok := metaData.Projects[request.Name]; ok {
@@ -101,6 +107,27 @@ func prepareNewProject(request *messages.AddProjectRequest) (string, string, map
 	}
 
 	return project_metadata.Name, transaction_string, signers, digests, nil
+}
+
+func checkRequestForNewProject(request *messages.AddProjectRequest) error {
+	if request.Name == "" {
+		return errors.New("You need to provide a name for the project")
+	}
+	if len(request.Managers) == 0 {
+		return errors.New("You need to provide at least one manager")
+	}
+	for query_type, _ := range request.Queries {
+		allowed := false
+		for _, query_type_allowed := range contracts.QueryTypes {
+			if query_type == query_type_allowed {
+				allowed = true
+			}
+		}
+		if !allowed {
+			return errors.New("One of the query types you provided is not allowed")
+		}
+	}
+	return nil
 }
 
 func loadProjectManagers(request *messages.AddProjectRequest) ([]*metadata.GenericUser, error) {
@@ -207,7 +234,7 @@ func createProjectDarc(name string, manager_metadata_list, user_metadata_list []
 			project_metadata.Queries[query_type] = append(project_metadata.Queries[query_type], user_metadata)
 		}
 		expr := expression.InitOrExpr(usersIdString...)
-		projectDarcRules.AddRule(darc.Action(query_type), expr)
+		projectDarcRules.AddRule(darc.Action("spawn:"+query_type), expr)
 	}
 
 	projectDarc := darc.NewDarc(projectDarcRules, []byte("Project darc for project "+name))
