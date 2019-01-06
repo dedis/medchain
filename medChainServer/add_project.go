@@ -17,6 +17,16 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+/**
+This file takes care of preparing the transaction for adding a new project to the service
+**/
+
+/**
+This function prepares the transaction for adding a new project
+The request r must contain a messages.AddProjectRequest in its body (encoded in json)
+It returns a messages.ActionReply (encoded in json) in the body of the response w
+Or an error message
+**/
 func AddProject(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {

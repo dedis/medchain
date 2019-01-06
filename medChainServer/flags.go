@@ -4,6 +4,9 @@ import (
 	"flag"
 )
 
+/**
+Read the flags values at start-up
+**/
 func getFlags() (string, string, string) {
 	var Port string
 	var Conf string

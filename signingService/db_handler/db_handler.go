@@ -11,6 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+/**
+Handle all the functions that interface with the database
+**/
+
 func RegisterNewAction(action *messages.ActionReply, db *sql.DB) (string, error) {
 	// fmt.Println("adding new action to the db")
 	id := uuid.New().String()

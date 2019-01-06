@@ -14,6 +14,16 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+/**
+This file takes care of preparing the transaction for adding a new hospital to the service
+**/
+
+/**
+This function prepares the transaction for adding a new hospital
+The request r must contain a messages.AddHospitalRequest in its body (encoded in json)
+It returns a messages.ActionReply (encoded in json) in the body of the response w
+Or an error message
+**/
 func AddHospital(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {

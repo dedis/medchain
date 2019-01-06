@@ -12,6 +12,11 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+/**
+This function is called by the CancelAction entry point when the given action
+	is to add a new project.
+It takes care of cleaning the metadata to erase the effects of the action.
+**/
 func cancelNewProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
 	transaction, err := extractTransactionFromString(transaction_string)
@@ -64,6 +69,11 @@ func CancelAndRemoveProjectFromMetadata(project_darc *darc.Darc) error {
 	return nil
 }
 
+/**
+This function is called by the CommitAction entry point when the given action
+	is to add a new project.
+It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
+**/
 func CommitProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
 	transaction, err := extractTransactionFromString(transaction_string)

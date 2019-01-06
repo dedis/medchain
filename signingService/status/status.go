@@ -1,5 +1,7 @@
 package status
 
+// all the status of the Actions
+
 var Waiting = "Waiting"
 var Approved = "Approved"
 var Denied = "Denied"

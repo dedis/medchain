@@ -3,6 +3,7 @@ package medChainUtils
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -17,12 +18,18 @@ import (
 	"github.com/dedis/onet/network"
 )
 
+/**
+This file has many helper function for the service
+**/
+
+// Panics if the error is not nil
 func Check(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 
+// Generates pairs of public-private keys
 func InitKeys(numKeys int, directory string) {
 	for i := 0; i < numKeys; i++ {
 		temp := darc.NewSignerEd25519(nil, nil)
@@ -44,12 +51,14 @@ func InitKeys(numKeys int, directory string) {
 	}
 }
 
+// Read the public key from a file, and creates the identity object
 func LoadIdentityEd25519(pathToPublic string) darc.Identity {
 	dat, err := ioutil.ReadFile(pathToPublic)
 	Check(err)
 	return LoadIdentityEd25519FromBytes(dat)
 }
 
+//Creates the identity object from bytes of the public key
 func LoadIdentityEd25519FromBytes(publicBytes []byte) darc.Identity {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(publicBytes[:]))
@@ -63,6 +72,8 @@ func LoadIdentityEd25519FromBytes(publicBytes []byte) darc.Identity {
 	}
 }
 
+//Creates the identity object from bytes of the public key
+// Returns the error instead of panics
 func LoadIdentityEd25519FromBytesWithErr(publicBytes []byte) (darc.Identity, error) {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(publicBytes[:]))
@@ -80,6 +91,7 @@ func LoadIdentityEd25519FromBytesWithErr(publicBytes []byte) (darc.Identity, err
 	}, nil
 }
 
+// Read the public and private key from files, and creates the signer object
 func LoadSignerEd25519(pathToPublic string, pathToPrivate string) darc.Signer {
 	dat, err := ioutil.ReadFile(pathToPrivate)
 	Check(err)
@@ -94,6 +106,7 @@ func LoadSignerEd25519(pathToPublic string, pathToPrivate string) darc.Signer {
 	}}
 }
 
+// Creates the signer object from bytes of the public key and bytes of the private key
 func LoadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Signer {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(privateBytes))
@@ -106,6 +119,8 @@ func LoadSignerEd25519FromBytes(publicBytes []byte, privateBytes []byte) darc.Si
 	}}
 }
 
+// Creates the signer object from bytes of the public key and bytes of the private key
+// Returns the error instead of panics
 func LoadSignerEd25519FromBytesWithErr(publicBytes []byte, privateBytes []byte) (darc.Signer, error) {
 	kp := key.NewKeyPair(cothority.Suite)
 	bin, err := base64.StdEncoding.DecodeString(string(privateBytes))
@@ -122,6 +137,7 @@ func LoadSignerEd25519FromBytesWithErr(publicBytes []byte, privateBytes []byte) 
 	}}, nil
 }
 
+// Helper function to create the transaction for a query and encodes it in base 64
 func CreateQueryTransaction(projectDarc string, queryType string, query string, signer darc.Signer) string {
 	// We don't need the "darc:" part from the ID, and a
 	projectDarcDecoded, err := hex.DecodeString(projectDarc[5:])
@@ -156,56 +172,7 @@ func CreateQueryTransaction(projectDarc string, queryType string, query string, 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-func CreateNewDarcTransaction(baseDarc *darc.Darc, tempDarc *darc.Darc, signers []darc.Signer) string {
-	tempDarcBuff, err := tempDarc.ToProto()
-	Check(err)
-	ctx := service.ClientTransaction{
-		Instructions: []service.Instruction{{
-			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
-			Nonce:      service.Nonce{},
-			Index:      0,
-			Length:     1,
-			Spawn: &service.Spawn{
-				ContractID: service.ContractDarcID,
-				Args: []service.Argument{{
-					Name:  "darc",
-					Value: tempDarcBuff,
-				}},
-			},
-		}},
-	}
-	err = ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...)
-	Check(err)
-	data, err := network.Marshal(&ctx)
-	Check(err)
-	return base64.StdEncoding.EncodeToString(data)
-}
-
-func CreateEvolveDarcTransaction(baseDarc, oldDarc, newVersionDarc *darc.Darc, signers []darc.Signer) string {
-	newVersionDarcBuff, err := newVersionDarc.ToProto()
-	Check(err)
-	ctx := service.ClientTransaction{
-		Instructions: []service.Instruction{{
-			InstanceID: service.NewInstanceID(oldDarc.GetBaseID()),
-			Nonce:      service.Nonce{},
-			Index:      0,
-			Length:     1,
-			Invoke: &service.Invoke{
-				Command: "evolve",
-				Args: []service.Argument{{
-					Name:  "darc",
-					Value: newVersionDarcBuff,
-				}},
-			},
-		}},
-	}
-	err = ctx.Instructions[0].SignBy(oldDarc.GetBaseID(), signers...)
-	Check(err)
-	data, err := network.Marshal(&ctx)
-	Check(err)
-	return base64.StdEncoding.EncodeToString(data)
-}
-
+// Helper function to create the transaction for a login and encodes it in base 64
 func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer darc.Signer) string {
 	allUsersDarcBytes, err := base64.StdEncoding.DecodeString(allUsersDarc)
 	Check(err)
@@ -238,24 +205,17 @@ func CreateLoginTransaction(allUsersDarc string, userProjectsMap string, signer 
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-type UserInfoReply struct {
-	MainDarc              *darc.Darc   `json:"main_darc"`
-	SubordinatesDarcsList []*darc.Darc `json:"subordinates_darcs_list"`
-}
-
-type NewDarcsMetadata struct {
-	Darcs map[string]*darc.Darc `json:"darcs"`
-	Id    string                `json:"id"`
-}
-
+//helper function to encode a darc id in hexadecimal
 func IDToHexString(id darc.ID) string {
 	return hex.EncodeToString([]byte(id))
 }
 
+//helper function to encode a darc id in base64
 func IDToB64String(id darc.ID) string {
 	return base64.StdEncoding.EncodeToString(id)
 }
 
+//generates an expression that is valid only if at least two of the given ids are valid
 func InitAtLeastTwoExpr(ids []string) expression.Expr {
 	if len(ids) <= 2 {
 		return expression.InitAndExpr(ids...)
@@ -273,22 +233,78 @@ func InitAtLeastTwoExpr(ids []string) expression.Expr {
 	}
 }
 
-type TransactionData struct {
-	Uid         string
-	Description string
-	Signers     []string
-	Transaction string
-	Threshold   int
-}
-
-type ExchangeMessage struct {
-	Transactions []TransactionData
-}
-
+// Check if error is nil and returns an error in the http response if not
+// returns true if error was not nil
 func CheckError(err error, w http.ResponseWriter, r *http.Request) bool {
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return true
 	}
 	return false
+}
+
+// creates a transaction to spawn a new darc
+func createTransactionForNewDARC(baseDarc *darc.Darc, rules darc.Rules, description string) (*service.ClientTransaction, *darc.Darc, error) {
+	// Create a transaction to spawn a DARC
+	tempDarc := darc.NewDarc(rules, []byte(description))
+	tempDarcBuff, err := tempDarc.ToProto()
+	if err != nil {
+		return nil, nil, err
+	}
+	ctx := service.ClientTransaction{
+		Instructions: []service.Instruction{{
+			InstanceID: service.NewInstanceID(baseDarc.GetBaseID()),
+			Nonce:      service.Nonce{},
+			Index:      0,
+			Length:     1,
+			Spawn: &service.Spawn{
+				ContractID: service.ContractDarcID,
+				Args: []service.Argument{{
+					Name:  "darc",
+					Value: tempDarcBuff,
+				}},
+			},
+		}},
+	}
+	return &ctx, tempDarc, nil
+}
+
+// submits a transaction that spawns a new darc
+func submitSignedTransactionForNewDARC(client *service.Client, tempDarc *darc.Darc, interval time.Duration, ctx *service.ClientTransaction) (*darc.Darc, error) {
+	// Commit transaction
+	if _, err := client.AddTransaction(*ctx); err != nil {
+		return nil, err
+	}
+
+	// Verify DARC creation before returning its reference
+	instID := service.NewInstanceID(tempDarc.GetBaseID())
+	pr, err := client.WaitProof(instID, interval, nil)
+	if err != nil || pr.InclusionProof.Match() == false {
+		fmt.Println("Error at transaction submission")
+		return nil, err
+	}
+
+	return tempDarc, nil
+}
+
+/**
+Helper function to create a new darc
+	client is the omniledger Client
+	baseDarc is the darc with the spawn:darc rule
+	interval is the block interval of the chain
+	rules is the list of rules of the new darc
+	description is the description of the new darc
+	signers are the darc.Signer objects that can validate the spawn:darc rule in the baseDarc
+**/
+func CreateDarc(client *service.Client, baseDarc *darc.Darc, interval time.Duration, rules darc.Rules, description string, signers ...darc.Signer) (*darc.Darc, error) {
+	ctx, tempDarc, err := createTransactionForNewDARC(baseDarc, rules, description)
+	if err != nil {
+		fmt.Println("Error at transaction creation")
+		return nil, err
+	}
+	if err = ctx.Instructions[0].SignBy(baseDarc.GetBaseID(), signers...); err != nil {
+		fmt.Println("Error at transaction signature")
+		return nil, err
+	}
+	return submitSignedTransactionForNewDARC(client, tempDarc, interval, ctx)
 }

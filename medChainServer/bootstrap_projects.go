@@ -14,6 +14,13 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+/**
+This filetakes care of the bootstrapping process for the project darcs
+**/
+
+/**
+This function creates the darc that is used to spawn and update the project list value and the user-project map
+**/
 func createProjectCreatorDarc(metaData *metadata.Metadata, signers []darc.Signer) {
 	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
 	if !ok {
@@ -42,13 +49,17 @@ func createProjectCreatorDarc(metaData *metadata.Metadata, signers []darc.Signer
 	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(all_super_admin_darc.GetIdentityString()))
 	rules.AddRule("invoke:update", expression.InitOrExpr(all_super_admin_darc.GetIdentityString(), all_admin_darc.GetIdentityString(), all_manager_darc.GetIdentityString()))
 
-	projectCreatorDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Project Creator Darc", signers...)
+	projectCreatorDarc, err := medChainUtils.CreateDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Project Creator Darc", signers...)
 	if err != nil {
 		panic(err)
 	}
 	metaData.ProjectCreatorDarcBaseId = addDarcToMaps(projectCreatorDarc, metaData)
 }
 
+/**
+This is a helper function to find the corresponding metadata given
+a set of coordinates from the configuration file.
+**/
 func findUserMetadata(configuration *conf.Configuration, metaData *metadata.Metadata, userCoordinates conf.Coordinates) *metadata.GenericUser {
 	hospital_conf := configuration.Hospitals[userCoordinates.I]
 	user_conf := hospital_conf.Users[userCoordinates.J]
@@ -60,6 +71,10 @@ func findUserMetadata(configuration *conf.Configuration, metaData *metadata.Meta
 	return user_metadata
 }
 
+/**
+This is a helper function to find the corresponding metadata
+given a set of coordinates from the configuration file.
+**/
 func findManagerMetadata(configuration *conf.Configuration, metaData *metadata.Metadata, userCoordinates conf.Coordinates) *metadata.GenericUser {
 	hospital_conf := configuration.Hospitals[userCoordinates.I]
 	manager_conf := hospital_conf.Managers[userCoordinates.J]
@@ -71,6 +86,11 @@ func findManagerMetadata(configuration *conf.Configuration, metaData *metadata.M
 	return manager_metadata
 }
 
+/**
+This function creates the project darcs
+following the information from the configuration file.
+It also spawns the project list value and the user-project map
+**/
 func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Metadata, signers []darc.Signer) {
 
 	genesisDarc, ok := metaData.BaseIdToDarcMap[metaData.GenesisDarcBaseId]
@@ -156,7 +176,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 			projectDarcRules.AddRule(darc.Action("spawn:"+rule.Action), expr)
 		}
 
-		projectDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, projectDarcRules,
+		projectDarc, err := medChainUtils.CreateDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, projectDarcRules,
 			project.Name, signers...)
 		if err != nil {
 			panic(err)

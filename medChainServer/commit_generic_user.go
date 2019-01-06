@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
@@ -17,74 +15,16 @@ import (
 	"github.com/dedis/onet/network"
 )
 
-func CommitAction(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.CommitRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		fmt.Println("Can't make it from json")
-		return
-	}
-	switch request.ActionType {
-	case "add new project":
-		CommitProject(w, r, request.Transaction)
-		return
-	case "add new Admin":
-		commitNewGenericUserToChain(w, r, request.Transaction, "Admin")
-		return
-	case "add new Manager":
-		commitNewGenericUserToChain(w, r, request.Transaction, "Manager")
-		return
-	case "add new User":
-		commitNewGenericUserToChain(w, r, request.Transaction, "User")
-		return
-	case "add new hospital":
-		CommitHospital(w, r, request.Transaction)
-		return
-	default:
-		fmt.Println("Commit type", request.ActionType)
-		medChainUtils.CheckError(errors.New("Unknown Action Type"), w, r)
-		return
-	}
-}
+/**
+This file takes care of committing or cancelling
+	actions that add new generic users (admin, manager, user) to the system
+**/
 
-func CancelAction(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	var request messages.CommitRequest
-	err = json.Unmarshal(body, &request)
-	if medChainUtils.CheckError(err, w, r) {
-		fmt.Println("Can't make it from json")
-		return
-	}
-	switch request.ActionType {
-	case "add new project":
-		cancelNewProject(w, r, request.Transaction)
-		return
-	case "add new Admin":
-		cancelNewGenericUser(w, r, request.Transaction, "Admin")
-		return
-	case "add new Manager":
-		cancelNewGenericUser(w, r, request.Transaction, "Manager")
-		return
-	case "add new User":
-		cancelNewGenericUser(w, r, request.Transaction, "User")
-		return
-	case "add new hospital":
-		cancelNewHospital(w, r, request.Transaction)
-		return
-	default:
-		fmt.Println("Commit type", request.ActionType)
-		medChainUtils.CheckError(errors.New("Unknown Action Type"), w, r)
-		return
-	}
-}
-
+/**
+This function is called by the CancelAction entry point when the given action
+	is to add a new generic user.
+It takes care of cleaning the metadata to erase the effects of the action.
+**/
 func cancelNewGenericUser(w http.ResponseWriter, r *http.Request, transaction_string, user_type string) {
 	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
@@ -145,6 +85,11 @@ func removeUserMetadataFromList(user_list []*metadata.GenericUser, user_id strin
 	return new_list
 }
 
+/**
+This function is called by the CommitAction entry point when the given action
+	is to add a new generic user.
+It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
+**/
 func commitNewGenericUserToChain(w http.ResponseWriter, r *http.Request, transaction_string, user_type string) {
 	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {

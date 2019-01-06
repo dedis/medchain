@@ -12,6 +12,11 @@ import (
 	"github.com/dedis/cothority/omniledger/service"
 )
 
+/**
+This function is called by the CancelAction entry point when the given action
+	is to add a new hospital.
+It takes care of cleaning the metadata to erase the effects of the action.
+**/
 func cancelNewHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
 	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
@@ -53,6 +58,11 @@ func CancelAndRemoveHospitalFromMetadata(new_darcs, evolved_darcs []*darc.Darc) 
 	return nil
 }
 
+/**
+This function is called by the CommitAction entry point when the given action
+	is to add a new hospital.
+It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
+**/
 func CommitHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
 
 	transaction, err := extractTransactionFromString(transaction_string)

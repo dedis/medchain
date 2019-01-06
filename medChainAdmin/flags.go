@@ -4,6 +4,7 @@ import (
 	"flag"
 )
 
+// get the flags at start up
 func getFlags() (string, string) {
 	var Port string
 	var MedchainUrl string

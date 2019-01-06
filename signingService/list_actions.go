@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -35,7 +34,6 @@ func getActionList(w http.ResponseWriter, r *http.Request, is_initiator bool) {
 		medChainUtils.CheckError(errors.New("You need to provide an id"), w, r)
 		return
 	}
-	fmt.Println("list for :" + request.Id)
 	var list_action_info []*signing_messages.ActionInfoReply
 	if is_initiator {
 		list_action_info, err = db_handler.GetActionsInitiatedBy(request.Id, db)

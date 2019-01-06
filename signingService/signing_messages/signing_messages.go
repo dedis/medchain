@@ -2,6 +2,8 @@ package signing_messages
 
 import "github.com/DPPH/MedChain/medChainServer/messages"
 
+// all the messages that are received and sent by the service
+
 type AddNewActionRequest struct {
 	Action *messages.ActionReply `json:"action"`
 }

@@ -16,6 +16,15 @@ import (
 	"github.com/dedis/onet/network"
 )
 
+/**
+TODO : Translate it to JavaScript to have the
+signature done in the browser drectly
+**/
+
+/**
+This function takes an admin_messages.SignRequest
+Signs the transaction and returns a admin_messages.SignReply
+**/
 func processSignTransactionRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/sign")
 	body, err := ioutil.ReadAll(r.Body)

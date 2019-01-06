@@ -13,6 +13,17 @@ import (
 	"github.com/dedis/cothority/omniledger/darc"
 )
 
+/**
+This files takes care of giving information on the darcs
+**/
+
+/**
+This function gives information on the darc.
+It should receive a messages.DarcInfoRequest (encoded in json)
+	in the body of the http request r
+	with either the Darc Id or the Base Id (encoded in base64 see the addDarcToMaps function ) of the darc
+It returns a messages.DarcInfoReply (encoded in json) in the body of the reply
+**/
 func GetDarcInfo(w http.ResponseWriter, r *http.Request) {
 	darcVal, ok := findDarc(w, r)
 	if !ok {
@@ -39,6 +50,14 @@ func GetDarcInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/**
+This function tries to recursively find the identities of the users that can sign with the darc.
+(only recognizes the ed25519 identities)
+It should receive a messages.DarcInfoRequest (encoded in json)
+	in the body of the http request r
+	with either the Darc Id or the Base Id (encoded in base64 see the addDarcToMaps function ) of the darc
+It returns a messages.ListReply (encoded in json) in the body of the reply
+**/
 func ListDarcUsers(w http.ResponseWriter, r *http.Request) {
 	darcVal, ok := findDarc(w, r)
 	if !ok {
@@ -66,6 +85,10 @@ func ListDarcUsers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/**
+A helper function to find the darc that is concerned by the messages.DarcInfoRequest
+in the body of the request
+**/
 func findDarc(w http.ResponseWriter, r *http.Request) (*darc.Darc, bool) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {
@@ -98,6 +121,10 @@ func findDarc(w http.ResponseWriter, r *http.Request) (*darc.Darc, bool) {
 	return darcVal, true
 }
 
+/**
+Recursively finds the signers of the darc.
+Returns it as a list
+**/
 func findSignersOfDarc(listDarc *darc.Darc) ([]string, error) {
 	hash_map := make(map[string]bool)
 	err := recursivelyFindUsersOfDarc(listDarc, &hash_map)
@@ -112,6 +139,10 @@ func findSignersOfDarc(listDarc *darc.Darc) ([]string, error) {
 	return users, nil
 }
 
+/**
+Recursively finds the signers of the darc.
+Returns it as a map
+**/
 func recursivelyFindUsersOfDarc(listDarc *darc.Darc, hash_map *map[string]bool) error {
 	rules := listDarc.Rules
 	expr := rules.GetSignExpr()
@@ -142,6 +173,9 @@ func recursivelyFindUsersOfDarc(listDarc *darc.Darc, hash_map *map[string]bool) 
 	return nil
 }
 
+/**
+Helper function to split expressions on the ors and ands operators
+**/
 func splitAndOr(expr string) []string {
 	result := []string{}
 	or_splitted := strings.Split(expr, " | ")

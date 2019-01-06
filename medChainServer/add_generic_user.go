@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -19,6 +20,35 @@ import (
 	"github.com/dedis/onet/network"
 )
 
+/**
+This file takes care of preparing the transaction for adding a new generic user (= admin, manager, users) to the service
+**/
+
+/**
+We have a different api entry point for each type of user
+**/
+func AddAdmin(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/admin")
+	replyNewGenericUserRequest(w, r, "Admin")
+}
+
+func AddUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/user")
+	replyNewGenericUserRequest(w, r, "User")
+}
+
+func AddManager(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/add/manager")
+	replyNewGenericUserRequest(w, r, "Manager")
+}
+
+/**
+This function prepares the transaction for adding a new generic user (= admin, manager, users)
+The request r must contain a messages.AddGenericUserRequest in its body (encoded in json)
+The user_type can be either "Admin", "Manager", or "User"
+It returns a messages.ActionReply (encoded in json) in the body of the response w
+Or an error message
+**/
 func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_type string) {
 	body, err := ioutil.ReadAll(r.Body)
 	if medChainUtils.CheckError(err, w, r) {

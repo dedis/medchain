@@ -1,12 +1,12 @@
 package messages
 
+/**
+The messages received and sent by the server
+**/
+
 type UserInfoRequest struct {
 	PublicKey string `json:"public_key"`
 	Identity  string `json:"identity"`
-}
-
-type UserTypeReply struct {
-	Type string `json:"type"`
 }
 
 type GeneralInfoReply struct {
@@ -69,10 +69,6 @@ type AddGenericUserRequest struct {
 	PreferredSigners   []string `json:"preferred_signers"`
 }
 
-type CommitNewGenericUserRequest struct {
-	Transaction string `json:"transaction"`
-}
-
 type AddHospitalRequest struct {
 	Initiator      string `json:"initiator"`
 	PublicKey      string `json:"new_public_key"`
@@ -133,8 +129,4 @@ type ActionReply struct {
 	Transaction        string         `json:"transaction"`
 	InstructionDigests map[int][]byte `json:"instruction_digests"`
 	Signers            map[string]int `json:"signers"`
-}
-
-type CommitNewProjectRequest struct {
-	Transaction string `json:"transaction"`
 }
