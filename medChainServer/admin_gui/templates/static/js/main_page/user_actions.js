@@ -2,8 +2,7 @@ function AllowAddUser(){
   $("#open_new_user_dialog_button").show();
 }
 
-function AddUser(){
-  var public_key = $("#new_user_public_key_input").val();
+function AddUser(public_key){
   var name = $("#new_user_name_input").val();
   var json_val = {"initiator":info.signer.id, "name":name, "new_public_key":public_key, "super_admin_id": info.hospital.id, preferred_signers:[info.signer.id]}
   $.ajax
@@ -13,15 +12,20 @@ function AddUser(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: AddUserCallback,
-        failure:
-        function(error){
-          $("#add_user_error").text("Error: "+ error["responseText"]);
-        },
+        failure:ShowNewUserError,
+        error:ShowNewUserError,
         contentType: 'application/json'
     });
 }
 
+function ShowNewUserError(error) {
+  $("#new_user_error").text("Error: "+ error["responseText"]);
+}
+
 function AddUserCallback(data){
+  $("#add_user_div :input").each(function(){$(this).val("");});
+  $("#new_user_error").text("");
+  $("#add_user_div").dialog("close");
   AddAction(data);
   GetUserList();
 }
@@ -32,8 +36,7 @@ function AllowAddManager(){
   $("#open_new_manager_dialog_button").show();
 }
 
-function AddManager(){
-  var public_key = $("#new_manager_public_key_input").val();
+function AddManager(public_key){
   var name = $("#new_manager_name_input").val();
   var json_val = {"initiator":info.signer.id, "name":name, "new_public_key":public_key, "super_admin_id": info.hospital.id, preferred_signers:[info.signer.id]}
   $.ajax
@@ -43,15 +46,20 @@ function AddManager(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: AddManagerCallback,
-        failure:
-        function(error){
-          $("#add_manager_error").text("Error: "+ error["responseText"]);
-        },
+        failure:ShowNewManagerError,
+        error:ShowNewManagerError,
         contentType: 'application/json'
     });
 }
 
+function ShowNewManagerError(error) {
+  $("#new_manager_error").text("Error: "+ error["responseText"]);
+}
+
 function AddManagerCallback(data){
+  $("#add_manager_div :input").each(function(){$(this).val("");});
+  $("#new_manager_error").text("");
+  $("#add_manager_div").dialog("close");
   AddAction(data);
   GetManagerList();
 }
@@ -61,8 +69,7 @@ function AllowAddAdmin(){
   $("#open_new_admin_dialog_button").show();
 }
 
-function AddAdmin(){
-  var public_key = $("#new_admin_public_key_input").val();
+function AddAdmin(public_key){
   var name = $("#new_admin_name_input").val();
   var json_val = {"initiator":info.signer.id, "name":name, "new_public_key":public_key, "super_admin_id": info.hospital.id, preferred_signers:[info.signer.id]}
   $.ajax
@@ -72,15 +79,20 @@ function AddAdmin(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: AddAdminCallback,
-        failure:
-        function(error){
-          $("#add_admin_error").text("Error: "+ error["responseText"]);
-        },
+        failure:ShowNewAdminError,
+        error:ShowNewAdminError,
         contentType: 'application/json'
     });
 }
 
+function ShowNewAdminError(error) {
+  $("#new_admin_error").text("Error: "+ error["responseText"]);
+}
+
 function AddAdminCallback(data){
+  $("#add_admin_div :input").each(function(){$(this).val("");});
+  $("#new_admin_error").text("");
+  $("#add_admin_div").dialog("close");
   AddAction(data);
   GetAdminList();
 }
@@ -91,8 +103,7 @@ function AllowAddHospital(){
   $("#open_new_hospital_dialog_button").show();
 }
 
-function AddHospital(){
-  var public_key = $("#new_hospital_public_key_input").val();
+function AddHospital(public_key){
   var hospital_name = $("#new_hospital_name_input").val();
   var super_admin_name = $("#new_hospital_head_name_input").val();
   var json_val = {"initiator":info.signer.id, "hospital_name":hospital_name, "super_admin_name":super_admin_name, "new_public_key":public_key}
@@ -103,15 +114,20 @@ function AddHospital(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: AddHospitalCallback,
-        failure:
-        function(error){
-          $("#add_hospital_error").text("Error: "+ error["responseText"]);
-        },
+        failure:ShowNewHospitalError,
+        error:ShowNewHospitalError,
         contentType: 'application/json'
     });
 }
 
+function ShowNewHospitalError(error) {
+  $("#new_hospital_error").text("Error: "+ error["responseText"]);
+}
+
 function AddHospitalCallback(data){
+  $("#add_hospital_div :input").each(function(){$(this).val("");});
+  $("#new_hospital_error").text("");
+  $("#add_hospital_div").dialog("close");
   AddAction(data);
   GetHospitalList();
 }
@@ -132,12 +148,14 @@ function AddProject(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: AddProjectCallback,
-        failure:
-        function(error){
-          $("#add_project_error").text("Error: "+ error["responseText"]);
-        },
+        failure:ShowNewProjectError,
+        error:ShowNewProjectError,
         contentType: 'application/json'
     });
+}
+
+function ShowNewProjectError(error) {
+  $("#new_project_error").text("Error: "+ error["responseText"]);
 }
 
 function GetNewProjectManagers(){
@@ -161,6 +179,10 @@ function GetNewProjectQueryMapping(){
 }
 
 function AddProjectCallback(data){
+  $("#add_project_div :input[type='text']").each(function(){$(this).val("");});
+  $("#add_project_div :input[type='checkbox']").each(function(){$(this).prop('checked', false);});
+  $("#new_project_error").text("");
+  $("#add_project_div").dialog("close");
   AddAction(data);
   GetProjectList();
 }
@@ -183,23 +205,43 @@ function AddAction(data_val){
 }
 
 function ApproveAction(action_info){
+  let action_info_string = JSON.stringify(action_info);
+  $("#approve_action_and_sign_button").click(function(){
+    let action_info_string_copy = action_info_string;
+    let action_info_copy = JSON.parse(action_info_string_copy);
+    SignAndApproveAction(action_info_copy);
+  });
+  $("#signature_information_dialog").dialog("open");
+}
+
+
+function SignAndApproveAction(action_info){
   var client_url = $("#local_signer_url_input").val();
-  var private_key = $("#private_key_input").val();
-  var json_val = {"action_info":action_info, "public_key":info.signer.public_key, "private_key":private_key}
-  $.ajax
-    ({
-        type: "POST",
-        url: client_url + '/sign',
-        dataType: 'json',
-        data: JSON.stringify(json_val),
-        success: ApproveActionStatus,
-        failure: ShowActionError,
-        contentType: 'application/json'
-    });
+  var action_info_string = JSON.stringify(action_info);
+  var callback_success = function(private_key){
+    var action_info_string_copy = action_info_string;
+    var action_info_copy = JSON.parse(action_info_string_copy);
+    var json_val = {"action_info":action_info_copy, "public_key":info.signer.public_key, "private_key":private_key}
+    $.ajax
+      ({
+          type: "POST",
+          url: client_url + '/sign',
+          dataType: 'json',
+          data: JSON.stringify(json_val),
+          success: ApproveActionStatus,
+          failure: function(error){
+            $("#approve_action_error").text("Error: "+ error["responseText"]);
+          },
+          contentType: 'application/json'
+      });
+  }
+  var callback_error = function(error){
+    $("#approve_action_error").text("Error: "+ error["responseText"]);
+  }
+  handleKeyFileSelect("private_key_input", callback_success, callback_error);
 }
 
 function ApproveActionStatus(data){
-  alert(JSON.stringify(data));
   $.ajax
     ({
         type: "POST",
@@ -207,10 +249,14 @@ function ApproveActionStatus(data){
         dataType: 'json',
         data: JSON.stringify(data),
         success: function(){
+          $("#signature_information_dialog").dialog("close");
+          $("#approve_action_error").text("");
           GetSignerActions();
           GetWaitingActions();
         },
-        failure: ShowActionError,
+        failure: function(error){
+          $("#approve_action_error").text("Error: "+ error["responseText"]);
+        },
         contentType: 'application/json'
     });
 }
@@ -244,6 +290,9 @@ function CommitAction(action_info){
           let id = action_info.action_id;
           ChangeActionStatusToDone(id);
         },
+        failure: function(error){
+          alert("Error while comitting : " + error["responseText"]);
+        },
         contentType: 'application/json'
     });
 }
@@ -260,7 +309,9 @@ function CancelAction(action_info){
           let id = action_info.action_id;
           ChangeActionStatusToCancelled(id);
         },
-        failure:ShowActionError,
+        failure: function(error){
+          alert("Error while cancelling : " + error["responseText"]);
+        },
         contentType: 'application/json'
     });
 }
@@ -291,4 +342,8 @@ function ChangeActionStatusToCancelled(id){
         failure:ShowActionError,
         contentType: 'application/json'
     });
+}
+
+function ShowActionError(error) {
+  alert("Error with the Signing Service: "+ error["responseText"]);
 }

@@ -1,7 +1,4 @@
-function GetProjectInfo(){
-  var curr_url_string = window.location.href;
-  var curr_url = new URL(curr_url_string);
-  var name = curr_url.searchParams.get("name");
+function GetProjectInfo(name){
   var json_val = {"name":name};
   $.ajax
     ({
@@ -10,28 +7,28 @@ function GetProjectInfo(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: DisplayProjectInfo,
-        failure:DisplayError,
-        error:DisplayError,
+        failure:DisplayProjectError,
+        error:DisplayProjectError,
         contentType: 'application/json'
     });
 }
 
 function DisplayProjectInfo(data){
-  $("#name").text(data.name);
+  $("#project_info_name").text(data.name);
   if(data.is_created){
-    $("#status").text("Approved");
-    $("#darc").html("<a target='_blank' href='/gui/darc?base_id="+data.darc_base_id+"'>See details</a>");
+    $("#project_info_status").html("<span class='text-success'>Approved</span>");
   }else{
-    $("#status").text("Not Approved");
-    $("#darc").text("Not Created Yet");
+    $("#project_info_status").html("<span class='text-warning'>Not Approved</span>");
   }
+  $('#project_info_managers tbody').html("");
   for( var index in data.managers){
     var manager_info = data.managers[index];
-    $('#managers').append("<li><a target='_blank' href='/gui/user?id="+manager_info.id+"'>"+manager_info.name+"</a></li>");
+    $('#project_info_managers tbody').append('<tr><td>'+manager_info.name +'</td><td><button class="btn btn-sm btn-info" id="button_show_project_manager_id_'+manager_info.id+'" onclick="GetUserInfo(\''+manager_info.id+'\');">Info</button></td></tr>');
   }
+  $('#project_info_authorizations tbody').html("");
   for( var index in data.users){
     var user_info = data.users[index];
-    var row_string = '<tr><td><a target="_blank" href="/gui/user?id='+user_info.id+'">'+user_info.name+'</a></td>'
+    var row_string = '<tr><td>'+user_info.name+'</td><td><button class="btn btn-sm btn-info" id="button_show_project_user_id_'+user_info.id+'" onclick="GetUserInfo(\''+user_info.id+'\');">Info</button></td>'
     if( idBelongsToList(user_info.id, data.queries["AggregatedQuery"]) ){
       row_string += "<td>Yes</td>";
     }else{
@@ -42,8 +39,9 @@ function DisplayProjectInfo(data){
     }else{
       row_string += "<td>No</td></tr>";
     }
-    $('#authorizations tbody').append(row_string);
+    $('#project_info_authorizations tbody').append(row_string);
   }
+  $("#project_info_dialog").dialog("open");
 }
 
 function idBelongsToList(id, list){
@@ -56,13 +54,7 @@ function idBelongsToList(id, list){
   return false
 }
 
-function DisplayError(){
-  $("body").html("<h1>Failed loading the information</h1>")
+function DisplayProjectError(){
+  $("#project_info_dialog").html("<h1>Failed loading the information</h1>");
+  $("#project_info_dialog").dialog("open");
 }
-
-
-$(document).ready(
-  function(){
-    GetProjectInfo();
-  }
-);

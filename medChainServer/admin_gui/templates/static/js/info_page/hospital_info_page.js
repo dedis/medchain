@@ -1,7 +1,4 @@
-function GetHospitalInfo(){
-  var curr_url_string = window.location.href;
-  var curr_url = new URL(curr_url_string);
-  var identity = curr_url.searchParams.get("id");
+function GetHospitalToDisplayInfo(identity){
   var json_val = {"identity":identity};
   $.ajax
     ({
@@ -9,30 +6,25 @@ function GetHospitalInfo(){
         url: '/info/hospital',
         dataType: 'json',
         data: JSON.stringify(json_val),
-        success: DisplayHospitalInfo,
-        failure:DisplayError,
-        error:DisplayError,
+        success: DisplayHospitalInfoInDialog,
+        failure:DisplayHospitalInDialogError,
+        error:DisplayHospitalInDialogError,
         contentType: 'application/json'
     });
 }
 
-function DisplayHospitalInfo(data){
-  $("#hospital_name").text(data.hospital_name);
-  $("#super_admin_name").html("<a target='_blank' href='/gui/user?id="+data.super_admin_id+"'>"+data.super_admin_name+"</a>");
+function DisplayHospitalInfoInDialog(data){
+  $("#hospital_info_hospital_name").text(data.hospital_name);
+  $("#hospital_info_super_admin_name").html(data.super_admin_name+'  <button class="btn btn-sm btn-info" id="button_show_hospital_super_admin_id_'+data.super_admin_id+'" onclick="GetUserInfo(\''+data.super_admin_id+'\');">Info</button>');
   if(data.is_created){
-    $("#status").text("Approved");
+    $("#hospital_info_status").html("<span class='text-success'>Approved</span>");
   }else{
-    $("#status").text("Not Approved");
+    $("#hospital_info_status").html("<span class='text-warning'>Not Approved</span>");
   }
+  $("#hospital_info_dialog").dialog("open");
 }
 
-function DisplayError(){
-  $("body").html("<h1>Failed loading the information</h1>")
+function DisplayHospitalInDialogError(){
+  $("#hospital_info_dialog").html("<h1>Failed loading the information</h1>");
+  $("#hospital_info_dialog").dialog("open");
 }
-
-
-$(document).ready(
-  function(){
-    GetHospitalInfo();
-  }
-);

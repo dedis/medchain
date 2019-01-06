@@ -1,6 +1,7 @@
 .idea/
 medChainAdmin/medChainAdmin
-medChainServer/keys/
+medChainServer
 medChainServer/medChainServer
 signingService/data/*.db
 signingService/signingService
+*.out

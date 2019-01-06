@@ -1,7 +1,4 @@
-function GetUserInfo(){
-  var curr_url_string = window.location.href;
-  var curr_url = new URL(curr_url_string);
-  var identity = curr_url.searchParams.get("id");
+function GetUserInfo(identity){
   var json_val = {"identity":identity};
   $.ajax
     ({
@@ -10,48 +7,41 @@ function GetUserInfo(){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success: DisplayUserInfo,
-        failure:DisplayError,
-        error:DisplayError,
+        failure:DisplayUserError,
+        error:DisplayUserError,
         contentType: 'application/json'
     });
 }
 
 function DisplayUserInfo(data){
-  $("#name").text(data.name);
-  $("#id").text(data.id);
+  $("#user_info_name").text(data.name);
+  $("#user_info_id").text(data.id);
   switch (data.role) {
     case "super_admin":
-      $("#role").text("Head of Hospital");
+      $("#user_info_role").text("Head of Hospital");
       break;
     case "admin":
-      $("#role").text("Administrator");
+      $("#user_info_role").text("Administrator");
       break;
     case "manager":
-      $("#role").text("Manager");
+      $("#user_info_role").text("Manager");
       break;
     case "user":
-      $("#role").text("User");
+      $("#user_info_role").text("User");
       break;
     default:
-      $("#role").text("Unknown");
+      $("#user_info_role").text("Unknown");
   }
   if(data.is_created){
-    $("#status").text("Approved");
-    $("#darc").html("<a target='_blank' href='/gui/darc?base_id="+data.darc_base_id+"'>See details</a>");
+    $("#user_info_status").html("<span class='text-success'>Approved</span>");
   }else{
-    $("#status").text("Not Approved");
-    $("#darc").text("Not Created Yet");
+    $("#user_info_status").html("<span class='text-warning'>Not Approved</span>");
   }
-  $("#hospital").html("<a target='_blank' href='/gui/hospital?id="+data.super_admin_id+"'>"+data.hospital_name+"</a>");
+  $("#user_info_hospital").html(data.hospital_name+'  <button class="btn btn-sm btn-info" id="button_show_hospital_id_'+data.super_admin_id+'" onclick="GetHospitalToDisplayInfo(\''+data.super_admin_id+'\');">Info</button>');
+  $("#user_info_dialog").dialog("open");
 }
 
-function DisplayError(){
-  $("body").html("<h1>Failed loading the information</h1>")
+function DisplayUserError(){
+  $("#user_info_dialog").html("<h1>Failed loading the information</h1>");
+  $("#user_info_dialog").dialog("open");
 }
-
-
-$(document).ready(
-  function(){
-    GetUserInfo();
-  }
-);

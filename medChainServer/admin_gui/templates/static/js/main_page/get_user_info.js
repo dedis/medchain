@@ -34,6 +34,8 @@ function UpdateUserInfo(data){
   info.signer.created = data["is_created"];
   info.signer.darc_base_id = data["darc_base_id"];
   info.logged_in = true;
+  window.sessionStorage.setItem("MedChainLoggedIn", info.logged_in);
+  window.sessionStorage.setItem("MedChainPublicKey", info.signer.public_key);
   GetHospitalInfo();
   RefreshAllInfo();
   DisplaySignerInfo();
@@ -93,11 +95,12 @@ function DisplaySignerInfo(){
   $("#signer_name").text(info.signer.name);
   $("#signer_id").text(info.signer.id);
   if(info.signer.created){
-    $("#signer_status").text("Approved");
+    $("#signer_status").html("<span class='text-success'>Approved</span>");
   }else{
-    $("#signer_status").text("Not Approved");
+    $("#signer_status").html("<span class='text-warning'>Not Approved</span>");
   }
   $("#signer_info_div").show();
+  $("#login_error").text("");
 }
 
 function GetHospitalInfo(){
@@ -128,9 +131,9 @@ function DisplayHospitalInfo(){
   $("#hospital_name").text(info.hospital.name);
   $("#super_admin_name").text(info.hospital.super_admin_name);
   if(info.hospital.created){
-    $("#hospital_status").text("Approved");
+    $("#hospital_status").html("<span class='text-success'>Approved</span>");
   }else{
-    $("#hospital_status").text("Not Approved");
+    $("#hospital_status").html("<span class='text-warning'>Not Approved</span>");
   }
   $("#hospital_info_div").show();
 }
@@ -138,13 +141,8 @@ function DisplayHospitalInfo(){
 
 function ShowLoginError(error) {
   $("#login_error").text("Error: "+ error["responseText"]);
-  $("#login_div").show();
+  resetInfo();
   showLogin();
-  info = initInfo();
-}
-
-function ShowActionError(error) {
-  $("#action_error").text("Error: "+ error["responseText"]);
 }
 
 function GetUserList(){

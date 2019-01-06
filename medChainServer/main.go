@@ -327,9 +327,10 @@ func getInfo(w http.ResponseWriter, r *http.Request, baseIdToDarcMap map[string]
 
 func main() {
 	// Run one time to generate all the keys for our context
-	//medChainUtils.InitKeys(3, "keys/admins")
-	//medChainUtils.InitKeys(3, "keys/managers")
-	//medChainUtils.InitKeys(3, "keys/users")
+	// medChainUtils.InitKeys(4, "keys/super_admins")
+	// medChainUtils.InitKeys(1, "keys/admins")
+	// medChainUtils.InitKeys(3, "keys/managers")
+	// medChainUtils.InitKeys(3, "keys/users")
 
 	port, conf, signing_url := getFlags()
 
@@ -352,11 +353,6 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("admin_gui/templates/static"))))
 
 	http.HandleFunc("/gui", admin_gui.GUI_landing)
-	http.HandleFunc("/gui/user", admin_gui.UserInfoPage)
-	http.HandleFunc("/gui/darc", admin_gui.DarcInfoPage)
-	http.HandleFunc("/gui/hospital", admin_gui.HospitalInfoPage)
-	http.HandleFunc("/gui/action", admin_gui.ActionInfoPage)
-	http.HandleFunc("/gui/project", admin_gui.ProjectInfoPage)
 
 	http.HandleFunc("/start", start)
 

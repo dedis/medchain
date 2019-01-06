@@ -216,7 +216,7 @@ func createProjectDarc(name string, manager_metadata_list, user_metadata_list []
 	}
 
 	projectDarcRules := darc.InitRulesWith([]darc.Identity{}, []darc.Identity{}, "invoke:evolve")
-	projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(expression.InitOrExpr(admin_list_darcs...))))
+	projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr("("+string(medChainUtils.InitAtLeastTwoExpr(darc_managers))+")", "("+string(expression.InitOrExpr(admin_list_darcs...))+")"))
 	projectDarcRules.UpdateSign(expression.InitOrExpr(darc_signers...))
 	projectDarcRules.AddRule("spawn:AuthGrant", projectDarcRules.GetSignExpr())
 	projectDarcRules.AddRule("spawn:CreateQuery", projectDarcRules.GetSignExpr())

@@ -194,6 +194,7 @@ func createNewHospitalTransaction(hospital_name string, identity darc.Identity, 
 
 	new_hospital_owners := []darc.Identity{darc.NewIdentityDarc(genesis_darc.GetID())}
 	new_hospital_rules := darc.InitRulesWith(new_hospital_owners, []darc.Identity{identity}, "invoke:evolve")
+	new_hospital_rules.AddRule("spawn:darc", new_hospital_rules.GetSignExpr())
 	new_hospital_darc := darc.NewDarc(new_hospital_rules, []byte("Darc for a single Hospital"))
 	new_hospital_darc_buff, err := new_hospital_darc.ToProto()
 	if err != nil {

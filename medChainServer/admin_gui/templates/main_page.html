@@ -14,238 +14,390 @@
     <script src="static/js/main_page/user_actions.js"></script>
     <script src="static/js/main_page/display_lists.js"></script>
     <script src="static/js/main_page/get_user_info.js"></script>
+    <script src="static/js/info_page/hospital_info_page.js"></script>
+    <script src="static/js/info_page/project_info_page.js"></script>
+    <script src="static/js/info_page/user_info_page.js"></script>
+    <script src="static/js/main_page/read_keys.js"></script>
     <script src="static/js/main_page/main_page_logic.js"></script>
 </head>
 
 <body>
 
-  <h1 class="text-center">Welcome to Medchain</h1>
+  <h1 class="text-center display-3">Welcome to Medchain</h1>
 
-  <div id="login_div" class="container-fluid">
-    <h2>Login</h2>
-    <label>Public Key: </label>
-    <input id="public_key_input" type="text"></input><br/>
-    <button id="login_button" class="btn">Log In</button>
-    <span id="login_error" class="text-danger"></span>
+  <div class="card border-dark w-50 mx-auto" id="login_div" >
+    <div class="card-header">
+      <h2 class="display-4" >Login</h2>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label for="public_key_input"><b>Public Key : </b></label><br/>
+        <input id="public_key_input" type="file"></input></br>
+      </div>
+      <button id="login_button" class="btn btn-primary">Log In</button>
+      <span id="login_error" class="text-danger"></span>
+    </div>
   </div>
 
   <div id="display_div">
 
-    <div id="hospital_info_div" class="container-fluid">
-      <h3>Institution Information</h3>
-      <label>Name: </label>
-      <span id="hospital_name"></span><br/>
-      <label>Head: </label>
-      <span id="super_admin_name"></span><br/>
-      <label>Status: </label>
-      <span id="hospital_status"></span><br/>
+    <div class="row">
+      <div class="col-6">
+        <div id="hospital_info_div" class="card border-dark" style="height: 300px;">
+          <div class="card-header">
+            <h3 class="display-4" >Institution Information</h3>
+          </div>
+          <div class="card-body">
+            <label for="hospital_name"><b>Name : </b></label>
+            <span id="hospital_name"></span><br/>
+            <label for="super_admin_name"><b>Head : </b></label>
+            <span id="super_admin_name"></span><br/>
+            <label for="hospital_status"><b>Status : </b></label>
+            <span id="hospital_status"></span><br/>
+          </div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div id="signer_info_div" class="card ml-70 border-dark" style="height: 300px;">
+          <div class="card-header">
+            <h3 class="display-4" >Your Information</h3>
+          </div>
+          <div class="card-body">
+            <label><b>Role : </b></label>
+            <span id="signer_role"></span><br/>
+            <label><b>Name : </b></label>
+            <span id="signer_name"></span><br/>
+            <label><b>Id : </b></label>
+            <span id="signer_id"></span><br/>
+            <label><b>Status : </b></label>
+            <span id="signer_status"></span><br/>
+            <div class="form-group">
+              <button id="logout_button" class="btn btn-secondary">Log Out</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div id="signer_info_div" class="container-fluid">
-      <h3>Your Information</h3>
-      <label>Role: </label>
-      <span id="signer_role"></span><br/>
-      <label>Name: </label>
-      <span id="signer_name"></span><br/>
-      <label>Id: </label>
-      <span id="signer_id"></span><br/>
-      <label>Status: </label>
-      <span id="signer_status"></span><br/>
+    <div id="list_signer_action_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;">
+      <div class="card-header">
+        <h3 class="display-4">Your Actions</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "signer_action_list_table" class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Id</th>
+                <th scope="col">Description</th>
+                <th scope="col">Status</th>
+                <th scope="col">Signers</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <div id="list_signer_action_div" class="container-fluid">
-      <h3>Your Actions: </h3>
-      <table id = "signer_action_list_table" class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Id</th>
-            <th scope="col">Description</th>
-            <th scope="col">Status</th>
-            <th scope="col">Signers</th>
-            <th scope="col">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
+    <div id="list_waiting_action_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;">
+      <div class="card-header">
+        <h3 class="display-4">Actions to Approve</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "waiting_action_list_table" class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Id</th>
+                <th scope="col">Description</th>
+                <th scope="col">Initiator</th>
+                <th scope="col">Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <div id="list_waiting_action_div" class="container-fluid">
-      <h3>Actions To Approve: </h3>
-      <table id = "waiting_action_list_table" class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Id</th>
-            <th scope="col">Description</th>
-            <th scope="col">Initiator</th>
-            <th scope="col">Decision</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
+    <div id="list_hospital_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;" >
+      <div class="card-header">
+        <h3 class="display-4">Hospitals</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "hospital_list_table" class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center"><button id="open_new_hospital_dialog_button" class="btn btn-success">Add Hospital</button></div>
+      </div>
     </div>
 
-    <div id="signature information" class="container-fluid">
-      <label>Local Signer Client URL: </label>
-      <input id="local_signer_url_input" type="text" value="http://localhost:6161"></input><br/>
-      <label>Private Key: </label>
-      <input id="private_key_input" type="password" default=""></input><br/>
+    <div id="list_admin_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;" >
+      <div class="card-header">
+        <h3 class="display-4">Admins</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "admin_list_table"  class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center"><button id="open_new_admin_dialog_button" class="btn btn-success">Add Administrator</button></div>
+      </div>
     </div>
 
-    <div id="list_hospital_div" class="container-fluid">
-      <h3>Hospitals</h3>
-      <table id = "hospital_list_table" class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
-      <div class="text-center"><button id="open_new_hospital_dialog_button" class="btn btn-success">Add Hospital</button></div>
+    <div id="list_manager_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;">
+      <div class="card-header">
+        <h3 class="display-4">Managers</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "manager_list_table"  class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center"><button id="open_new_manager_dialog_button" class="btn btn-success">Add Manager</button></div>
+      </div>
     </div>
 
+    <div id="list_user_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;">
+      <div class="card-header">
+        <h3 class="display-4">Users</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "user_list_table"  class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center"><button id="open_new_user_dialog_button" class="btn btn-success">Add User</button></div>
+      </div>
+    </div>
 
+    <div id="list_project_div" class="card w-75 mx-auto border-dark" style="margin-top: 20px; margin-bottom: 20px;">
+      <div class="card-header">
+        <h3 class="display-4">Projects</h3>
+      </div>
+      <div class="card-body">
+        <div style="overflow-y: auto; max-height:450px;">
+          <table id = "project_list_table"  class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Status</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+        <div class="text-center"><button id="open_new_project_dialog_button" class="btn btn-success">Add Project</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dialog_div" hidden>
 
     <div id="add_hospital_div">
-      <label>Hospital Name: </label>
-      <input id="new_hospital_name_input" type="text"></input><br/>
-      <label>Name of Head of Hospital: </label>
-      <input id="new_hospital_head_name_input" type="text"></input><br/>
-      <label>Public Key of Head of Hospital: </label>
-      <input id="new_hospital_public_key_input" type="text"></input><br/>
-      <button id="new_hospital_button" class="btn">Submit</button>
+      <div class="form-group">
+        <label><b>Hospital Name : </b></label><br/>
+        <input id="new_hospital_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label><b>Name of Head of Hospital : </b></label></br>
+        <input id="new_hospital_head_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label><b>Public Key of Head of Hospital : </b></label><br/>
+        <input id="new_hospital_public_key_input" type="file"></input><br/>
+      </div>
+      <button id="new_hospital_button" class="btn btn-primary">Submit</button><br/>
       <span id="new_hospital_error" class="text-danger"></span>
     </div>
 
-    <div id="list_admin_div" class="container-fluid">
-      <h3>Admins</h3>
-      <table id = "admin_list_table"  class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
-      <div class="text-center"><button id="open_new_admin_dialog_button" class="btn btn-success">Add Administrator</button></div>
-    </div>
-
-
-
     <div id="add_admin_div">
-      <label>Name: </label>
-      <input id="new_admin_name_input" type="text"></input><br/>
-      <label>Public Key: </label>
-      <input id="new_admin_public_key_input" type="text"></input><br/>
-      <button id="new_admin_button" class="btn">Submit</button>
+      <div class="form-group">
+        <label><b>Name : </b></label></br>
+        <input id="new_admin_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label>Public Key : </label>
+        <input id="new_admin_public_key_input" type="file"></input><br/>
+      </div>
+      <button id="new_admin_button" class="btn btn-primary">Submit</button><br/>
       <span id="new_admin_error" class="text-danger"></span>
     </div>
 
-    <div id="list_manager_div" class="container-fluid">
-      <h3>Managers</h3>
-      <table id = "manager_list_table"  class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
-      <div class="text-center"><button id="open_new_manager_dialog_button" class="btn btn-success">Add Manager</button></div>
-    </div>
-
-
-
     <div id="add_manager_div">
-      <label>Name: </label>
-      <input id="new_manager_name_input" type="text"></input><br/>
-      <label>Public Key: </label>
-      <input id="new_manager_public_key_input" type="text"></input><br/>
-      <button id="new_manager_button" class="btn">Submit</button>
+      <div class="form-group">
+        <label><b>Name : </b></label></br>
+        <input id="new_manager_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label><b>Public Key : </b></label></br>
+        <input id="new_manager_public_key_input" type="file"></input><br/>
+      </div>
+      <button id="new_manager_button" class="btn btn-primary">Submit</button><br/>
       <span id="new_manager_error" class="text-danger"></span>
     </div>
 
-    <div id="list_user_div" class="container-fluid">
-      <h3>Users</h3>
-      <table id = "user_list_table"  class="table table-bordered">
-        <thead class="thead-dark">
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-      </table>
-      <div class="text-center"><button id="open_new_user_dialog_button" class="btn btn-success">Add User</button></div>
-    </div>
-
-
-
     <div id="add_user_div">
-      <label>Name: </label>
-      <input id="new_user_name_input" type="text"></input><br/>
-      <label>Public Key: </label>
-      <input id="new_user_public_key_input" type="text"></input><br/>
-      <button id="new_user_button" class="btn">Submit</button>
+      <div class="form-group">
+        <label><b>Name : </b></label></br>
+        <input id="new_user_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label><b>Public Key : </b></label></br>
+        <input id="new_user_public_key_input" type="file"></input><br/>
+      </div>
+      <button id="new_user_button" class="btn btn-primary">Submit</button><br/>
       <span id="new_user_error" class="text-danger"></span>
     </div>
 
-    <div id="list_project_div" class="container-fluid">
-      <h3>Projects</h3>
-      <table id = "project_list_table"  class="table table-bordered">
+    <div id="add_project_div">
+      <div class="form-group">
+        <label><b>Name : </b></label></br>
+        <input id="new_project_name_input" type="text"></input><br/>
+      </div>
+      <div class="form-group">
+        <label><b>Managers : </b></label><br/>
+        <div id="new_project_managers_div" class="container">
+          <table id = "new_project_managers_table" class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Authorized</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><b>Authorizations : </b></label><br/>
+        <div id="new_project_authorizations_div" class="container">
+          <table id = "new_project_authorizations_table" class="table table-bordered table-hover">
+            <thead class="thead-dark">
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Aggregated Query</th>
+                <th scope="col">Obfuscated Query</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <button id="new_project_button" class="btn btn-primary">Submit</button><br/>
+      <span id="new_project_error" class="text-danger"></span>
+    </div>
+
+    <div id="user_info_dialog">
+      <label><b>Name : </b></label>
+      <span id="user_info_name"></span></br>
+      <label><b>Id : </b></label>
+      <span id="user_info_id"></span></br>
+      <label><b>Hospital : </b></label>
+      <span id="user_info_hospital"></span></br>
+      <label><b>Role : </b></label>
+      <span id="user_info_role"></span></br>
+      <label><b>Status : </b></label>
+      <span id="user_info_status"></span></br>
+    </div>
+
+    <div id="hospital_info_dialog">
+      <label><b>Hospital Name : </b></label>
+      <span id="hospital_info_hospital_name"></span></br>
+      <label><b>Super Admin Name : </b></label>
+      <span id="hospital_info_super_admin_name"></span></br>
+      <label><b>Status : </b></label>
+      <span id="hospital_info_status"></span></br>
+    </div>
+
+    <div id="project_info_dialog">
+      <label><b>Project Name : </b></label>
+      <span id="project_info_name"></span></br>
+      <label><b>Managers : </b></label>
+      <table id = "project_info_managers" class="table table-bordered table-hover">
         <thead class="thead-dark">
           <tr>
             <th scope="col">Name</th>
-            <th scope="col">Status</th>
+            <th scope="col">Details</th>
           </tr>
         </thead>
         <tbody>
         </tbody>
-      </table>
-      <div class="text-center"><button id="open_new_project_dialog_button" class="btn btn-success">Add Project</button></div>
+      </table></br>
+      <label><b>Authorizations : </b></label>
+      <table id = "project_info_authorizations" class="table table-bordered table-hover">
+        <thead class="thead-dark">
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Details</th>
+            <th scope="col">Aggregated Query</th>
+            <th scope="col">Obfuscated Query</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table></br>
+      <label><b>Status : </b></label>
+      <span id="project_info_status"></span></br>
     </div>
 
-    <div id="add_project_div">
-      <label>Name: </label>
-      <input id="new_project_name_input" type="text"></input><br/>
-      <label>Managers: </label><br/>
-      <div id="new_project_managers_div" class="container">
-        <table id = "new_project_managers_table" class="table table-bordered">
-          <thead class="thead-dark">
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Authorized</th>
-            </tr>
-          </thead>
-          <tbody>
-          </tbody>
-        </table>
+    <div id ="signature_information_dialog">
+      <div class="form-group">
+        <label><b>Local Signer Client URL: </b></label></br>
+        <input id="local_signer_url_input" type="text" value="http://localhost:6161"></input><br/>
       </div>
-      <label>Authorizations: </label><br/>
-      <div id="new_project_authorizations_div" class="container">
-        <table id = "new_project_authorizations_table" class="table table-bordered">
-          <thead class="thead-dark">
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Aggregated Query</th>
-              <th scope="col">Obfuscated Query</th>
-            </tr>
-          </thead>
-          <tbody>
-          </tbody>
-        </table>
+      <div class="form-group">
+        <label><b>Private Key: </b></label></br>
+        <input id="private_key_input" type="file" default=""></input><br/>
       </div>
-      <button id="new_project_button" class="btn">Submit</button>
-      <span id="new_project_error" class="text-danger"></span>
+      <button id="approve_action_and_sign_button" class="btn btn-primary">Approve Action</button>
+      <span id="approve_action_error" class="text-danger"></span>
     </div>
+
   </div>
 </body>

@@ -343,9 +343,11 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string, preferre
 		signers = append(signers, user_id)
 	}
 
-	remainer := threshold - len(chosen_signers)
-	chosen_signers = append(chosen_signers, signers[:remainer]...)
+	remainer := min(threshold-len(chosen_signers), len(signers))
 
+	if remainer > 0 {
+		chosen_signers = append(chosen_signers, signers[:remainer]...)
+	}
 	sort.Strings(chosen_signers)
 
 	chosen_signers_ids := make(map[int]darc.Identity)
@@ -377,6 +379,13 @@ func getSigners(hospital_metadata *metadata.Hospital, user_type string, preferre
 	}
 
 	return owner_darc, chosen_signers_ids, chosen_signers_to_index, nil
+}
+
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func sendNewActionToSigningService(action *messages.ActionReply) error {

@@ -98,7 +98,7 @@ func checkTransactionForNewHospital(transaction *service.ClientTransaction) ([]*
 
 	evolved_darcs := []*darc.Darc{}
 	for i := 4; i < 8; i++ {
-		evolved_darc, err := checkEvolveDarcInstructionForGenericUser(transaction.Instructions[1])
+		evolved_darc, err := checkEvolveDarcInstructionForGenericUser(transaction.Instructions[i])
 		if err != nil {
 			return nil, nil, err
 		}

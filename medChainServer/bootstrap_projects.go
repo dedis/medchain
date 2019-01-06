@@ -40,9 +40,7 @@ func createProjectCreatorDarc(metaData *metadata.Metadata, signers []darc.Signer
 	rules.UpdateSign(expression.InitOrExpr(all_super_admin_darc.GetIdentityString(), all_admin_darc.GetIdentityString(), all_manager_darc.GetIdentityString()))
 	rules.AddRule("spawn:value", expression.InitOrExpr(all_super_admin_darc.GetIdentityString()))
 	rules.AddRule("spawn:UserProjectsMap", expression.InitOrExpr(all_super_admin_darc.GetIdentityString()))
-	rules.AddRule("invoke:update", expression.InitOrExpr(all_super_admin_darc.GetIdentityString()))
-	rules.AddRule("invoke:update", expression.InitOrExpr(all_admin_darc.GetIdentityString()))
-	rules.AddRule("invoke:update", expression.InitOrExpr(all_manager_darc.GetIdentityString()))
+	rules.AddRule("invoke:update", expression.InitOrExpr(all_super_admin_darc.GetIdentityString(), all_admin_darc.GetIdentityString(), all_manager_darc.GetIdentityString()))
 
 	projectCreatorDarc, err := createDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "Project Creator Darc", signers...)
 	if err != nil {
@@ -136,7 +134,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 		}
 
 		projectDarcRules := darc.InitRulesWith([]darc.Identity{}, []darc.Identity{}, "invoke:evolve")
-		projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr(string(medChainUtils.InitAtLeastTwoExpr(darc_managers)), string(medChainUtils.InitAtLeastTwoExpr(admin_list_darcs))))
+		projectDarcRules.UpdateRule("invoke:evolve", expression.InitOrExpr("("+string(medChainUtils.InitAtLeastTwoExpr(darc_managers))+")", "("+string(medChainUtils.InitAtLeastTwoExpr(admin_list_darcs))+")"))
 		projectDarcRules.UpdateSign(expression.InitOrExpr(darc_signers...))
 		projectDarcRules.AddRule("spawn:AuthGrant", projectDarcRules.GetSignExpr())
 		projectDarcRules.AddRule("spawn:CreateQuery", projectDarcRules.GetSignExpr())

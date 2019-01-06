@@ -31,10 +31,9 @@ func InitKeys(numKeys int, directory string) {
 		privateInBytes, _ := private.MarshalBinary()
 		public := temp.Identity().Ed25519.Point
 		publicInBytes, _ := public.MarshalBinary()
-
-		err := ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_private", []byte(base64.StdEncoding.EncodeToString(privateInBytes)), 0644)
+		err := ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_private_"+temp.Identity().String(), []byte(base64.StdEncoding.EncodeToString(privateInBytes)), 0644)
 		Check(err)
-		err = ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_public", []byte(base64.StdEncoding.EncodeToString(publicInBytes)), 0644)
+		err = ioutil.WriteFile(directory+"/"+strconv.Itoa(i)+"_public_"+temp.Identity().String(), []byte(base64.StdEncoding.EncodeToString(publicInBytes)), 0644)
 		Check(err)
 
 		kp := key.NewKeyPair(cothority.Suite)
@@ -266,7 +265,7 @@ func InitAtLeastTwoExpr(ids []string) expression.Expr {
 			for j := i + 1; j < len(ids); j++ {
 				if i != 0 || j != 1 {
 					new_pair := expression.InitAndExpr(ids[i], ids[j])
-					result = expression.InitOrExpr(string(result), string(new_pair))
+					result = expression.InitOrExpr("("+string(result)+")", "("+string(new_pair)+")")
 				}
 			}
 		}

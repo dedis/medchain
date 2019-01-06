@@ -4,64 +4,66 @@
     {
       "Name":"Hospital1",
       "SuperAdmin": {
-        "PublicKey":"super_admins/0_public",
-        "PrivateKey":"super_admins/0_private",
+        "PublicKey":"super_admins/0_public_ed25519:fc2ea16063dcefddb21795b593bf68f58a39add33eaaf25f6ad99b78644e1351",
+        "PrivateKey":"super_admins/0_private_ed25519:fc2ea16063dcefddb21795b593bf68f58a39add33eaaf25f6ad99b78644e1351",
         "Name":"Alice"
       },
       "Admins":[
         {
-          "PublicKey":"admins/0_public",
+          "PublicKey":"admins/0_public_ed25519:8378f0dcec5f594e0274e991ce811d6b22ec489221b6781fc61e6c56bf2c0495",
           "Name":"Charles"
         },
         {
-          "PublicKey":"admins/1_public",
+          "PublicKey":"admins/1_public_ed25519:341a301dffa5d308c2ad7c1807d2d7395ce5e23237cf01a379b3f8260f797b8e",
           "Name":"David"
-        },
-        {
-          "PublicKey":"admins/2_public",
-          "Name":"Edward"
         }
       ],
       "Managers":[
         {
-          "PublicKey":"managers/0_public",
+          "PublicKey":"managers/0_public_ed25519:bbf4be834e40bc2c3220884ad0dd5d7c62b9e731a1b731643073d1d2d092e877",
           "Name":"Henry"
         },
         {
-          "PublicKey":"managers/1_public",
+          "PublicKey":"managers/1_public_ed25519:33ba4118f9f42625d34c253383c6a4c3d5c1f3d3873a5a43382694c8768ab02f",
           "Name":"Irene"
         }
       ],
       "Users":[
-        {"PublicKey":"users/0_public", "Name":"Lola"},
-        {"PublicKey":"users/1_public", "Name":"Marin"}
+        {
+          "PublicKey":"users/0_public_ed25519:cecceeee2d0572f785590abe5d1afcc77eb5bc10c94c8441e2e2eccfc94749fe",
+          "Name":"Lola"
+        },
+        {
+          "PublicKey":"users/1_public_ed25519:f8862b83144ec3af0cf2ce404bec72cf429cd16c0eda8ac3184e5c49c87aa1eb",
+          "Name":"Marin"
+        }
       ]
     },
     {
       "Name":"Hospital2",
       "SuperAdmin": {
-        "PublicKey":"super_admins/1_public",
-        "PrivateKey":"super_admins/1_private",
+        "PublicKey":"super_admins/1_public_ed25519:71f39da8251eabc0ec5d8edc38facae73bec33f650a20639dee30b59ac860975",
+        "PrivateKey":"super_admins/1_private_ed25519:71f39da8251eabc0ec5d8edc38facae73bec33f650a20639dee30b59ac860975",
         "Name":"Bob"
       },
       "Admins":[
         {
-          "PublicKey":"admins/3_public",
-          "Name":"Fanny"
+          "PublicKey":"admins/2_public_ed25519:120c4eff487ee4bba222a4db9e0514898dee52d73a2ec53a66f5258a35a67d75",
+          "Name":"Edward"
         },
         {
-          "PublicKey":"admins/4_public",
-          "Name":"Garry"
+          "PublicKey":"admins/3_public_ed25519:c3fa074c11f51654d9456d7b7e1783763757b00f1f01758bdb3a6117218edf2b",
+          "Name":"Fanny"
         }
       ],
       "Managers":[
         {
-          "PublicKey":"managers/2_public",
+          "PublicKey":"managers/2_public_ed25519:ab2e9fe6075fe626fc46a84016b91978b970bdafd35e3ec49921eba4ebf20985",
           "Name":"Jack"
         }
       ],
       "Users":[
-        {"PublicKey":"users/2_public", "Name":"Noah"}
+        {"PublicKey":"users/2_public_ed25519:38b82ce9b75d5d9b98b211d1d9e758d79a94a667aee2ec19253feb7892397649", "Name":"Noah"}
       ]
     }
   ]

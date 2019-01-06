@@ -22,7 +22,6 @@ func CommitAction(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	fmt.Println(string(body))
 	var request messages.CommitRequest
 	err = json.Unmarshal(body, &request)
 	if medChainUtils.CheckError(err, w, r) {
