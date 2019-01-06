@@ -1,6 +1,5 @@
 .idea/
 medChainAdmin/medChainAdmin
-medChainServer
 medChainServer/medChainServer
 signingService/data/*.db
 signingService/signingService
