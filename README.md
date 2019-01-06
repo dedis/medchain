@@ -39,11 +39,13 @@ Then copy the whole cothority folder in the dedis folder:
 
 The server interacts with the omniledger chain to grant access to users, perform log-ins and queries authorizations by creating tokens.
 
+run `cd medChainServer; go build; ./medChainServer -h` to see the flags and their use
+
 ## medChainUtils :
 
 Helper functions used by the Service
 
-## medChainDockers :
+## medChainDocker :
 
 Some scripts and Docker files to set up the Service
 
@@ -55,6 +57,22 @@ A client for users to get login tokens, and register queries in the chain. To be
 
 This parts is a local client that is mainly used to perform signatures, in order to avoid sharing the private key with the server. The reason we use it is because we were unable to translate the signature library in javascript, that could enable us to do the signature directly in the browser.
 
+run `cd medChainAdmin; go build; ./medChainAdmin -h` to see the flags and their use
+
 ## signingService :
 
-Our solution to collect the multiple signatures was to have a centralized service to keep the transactions that needed to be signed. This is done by this signing service. The actions are registered in the service and then updated everytime someone approves and signs the transaction.
+Our solution to collect the multiple signatures was to have a centralized service to keep the transactions that needed to be signed. This is done by this signing service. The actions are registered in the service and then updated every time someone approves and signs the transaction.
+
+It uses sqlite3 for the database.
+
+run `cd signingService; go build; ./signingService -h` to see the flags and their use
+
+## Demo :
+
+run `cd medChainDocker; ./launch_demo.sh` to run the Demo
+
+wait for the end of the bootstrapping (it should output "Success")
+
+then go to http://localhost:8989/gui
+
+The keys for the demo are in `medChainServer/keys/` and the bootstrapped configuration can be found in `medChainServer/conf/test_conf.json`
