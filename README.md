@@ -71,7 +71,7 @@ run `cd signingService; go build; ./signingService -h` to see the flags and thei
 
 run `cd medChainDocker; ./launch_demo.sh` to run the Demo
 
-wait for the end of the bootstrapping (it should output "Success")
+wait for the end of the bootstrapping (it should output "Success", it takes around 20s)
 
 then go to http://localhost:8989/gui
 
