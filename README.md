@@ -18,7 +18,7 @@ Then copy the medchain contracts in the omniledger :
 
 `cp $GOPATH/src/github.com/DPPH/MedChain/contracts/medchain.go $GOPATH/src/github.com/DPPH/cothority/omniledger/contracts/medchain.go`
 
-Then copy these lines after line 30 of `$GOPATH/src/github.com/DPPH/MedChain/contracts/service.go` :
+Then copy these lines after line 30 of `$GOPATH/src/github.com/DPPH/cothority/omniledger/contracts/service.go` :
 
 ```
 service.RegisterContract(c, ContractProjectListID, ContractProjectList)
