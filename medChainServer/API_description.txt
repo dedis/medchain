@@ -1,0 +1,84 @@
+
+/add/action:
+  Description:
+    Registers a new action
+  Receives:
+    a signing_messages.AddNewActionRequest
+    with the ActionReply that needs
+  Returns:
+    the id of the action in the database
+
+/approve/action:
+  Description:
+    Approves an action and
+    updates the transaction with the signed version
+  Receives:
+      an admin_messages.SignReply
+      (reply from the local signing client)
+  Returns:
+      a signing_messages.ActionInfoReply
+      with the information on the action
+
+/deny/action:
+  Description:
+    Denies an action
+  Receives:
+    a signing_messages.ActionUpdate encoded in json
+    with the id of the signer denying,
+    and the id of the action
+  Returns:
+    a signing_messages.ActionInfoReply
+    with the information on the action
+
+/update/action/done:
+  Description:
+    Change the status of the action to Done
+    After it was commited
+  Receives:
+    a signing_messages.ActionUpdate encoded in json
+    with the id of the initiator,
+    and the id of the action
+  Returns:
+    a signing_messages.ActionInfoReply
+    with the information on the action
+
+/update/action/cancel:
+  Description:
+    Change the status of the action to Cancelled
+  Receives:
+    a signing_messages.ActionUpdate encoded in json
+    with the id of the initiator,
+    and the id of the action
+  Returns:
+    a signing_messages.ActionInfoReply
+    with the information on the action
+
+/info/action:
+  Description:
+    Gives the information on an action
+  Receives:
+    a signing_messages.ActionInfoRequest encoded in json
+    with the id of the action
+  Returns:
+    a signing_messages.ActionInfoReply encoded in json
+    with the information of the action
+
+/list/actions:
+  Description:
+    List the actions initiated by a given user
+  Receives:
+    a signing_messages.ListRequest encoded in json
+    with the id of the user
+  Returns:
+    a signing_messages.ListReply encoded in json
+    with the list of actions
+
+/list/actions/waiting:
+  Description:
+    List the actions waiting for approval of a given signer
+  Receives:
+    a signing_messages.ListRequest encoded in json
+    with the id of the signer
+  Returns:
+    a signing_messages.ListReply encoded in json
+    with the list of actions
