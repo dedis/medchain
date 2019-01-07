@@ -286,8 +286,6 @@ func createManagersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 	}
 	owner_id := []darc.Identity{darc.NewIdentityDarc(genesisDarc.GetID())}
 	rules := darc.InitRulesWith(owner_id, managers_list_darc_ids, "invoke:evolve")
-	rules.AddRule("spawn:UserProjectsMap", rules.GetSignExpr())
-	rules.AddRule("invoke:update", rules.GetSignExpr())
 	allManagersDarc, err := medChainUtils.CreateDarc(cl, genesisDarc, metaData.GenesisMsg.BlockInterval, rules, "All Managers darc", signers...)
 	if err != nil {
 		panic(err)
