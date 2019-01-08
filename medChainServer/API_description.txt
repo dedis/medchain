@@ -1,84 +1,263 @@
-
-/add/action:
+/gui:
   Description:
-    Registers a new action
+    Returns an html page for the graphical user interface for administrator
   Receives:
-    a signing_messages.AddNewActionRequest
-    with the ActionReply that needs
+    -
   Returns:
-    the id of the action in the database
+    admin_gui/templates/main_page.html
 
-/approve/action:
+/static
   Description:
-    Approves an action and
-    updates the transaction with the signed version
+    Entry points for the user interface static files (javascript and css)
   Receives:
-      an admin_messages.SignReply
-      (reply from the local signing client)
+    -
   Returns:
-      a signing_messages.ActionInfoReply
-      with the information on the action
-
-/deny/action:
+    the static files
+    
+/start:
   Description:
-    Denies an action
+    Bootstraps the darc structure and the metadata from the configuration file
   Receives:
-    a signing_messages.ActionUpdate encoded in json
-    with the id of the signer denying,
-    and the id of the action
+    -
   Returns:
-    a signing_messages.ActionInfoReply
-    with the information on the action
+    "Success"
 
-/update/action/done:
+/info:
   Description:
-    Change the status of the action to Done
-    After it was commited
+    Gives general information about the system
   Receives:
-    a signing_messages.ActionUpdate encoded in json
-    with the id of the initiator,
-    and the id of the action
+    -
   Returns:
-    a signing_messages.ActionInfoReply
-    with the information on the action
+    a messages.GeneralInfoReply encoded in json
 
-/update/action/cancel:
+/info/hospital:
   Description:
-    Change the status of the action to Cancelled
+    Gives information about the hospital
+    with the requested id
   Receives:
-    a signing_messages.ActionUpdate encoded in json
-    with the id of the initiator,
-    and the id of the action
+    a messages.HospitalInfoRequest encoded in json
+    with the id of the head of hospital in the request
   Returns:
-    a signing_messages.ActionInfoReply
-    with the information on the action
+    a messages.HospitalInfoReply encoded in json
+    with the information of the hospital
 
-/info/action:
+/info/user:
   Description:
-    Gives the information on an action
+    Gives information about the user
+    with the requested id
   Receives:
-    a signing_messages.ActionInfoRequest encoded in json
-    with the id of the action
+  a messages.GenericUserInfoRequest encoded in json
+  with the id of the user in the request
   Returns:
-    a signing_messages.ActionInfoReply encoded in json
-    with the information of the action
+    a messages.GenericUserInfoReply encoded in json
+    with the information of the user
 
-/list/actions:
+/info/project:
   Description:
-    List the actions initiated by a given user
+    Gives information about the project
+    with the requested name
   Receives:
-    a signing_messages.ListRequest encoded in json
+    a messages.ProjectInfoRequest encoded in json
+    with the name of the project in the request
+  Returns:
+    a messages.ProjectInfoReply encoded in json
+    with the information of the project
+
+/info/darc:
+  Description:
+    Gives information about the darc with the
+    requested Base Id or Id
+  Receives:
+    a messages.DarcInfoRequest encoded in json
+    with either:
+      the base id of the darc, encoded in base64
+      the identity string of the darc
+  Returns:
+    a messages.DarcInfoReply encoded in json
+    with the information of the darc
+
+/list/darc:
+  Description:
+    Recursively finds the
+    identity of the users that can sign the darc,
+    or sign the darc that has been
+    delegated the sign rule etc..
+    And returns the list of ids
+    (works only for ids in ed25519)
+  Receives:
+    a messages.DarcInfoRequest encoded in json
+    with either:
+      the base id of the darc, encoded in base64
+      the identity string of the darc
+  Returns:
+    a messages.ListReply
+    containing the list of identity Strings
+    of the users
+
+/list/users:
+  Description:
+    List all users that have
+    the given role ("admin", "manager", "user")
+    in the given hospital
+  Receives:
+    a messages.ListGenericUserRequest encoded in json
+    with the requested role and the id of the head of the hospital
+  Returns:
+    a messages.ListGenericUserReply encoded in json
+    with the list of users with that role
+
+/list/hospitals:
+  Description:
+    List all the hospitals in the system
+  Receives:
+    -
+  Returns:
+    a messages.ListHospitalReply encoded in json
+    with the list of all hospitals
+
+
+/list/projects:
+  Description:
+    List all projects associated
+    with the given user
+  Receives:
+    a messages.ListProjectRequest encoded in json
     with the id of the user
   Returns:
-    a signing_messages.ListReply encoded in json
-    with the list of actions
+    a messages.ListProjectReply encoded in json
+    with all the projects associated with the user
 
-/list/actions/waiting:
+/add/user:
   Description:
-    List the actions waiting for approval of a given signer
+    Prepares the transaction for creating a darc
+    for a new user
+    adapt the list darcs
+    Adds the metadata for the user as "Non-Approved"
   Receives:
-    a signing_messages.ListRequest encoded in json
-    with the id of the signer
+    a messages.AddGenericUserRequest encoded in json
+    with the id of the initiator.
+    The id of the head of hospital of the new user
+    The public key of the new user
+    The name of the new user
   Returns:
-    a signing_messages.ListReply encoded in json
-    with the list of actions
+    a messages.ActionReply encoded in json
+    with the transaction and the id of the signers
+    that need to sign it
+
+/add/manager:
+  Description:
+    Prepares the transaction for creating a darc
+    for a new manager
+    adapt the list darcs
+    Adds the metadata for the manager as "Non-Approved"
+  Receives:
+    a messages.AddGenericUserRequest encoded in json
+    with the id of the initiator.
+    The id of the head of hospital of the new manager
+    The public key of the new manager
+    The name of the new manager
+  Returns:
+    a messages.ActionReply encoded in json
+    with the transaction and the id of the signers
+    that need to sign it
+
+/add/admin:
+  Description:
+    Prepares the transaction for creating a darc
+    for a new admin
+    adapt the list darcs
+    Adds the metadata for the admin as "Non-Approved"
+  Receives:
+    a messages.AddGenericUserRequest encoded in json
+    with the id of the initiator.
+    The id of the head of hospital of the new admin
+    The public key of the new admin
+    The name of the new admin
+  Returns:
+    a messages.ActionReply encoded in json
+    with the transaction and the id of the signers
+    that need to sign it
+
+/add/hospital:
+  Description:
+    Prepares the transaction for creating
+    the darcs for a new hospital
+    And adapt the existing darcs
+    Adds the metadata for the hospital as "Non-Approved"
+  Receives:
+    a messages.AddHospitalRequest encoded in json
+    With the id of the initiator.
+    The public key of the head of the new hospital
+    The name of the hospital
+    The name of the new head of hospital
+  Returns:
+    a messages.ActionReply encoded in json
+    with the transaction and the id of the signers
+    that need to sign it
+
+/add/project:
+  Description:
+    Prepares the transaction for creating
+    the darc for a new project
+    and updating the project list value and the user-project map
+    Adds the metadata for the project as "Non-Approved"
+  Receives:
+    a messages.AddProjectRequest encoded in json
+    With the id of the initiator.
+    The name of the project
+    The list of managers Ids
+    The query-user map
+  Returns:
+    a messages.ActionReply encoded in json
+    with the transaction and the id of the signers
+    that need to sign it
+
+/commit/action:
+  Description:
+    Commits the action after it
+    has been approved and signed
+    Submits the transaction and adapt the metadata
+  Receives:
+    a messages.CommitRequest
+    with the signed transaction to submit
+    and the action type
+    (the one given in the ActionReply generated by the server)
+  Returns:
+    200 code if it worked out
+
+
+/cancel/action:
+  Description:
+    Cancel an action
+  Receives:
+    a messages.CommitRequest
+    with the transaction prepaed by the server
+    and the action type
+    (the one given in the ActionReply generated by the server)
+  Returns:
+    200 code if it worked out
+
+/applyTransaction:
+  Description:
+    submits a transaction for logging in
+    or for registering querries
+  Receives:
+    a transaction encoded in base64 in the header
+  Returns:
+    the generated token
+
+/tokenIntrospectionLogin:
+  Description:
+    Does the token introspection for a login token
+  Receives:
+    A token
+  Returns:
+    ?
+
+/tokenIntrospectionQuery:
+  Description:
+    Does the token introspection for a query token
+  Receives:
+    A token
+  Returns:
+    ?
