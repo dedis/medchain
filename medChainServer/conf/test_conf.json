@@ -1,5 +1,5 @@
 {
-  "KeyDirectory":"keys/",
+  "KeyDirectory":"../keys/",
   "Hospitals": [
     {
       "Name":"Hospital1",

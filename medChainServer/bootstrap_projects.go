@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/DPPH/MedChain/medChainServer/conf"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
@@ -222,8 +223,8 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 	}
 
 	metaData.AllProjectsListInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err := cl.WaitProof(metaData.AllProjectsListInstanceID, metaData.GenesisMsg.BlockInterval, nil)
-	if pr.InclusionProof.Match() != true {
+	pr, err := cl.WaitProof(metaData.AllProjectsListInstanceID, time.Duration(4)*metaData.GenesisMsg.BlockInterval, nil)
+	if err != nil || pr.InclusionProof.Match() != true {
 		panic(err)
 	}
 
@@ -256,7 +257,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 		panic(err)
 	}
 	metaData.UserProjectsMapInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err = cl.WaitProof(metaData.UserProjectsMapInstanceID, metaData.GenesisMsg.BlockInterval, nil)
+	pr, err = cl.WaitProof(metaData.UserProjectsMapInstanceID, 4*metaData.GenesisMsg.BlockInterval, nil)
 	if pr.InclusionProof.Match() != true {
 		panic(err)
 	}

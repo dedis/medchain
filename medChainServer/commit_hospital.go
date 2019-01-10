@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
@@ -64,25 +66,12 @@ This function is called by the CommitAction entry point when the given action
 It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
 **/
 func CommitHospital(w http.ResponseWriter, r *http.Request, transaction_string string) {
-
-	transaction, err := extractTransactionFromString(transaction_string)
+	start := time.Now()
+	reply, err := subFunctionCommitHospital(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	new_darcs, evolved_darcs, err := checkTransactionForNewHospital(transaction)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	err = submitTransactionForNewHospitals(transaction, new_darcs, evolved_darcs)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	hospital_metadata, err := adaptMetadataForNewHospital(new_darcs, evolved_darcs)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
-	json_val, err := json.Marshal(&reply)
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -91,6 +80,29 @@ func CommitHospital(w http.ResponseWriter, r *http.Request, transaction_string s
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+	elapsed := time.Since(start)
+	fmt.Printf("Time to commit new hospital : %s\n", elapsed.String())
+}
+
+func subFunctionCommitHospital(transaction_string string) (*messages.HospitalInfoReply, error) {
+	transaction, err := extractTransactionFromString(transaction_string)
+	if err != nil {
+		return nil, err
+	}
+	new_darcs, evolved_darcs, err := checkTransactionForNewHospital(transaction)
+	if err != nil {
+		return nil, err
+	}
+	err = submitTransactionForNewHospitals(transaction, new_darcs, evolved_darcs)
+	if err != nil {
+		return nil, err
+	}
+	hospital_metadata, err := adaptMetadataForNewHospital(new_darcs, evolved_darcs)
+	if err != nil {
+		return nil, err
+	}
+	reply := messages.HospitalInfoReply{SuperAdminId: hospital_metadata.SuperAdmin.Id.String(), HospitalName: hospital_metadata.Name, AdminListDarcBaseId: hospital_metadata.AdminListDarcBaseId, ManagerListDarcBaseId: hospital_metadata.ManagerListDarcBaseId, UserListDarcBaseId: hospital_metadata.UserListDarcBaseId, IsCreated: hospital_metadata.SuperAdmin.IsCreated}
+	return &reply, nil
 }
 
 func checkTransactionForNewHospital(transaction *service.ClientTransaction) ([]*darc.Darc, []*darc.Darc, error) {

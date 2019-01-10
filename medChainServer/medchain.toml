@@ -1,0 +1,11 @@
+Simulation = "ServiceMedChain"
+Servers = 3
+Bf = 2
+Suite = "Ed25519"
+Rounds = 1
+Bandwidth = 100
+Delay = 20
+RunWait = "2h"
+
+Hosts
+5

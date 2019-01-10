@@ -34,12 +34,11 @@ func AddHospital(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	identity, transaction, signers, digests, err := prepareNewHospital(&request)
+	reply, err := subFunctionAddHospital(&request)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new hospital", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
-	json_val, err := json.Marshal(&reply)
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -48,6 +47,15 @@ func AddHospital(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+}
+
+func subFunctionAddHospital(request *messages.AddHospitalRequest) (*messages.ActionReply, error) {
+	identity, transaction, signers, digests, err := prepareNewHospital(request)
+	if err != nil {
+		return nil, err
+	}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new hospital", Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	return &reply, nil
 }
 
 func prepareNewHospital(request *messages.AddHospitalRequest) (string, string, map[string]int, map[int][]byte, error) {

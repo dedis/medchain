@@ -4,7 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
@@ -26,6 +28,7 @@ This function is called by the CancelAction entry point when the given action
 It takes care of cleaning the metadata to erase the effects of the action.
 **/
 func cancelNewGenericUser(w http.ResponseWriter, r *http.Request, transaction_string, user_type string) {
+
 	transaction, err := extractTransactionFromString(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
 		return
@@ -91,24 +94,12 @@ This function is called by the CommitAction entry point when the given action
 It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
 **/
 func commitNewGenericUserToChain(w http.ResponseWriter, r *http.Request, transaction_string, user_type string) {
-	transaction, err := extractTransactionFromString(transaction_string)
+	start := time.Now()
+	reply, err := subFunctionCommitGenericUser(transaction_string, user_type)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	new_darc, evolved_darc, err := checkTransactionForNewGenericUser(transaction, user_type)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	err = submitTransactionForNewGenericUser(transaction, new_darc, evolved_darc)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	user_metadata, err := adaptMetadata(new_darc, evolved_darc, user_type)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated}
-	json_val, err := json.Marshal(&reply)
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -117,6 +108,30 @@ func commitNewGenericUserToChain(w http.ResponseWriter, r *http.Request, transac
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+	elapsed := time.Since(start)
+	fmt.Printf("Time to commit new %s : %s\n", user_type, elapsed.String())
+}
+
+func subFunctionCommitGenericUser(transaction_string, user_type string) (*messages.GenericUserInfoReply, error) {
+	transaction, err := extractTransactionFromString(transaction_string)
+	if err != nil {
+		return nil, err
+	}
+	new_darc, evolved_darc, err := checkTransactionForNewGenericUser(transaction, user_type)
+	if err != nil {
+		return nil, err
+	}
+	user_metadata, err := adaptMetadata(new_darc, evolved_darc, user_type)
+	if err != nil {
+		return nil, err
+	}
+	err = submitTransactionForNewGenericUser(transaction, new_darc, evolved_darc)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := messages.GenericUserInfoReply{Id: user_metadata.Id.String(), Name: user_metadata.Name, DarcBaseId: user_metadata.DarcBaseId, SuperAdminId: user_metadata.Hospital.SuperAdmin.Id.String(), IsCreated: user_metadata.IsCreated}
+	return &reply, nil
 }
 
 func adaptMetadata(new_darc, evolved_darc *darc.Darc, user_type string) (*metadata.GenericUser, error) {
@@ -197,6 +212,10 @@ func checkTransactionForNewGenericUser(transaction *service.ClientTransaction, u
 
 func submitTransactionForNewGenericUser(transaction *service.ClientTransaction, new_darc, evolved_darc *darc.Darc) error {
 	// Commit transaction
+
+	for i := 0; i < len(transaction.Instructions); i++ {
+		fmt.Println("after", len(transaction.Instructions[i].Signatures))
+	}
 	if _, err := cl.AddTransaction(*transaction); err != nil {
 		return err
 	}

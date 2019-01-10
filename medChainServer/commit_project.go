@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/DPPH/MedChain/medChainServer/messages"
 	"github.com/DPPH/MedChain/medChainServer/metadata"
@@ -75,28 +77,12 @@ This function is called by the CommitAction entry point when the given action
 It takes care of submitting the transaction, checking that it has been accepted, and adapt the metadata.
 **/
 func CommitProject(w http.ResponseWriter, r *http.Request, transaction_string string) {
-
-	transaction, err := extractTransactionFromString(transaction_string)
+	start := time.Now()
+	reply, err := subFunctionCommitProject(transaction_string)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-
-	project_darc, project_list_bytes, user_bytes, err := checkTransactionForNewProject(transaction)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-
-	err = submitTransactionForNewProject(transaction, project_darc, project_list_bytes, user_bytes)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-
-	project_metadata, err := adaptMetadataForNewProject(project_darc)
-	if medChainUtils.CheckError(err, w, r) {
-		return
-	}
-	reply := projectMetadataToInfoReply(project_metadata)
-	json_val, err := json.Marshal(&reply)
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -105,6 +91,32 @@ func CommitProject(w http.ResponseWriter, r *http.Request, transaction_string st
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+	elapsed := time.Since(start)
+	fmt.Printf("Time to commit new project : %s\n", elapsed.String())
+}
+
+func subFunctionCommitProject(transaction_string string) (*messages.ProjectInfoReply, error) {
+	transaction, err := extractTransactionFromString(transaction_string)
+	if err != nil {
+		return nil, err
+	}
+
+	project_darc, project_list_bytes, user_bytes, err := checkTransactionForNewProject(transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	err = submitTransactionForNewProject(transaction, project_darc, project_list_bytes, user_bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	project_metadata, err := adaptMetadataForNewProject(project_darc)
+	if err != nil {
+		return nil, err
+	}
+	reply := projectMetadataToInfoReply(project_metadata)
+	return &reply, nil
 }
 
 func checkTransactionForNewProject(transaction *service.ClientTransaction) (*darc.Darc, []byte, []byte, error) {

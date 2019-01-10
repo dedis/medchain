@@ -38,12 +38,12 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name, transaction, signers, digests, err := prepareNewProject(&request)
+	reply, err := subFunctionAddProject(&request)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{name}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
-	json_val, err := json.Marshal(&reply)
+
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -52,6 +52,15 @@ func AddProject(w http.ResponseWriter, r *http.Request) {
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+}
+
+func subFunctionAddProject(request *messages.AddProjectRequest) (*messages.ActionReply, error) {
+	name, transaction, signers, digests, err := prepareNewProject(request)
+	if err != nil {
+		return nil, err
+	}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new project", Ids: []string{name}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	return &reply, nil
 }
 
 func prepareNewProject(request *messages.AddProjectRequest) (string, string, map[string]int, map[int][]byte, error) {

@@ -178,7 +178,7 @@ func createGenericUserDarc(user_metadata *metadata.GenericUser, owner_darc *darc
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("add "+user_type+" darc", user_metadata.Id.String())
+	fmt.Println("add "+user_type+" darc", user_metadata.Id.String(), " hospital : "+user_metadata.Hospital.SuperAdmin.Id.String())
 	user_metadata.DarcBaseId = addDarcToMaps(tempDarc, metaData)
 	user_metadata.IsCreated = true
 	return tempDarc
@@ -351,7 +351,7 @@ func createUsersDarcs(metaData *metadata.Metadata, signers []darc.Signer) {
 This function loads the configuration from the configuration file
 and starts the bootstrapping process
 **/
-func startSystem(metaData *metadata.Metadata) {
+func startSystem(metaData *metadata.Metadata, configFileName string) {
 	fmt.Println("####### Starting Bootstraping #######")
 	configuration, err := conf.ReadConf(configFileName)
 	if err != nil {

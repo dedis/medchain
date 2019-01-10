@@ -14,6 +14,7 @@ import (
 	"github.com/DPPH/MedChain/medChainServer/metadata"
 	"github.com/DPPH/MedChain/medChainUtils"
 	"github.com/DPPH/MedChain/signingService/signing_messages"
+	"github.com/DPPH/cothority"
 	"github.com/dedis/cothority/omniledger/darc"
 	"github.com/dedis/cothority/omniledger/darc/expression"
 	"github.com/dedis/cothority/omniledger/service"
@@ -59,12 +60,11 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	identity, transaction, signers, digests, err := prepareNewUser(&request, user_type)
+	reply, err := subFunctionAddGenericUser(&request, user_type)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
-	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new " + user_type, Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
-	json_val, err := json.Marshal(&reply)
+	json_val, err := json.Marshal(reply)
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
@@ -73,6 +73,15 @@ func replyNewGenericUserRequest(w http.ResponseWriter, r *http.Request, user_typ
 	if medChainUtils.CheckError(err, w, r) {
 		return
 	}
+}
+
+func subFunctionAddGenericUser(request *messages.AddGenericUserRequest, user_type string) (*messages.ActionReply, error) {
+	identity, transaction, signers, digests, err := prepareNewUser(request, user_type)
+	if err != nil {
+		return nil, err
+	}
+	reply := messages.ActionReply{Initiator: request.Initiator, ActionType: "add new " + user_type, Ids: []string{identity}, Transaction: transaction, Signers: signers, InstructionDigests: digests}
+	return &reply, nil
 }
 
 func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (string, string, map[string]int, map[int][]byte, error) {
@@ -106,10 +115,12 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 		return "", "", nil, nil, errors.New("There is already a user with that public key")
 	}
 
-	owner_darc, signers_ids, signers, err := getSigners(hospital_metadata, user_type, request.PreferredSigners)
+	owner_darc, _, signers, err := getSigners(hospital_metadata, user_type, request.PreferredSigners)
 	if err != nil {
 		return "", "", nil, nil, err
 	}
+
+	fmt.Println("===========================BaseDarc", owner_darc.GetBaseID())
 
 	list_darc, err := getListDarc(hospital_metadata, user_type)
 	if err != nil {
@@ -120,11 +131,11 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 	if err != nil {
 		return "", "", nil, nil, err
 	}
-	base_darcs := []*darc.Darc{owner_darc, list_darc}
-	digests, err := computeTransactionDigests(transaction, signers_ids, base_darcs)
-	if err != nil {
-		return "", "", nil, nil, err
-	}
+	// base_darcs := []*darc.Darc{owner_darc, list_darc}
+	// digests, err := computeTransactionDigests(transaction, signers_ids, base_darcs)
+	// if err != nil {
+	// 	return "", "", nil, nil, err
+	// }
 
 	if err := addGenericUserToMetadata(metaData, hospital_metadata, identity, request.Name, user_type, new_darc); err != nil {
 		return "", "", nil, nil, err
@@ -135,7 +146,7 @@ func prepareNewUser(request *messages.AddGenericUserRequest, user_type string) (
 		return "", "", nil, nil, err
 	}
 
-	return identity.String(), transaction_string, signers, digests, nil
+	return identity.String(), transaction_string, signers, nil, nil
 }
 
 func checkRequestForNewUser(request *messages.AddGenericUserRequest) error {
@@ -154,6 +165,21 @@ func transactionToString(transaction *service.ClientTransaction) (string, error)
 		return "", err
 	}
 	transaction_b64 := base64.StdEncoding.EncodeToString(transaction_bytes)
+
+	_, tmp, err := network.Unmarshal(transaction_bytes, cothority.Suite)
+	if err != nil {
+		fmt.Println("error1", err)
+	} else {
+		fmt.Println("passed1")
+	}
+	_, ok := tmp.(*service.ClientTransaction)
+
+	if !ok {
+		fmt.Println("error2")
+	} else {
+		fmt.Println("passed2")
+	}
+
 	return transaction_b64, nil
 }
 

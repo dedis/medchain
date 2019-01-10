@@ -278,7 +278,7 @@ func submitSignedTransactionForNewDARC(client *service.Client, tempDarc *darc.Da
 
 	// Verify DARC creation before returning its reference
 	instID := service.NewInstanceID(tempDarc.GetBaseID())
-	pr, err := client.WaitProof(instID, interval, nil)
+	pr, err := client.WaitProof(instID, time.Duration(4)*interval, nil)
 	if err != nil || pr.InclusionProof.Match() == false {
 		fmt.Println("Error at transaction submission")
 		return nil, err
