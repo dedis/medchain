@@ -280,6 +280,7 @@ function DenyAction(action_info){
 
 function CommitAction(action_info){
   var json_val = {"transaction": action_info.action.transaction, "action_type": action_info.action.action_type}
+  var action_id = action_info.action_id;
   $.ajax
     ({
         type: "POST",
@@ -287,18 +288,18 @@ function CommitAction(action_info){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success:function(){
-          let id = action_info.action_id;
+          let id = action_id;
           ChangeActionStatusToDone(id);
         },
-        failure: function(error){
-          alert("Error while comitting : " + error["responseText"]);
-        },
+        failure:ShowActionError,
+        error:ShowActionError,
         contentType: 'application/json'
     });
 }
 
 function CancelAction(action_info){
   var json_val = {"transaction": action_info.action.transaction, "action_type": action_info.action.action_type}
+  var action_id = action_info.action_id;
   $.ajax
     ({
         type: "POST",
@@ -306,12 +307,11 @@ function CancelAction(action_info){
         dataType: 'json',
         data: JSON.stringify(json_val),
         success:function(){
-          let id = action_info.action_id;
+          let id =action_id;
           ChangeActionStatusToCancelled(id);
         },
-        failure: function(error){
-          alert("Error while cancelling : " + error["responseText"]);
-        },
+        failure:ShowActionError,
+        error:ShowActionError,
         contentType: 'application/json'
     });
 }
@@ -326,6 +326,7 @@ function ChangeActionStatusToDone(id){
         data: JSON.stringify(json_val),
         success:RefreshAllInfo,
         failure:ShowActionError,
+        error:ShowActionError,
         contentType: 'application/json'
     });
 }
@@ -340,10 +341,11 @@ function ChangeActionStatusToCancelled(id){
         data: JSON.stringify(json_val),
         success:RefreshAllInfo,
         failure:ShowActionError,
+        error:ShowActionError,
         contentType: 'application/json'
     });
 }
 
 function ShowActionError(error) {
-  alert("Error with the Signing Service: "+ error["responseText"]);
+  alert("Error while submitting"+ error["responseText"]);
 }
