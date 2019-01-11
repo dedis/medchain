@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
-	"github.com/dedis/onet/log"
 	"os"
 	"strings"
+
+	"github.com/dedis/onet/log"
 )
 
 const spacing = 50

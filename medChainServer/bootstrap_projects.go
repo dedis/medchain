@@ -223,7 +223,7 @@ func createProjectDarcs(configuration *conf.Configuration, metaData *metadata.Me
 	}
 
 	metaData.AllProjectsListInstanceID = service.NewInstanceID(ctx.Instructions[0].Hash())
-	pr, err := cl.WaitProof(metaData.AllProjectsListInstanceID, time.Duration(4)*metaData.GenesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(metaData.AllProjectsListInstanceID, time.Duration(20)*metaData.GenesisMsg.BlockInterval, nil)
 	if err != nil || pr.InclusionProof.Match() != true {
 		panic(err)
 	}

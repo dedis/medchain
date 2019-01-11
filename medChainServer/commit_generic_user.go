@@ -213,16 +213,13 @@ func checkTransactionForNewGenericUser(transaction *service.ClientTransaction, u
 func submitTransactionForNewGenericUser(transaction *service.ClientTransaction, new_darc, evolved_darc *darc.Darc) error {
 	// Commit transaction
 
-	for i := 0; i < len(transaction.Instructions); i++ {
-		fmt.Println("after", len(transaction.Instructions[i].Signatures))
-	}
 	if _, err := cl.AddTransaction(*transaction); err != nil {
 		return err
 	}
 
 	// // Verify DARC creation
 	instID := service.NewInstanceID(new_darc.GetBaseID())
-	pr, err := cl.WaitProof(instID, metaData.GenesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(instID, time.Duration(20)*metaData.GenesisMsg.BlockInterval, nil)
 	if err != nil || pr.InclusionProof.Match() == false {
 		return errors.New("Could not get proof of the darc creation")
 	}

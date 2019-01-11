@@ -8,4 +8,7 @@ Delay = 20
 RunWait = "2h"
 
 Hosts
-5
+90
+# 30
+# 45
+# 60

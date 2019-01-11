@@ -10,7 +10,27 @@ const filenameRead = "medchain.csv"
 const filenameWrite = "result.txt"
 const filenameToml = "../medchain.toml"
 
-var flags = []string{"bf", "depth", "rounds", "runwait", "servers", "\n", "BootstrapProcess"}
+var flags = []string{
+	"bf",
+	"depth",
+	"rounds",
+	"runwait",
+	"servers",
+	"BootstrapProcess",
+	"AddNewUserTotal",
+	"AddNewUserPrepareTransaction",
+	"AddNewUserSignTransaction",
+	"AddNewUserSubmitTransaction",
+	"AddNewHospitalTotal",
+	"AddNewHospitalPrepareTransaction",
+	"AddNewHospitalSignTransaction",
+	"AddNewHospitalSubmitTransaction",
+	"AddNewProjectTotal",
+	"AddNewProjectPrepareTransaction",
+	"AddNewProjectSignTransaction",
+	"AddNewProjectSubmitTransaction",
+	"\n",
+}
 
 func TestReadTomlSetup(t *testing.T) {
 	timedata.ReadTomlSetup(filenameToml, 0)

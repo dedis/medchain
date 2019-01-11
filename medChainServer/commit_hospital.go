@@ -175,6 +175,12 @@ func adaptMetadataForNewHospital(new_darcs, evolved_darcs []*darc.Darc) (*metada
 
 func submitTransactionForNewHospitals(transaction *service.ClientTransaction, new_darcs, evolved_darcs []*darc.Darc) error {
 	// Commit transaction
+	// for _, instruction := range transaction.Instructions {
+	// 	for _, signature := range instruction.Signatures {
+	// 		fmt.Println("Signer", signature.Signer.String())
+	// 		fmt.Println("Signature Submitted", string(signature.Signature))
+	// 	}
+	// }
 	if _, err := cl.AddTransaction(*transaction); err != nil {
 		return err
 	}
@@ -182,7 +188,7 @@ func submitTransactionForNewHospitals(transaction *service.ClientTransaction, ne
 	for _, new_darc := range new_darcs {
 		// // Verify DARC creation
 		instID := service.NewInstanceID(new_darc.GetBaseID())
-		pr, err := cl.WaitProof(instID, metaData.GenesisMsg.BlockInterval, nil)
+		pr, err := cl.WaitProof(instID, time.Duration(20)*metaData.GenesisMsg.BlockInterval, nil)
 		if err != nil || pr.InclusionProof.Match() == false {
 			return errors.New("Could not get proof of the darc creation")
 		}

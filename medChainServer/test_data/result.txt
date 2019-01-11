@@ -6,12 +6,24 @@
 |-------------------------------------------------------------------------|
 
 
-Hosts:                                             5
+Hosts:                                             60
 
 bf:                                                2
-depth:                                             2
+depth:                                             5
 rounds:                                            1
 runwait:                                           2h
 servers:                                           3
+BootstrapProcess:                                  200.685103
+AddNewUserTotal:                                   4.070815
+AddNewUserPrepareTransaction:                      0.001088
+AddNewUserSignTransaction:                         0.003980
+AddNewUserSubmitTransaction:                       4.065177
+AddNewHospitalTotal:                               4.198128
+AddNewHospitalPrepareTransaction:                  0.002735
+AddNewHospitalSignTransaction:                     0.011731
+AddNewHospitalSubmitTransaction:                   4.183118
+AddNewProjectTotal:                                4.071229
+AddNewProjectPrepareTransaction:                   0.000794
+AddNewProjectSignTransaction:                      0.004097
+AddNewProjectSubmitTransaction:                    4.066105
 
-BootstrapProcess:                                  29.871191

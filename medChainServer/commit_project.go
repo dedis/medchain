@@ -219,7 +219,7 @@ func submitTransactionForNewProject(transaction *service.ClientTransaction, proj
 
 	// // Verify DARC creation
 	instID := service.NewInstanceID(project_darc.GetBaseID())
-	pr, err := cl.WaitProof(instID, metaData.GenesisMsg.BlockInterval, nil)
+	pr, err := cl.WaitProof(instID, time.Duration(20)*metaData.GenesisMsg.BlockInterval, nil)
 	if err != nil || pr.InclusionProof.Match() == false {
 		return errors.New("Could not get proof of the darc creation")
 	}
