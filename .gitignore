@@ -1,6 +1,6 @@
 .idea/
-medChainAdmin/medChainAdmin
-medChainServer/medChainServer
-signingService/data/*.db
-signingService/signingService
+conode/co*
+conode/log
+conode/tmp
+conode/*.db
 *.out
