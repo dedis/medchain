@@ -25,11 +25,11 @@ func TestSpawn(t *testing.T) {
 	args := byzcoin.Arguments{
 		{
 			Name:  "queryID1",
-			Value: []byte{1},
+			Value: []byte("Approved"),
 		},
 		{
 			Name:  "queryID2",
-			Value: []byte{2},
+			Value: []byte("Rejected"),
 		},
 	}
 	// And send it to the ledger.
@@ -52,7 +52,7 @@ func TestSpawn(t *testing.T) {
 	// Verify all values are in there.
 	for i, s := range cs.Storage {
 		require.Equal(t, args[i].Name, s.ID)
-		require.Equal(t, args[i].Value, s.Value)
+		require.Equal(t, args[i].Value, []byte(s.Status))
 	}
 }
 
@@ -62,17 +62,24 @@ func TestInvoke(t *testing.T) {
 	bct.cl.UseNode(0)
 	defer bct.Close()
 
+	// define varibales
+	var queryArgs1 = Query{}
+	queryArgs1.ID = "query1"
+	queryArgs1.Status = "Rejected"
+
+	var queryArgs2 = Query{}
+	queryArgs2.ID = "query2"
+	queryArgs2.Status = "Approved"
+
 	// Create a new instance with two key/values:
-	//  "queryID1": []byte{1}
-	//  "queryID2": []byte{2}
 	args := byzcoin.Arguments{
 		{
-			Name:  "queryID1",
-			Value: []byte{1},
+			Name:  queryArgs1.ID,
+			Value: []byte(queryArgs1.Status),
 		},
 		{
-			Name:  "queryID2",
-			Value: []byte{2},
+			Name:  queryArgs2.ID,
+			Value: []byte(queryArgs2.Status),
 		},
 	}
 	// And send it to the ledger.
@@ -83,19 +90,15 @@ func TestInvoke(t *testing.T) {
 	require.Nil(t, err)
 	pr1 := reply.Proof
 
-	// Delete the key "queryID1", change "queryID2" and add a "queryID3"
+	// Change "query2" and add a "query3"
 	args = byzcoin.Arguments{
 		{
-			Name:  "queryID1",
-			Value: nil,
+			Name:  queryArgs2.ID,
+			Value: []byte("Executed"),
 		},
 		{
-			Name:  "queryID2",
-			Value: []byte{22},
-		},
-		{
-			Name:  "queryID3",
-			Value: []byte{3},
+			Name:  "query3",
+			Value: []byte("Approved"),
 		},
 	}
 	bct.updateInstance(t, instID, args)
@@ -114,46 +117,53 @@ func TestInvoke(t *testing.T) {
 	err = protobuf.Decode(v2, &newArgs)
 	require.Nil(t, err)
 	// Verify the content is as it is supposed to be.
-	require.Equal(t, 2, len(newArgs.Storage))
-	require.Equal(t, "queryID2", newArgs.Storage[0].ID)
-	require.Equal(t, []byte{22}, newArgs.Storage[0].Value)
-	require.Equal(t, "queryID3", newArgs.Storage[1].ID)
-	require.Equal(t, []byte{3}, newArgs.Storage[1].Value)
+	require.Equal(t, 3, len(newArgs.Storage))
+	require.Equal(t, "query1", newArgs.Storage[0].ID)
+	require.Equal(t, "Rejected", newArgs.Storage[0].Status)
+	require.Equal(t, "query2", newArgs.Storage[1].ID)
+	require.Equal(t, "Executed", newArgs.Storage[1].Status)
 }
 
 func TestUpdate(t *testing.T) {
 	cs := QueryData{
 		Storage: []Query{{
-			ID:    "queryID1",
-			Value: []byte{1},
+			ID:     "query3",
+			Status: "Approved",
 		}},
 	}
 
 	cs.Update(byzcoin.Arguments{{
-		Name:  "queryID1",
-		Value: []byte{2},
+		Name:  "query3",
+		Value: []byte("Executed"),
 	}})
 	require.Equal(t, 1, len(cs.Storage))
-	require.Equal(t, []byte{2}, cs.Storage[0].Value)
+	require.Equal(t, "Executed", cs.Storage[0].Status)
 
 	cs.Update(byzcoin.Arguments{{
-		Name:  "queryID1",
-		Value: nil,
+		Name:  "query1",
+		Value: []byte("Approved"),
 	}})
-	require.Equal(t, 0, len(cs.Storage))
+	require.Equal(t, 2, len(cs.Storage))
 
 	cs.Update(byzcoin.Arguments{{
-		Name:  "queryID2",
-		Value: []byte{22},
+		Name:  "query2",
+		Value: []byte("Executed"),
 	}})
-	require.Equal(t, 1, len(cs.Storage))
-	require.Equal(t, []byte{22}, cs.Storage[0].Value)
+	require.Equal(t, 3, len(cs.Storage))
+	require.Equal(t, "query3", cs.Storage[0].ID)
+	require.Equal(t, "Executed", cs.Storage[0].Status)
+	require.Equal(t, "query1", cs.Storage[1].ID)
+	require.Equal(t, "Approved", cs.Storage[1].Status)
+	require.Equal(t, "query2", cs.Storage[2].ID)
+	require.Equal(t, "Executed", cs.Storage[2].Status)
 
 	cs.Update(byzcoin.Arguments{{
-		Name:  "queryID2",
-		Value: []byte{},
+		Name:  "query1",
+		Value: []byte("Executed"),
 	}})
-	require.Equal(t, 0, len(cs.Storage))
+	require.Equal(t, 3, len(cs.Storage))
+	require.Equal(t, "query1", cs.Storage[1].ID)
+	require.Equal(t, "Executed", cs.Storage[1].Status)
 }
 
 // bcTest is used here to provide some simple test structure for different

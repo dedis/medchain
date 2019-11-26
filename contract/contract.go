@@ -48,10 +48,10 @@ func (c *medchainContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Ins
 		return nil, nil, xerrors.Errorf("failed to get the darc ID: %v", err)
 	}
 
-	// Put the data received from the inst.Spawn.Args into our QueryData structure.
+	// Put the data received in the inst.Spawn.Args into our QueryData structure.
 	cs := &c.QueryData
 	for _, kv := range inst.Spawn.Args {
-		cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
+		cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
 	}
 
 	// Encode the data into our QueryDataStorage structure that holds all the key-value pairs
@@ -72,21 +72,26 @@ func (c *medchainContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Ins
 
 func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction, coins []byzcoin.Coin) (sc []byzcoin.StateChange, cout []byzcoin.Coin, err error) {
 	cout = coins
+
+	//TODO: add the darcs and  check for approval
 	var darcID darc.ID
 	_, _, _, darcID, err = rst.GetValues(inst.InstanceID.Slice())
 	if err != nil {
 		return
 	}
 
-	if inst.Invoke.Command != "update" {
-		return nil, nil, errors.New("MedChain contract only supports spwan/update requests")
+	if inst.Invoke.Command != "update" && inst.Invoke.Command != "verifystatus" {
+		return nil, nil, errors.New("MedChain contract only supports spwan/update/verifystatus requests")
 	}
-	// The only command we can invoke is 'update' which will store the new values
+	// One of the commands we can invoke is 'update' which will store the new values
 	// given in the arguments in the data.
 	//  1. decode the existing data
 	//  2. update the data
 	//  3. encode the data into protobuf again
+	switch inst.Invoke.Command {
+	case "update":
 
+	}
 	kvd := &c.QueryData
 	kvd.Update(inst.Invoke.Args)
 	var buf []byte
@@ -115,12 +120,31 @@ func (cs *QueryData) Update(args byzcoin.Arguments) {
 					cs.Storage = append(cs.Storage[0:i], cs.Storage[i+1:]...)
 					break
 				}
-				cs.Storage[i].Value = kv.Value
+				cs.Storage[i].Status = string(kv.Value)
 			}
 
 		}
 		if !updated {
-			cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
+			cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
 		}
 	}
 }
+
+// Verifystatus goes through all the arguments and:
+// - if found: returns the status of the query off the ledger
+// - if not found: returns nil
+// func (cs *QueryData) Verifystatus(args byzcoin.Arguments) (sc []byzcoin.StateChange, cout []byzcoin.Coin, err error){
+// 	for _, kv := range args {
+// 		var found bool
+// 		for i, stored := range cs.Storage {
+// 			if stored.ID == kv.Name {
+// 				found = true
+// 				return kv.Value
+// 			}
+
+// 		}
+// 		if !found {
+// 			return nil, nil, xerrors.Errorf("Could not locate the query with ID %s with error: %v",stored.ID, err)
+// 		}
+// 	}
+// }
