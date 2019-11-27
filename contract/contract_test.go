@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
@@ -20,8 +21,6 @@ func TestSpawn(t *testing.T) {
 	defer bct.Close()
 
 	// Create a new instance with two key/values:
-	//  "one": []byte{1}
-	//  "two": []byte{2}
 	args := byzcoin.Arguments{
 		{
 			Name:  "queryID1",
@@ -139,12 +138,14 @@ func TestUpdate(t *testing.T) {
 	require.Equal(t, 1, len(cs.Storage))
 	require.Equal(t, "Executed", cs.Storage[0].Status)
 
+	// query1 does not exist, thus will be added
 	cs.Update(byzcoin.Arguments{{
 		Name:  "query1",
 		Value: []byte("Approved"),
 	}})
 	require.Equal(t, 2, len(cs.Storage))
 
+	// query2 does not exist, thus will be added
 	cs.Update(byzcoin.Arguments{{
 		Name:  "query2",
 		Value: []byte("Executed"),
@@ -164,6 +165,53 @@ func TestUpdate(t *testing.T) {
 	require.Equal(t, 3, len(cs.Storage))
 	require.Equal(t, "query1", cs.Storage[1].ID)
 	require.Equal(t, "Executed", cs.Storage[1].Status)
+}
+
+func TestVerifyStatus(t *testing.T) {
+	// Add query1 to the ledger
+	cs := QueryData{
+		Storage: []Query{{
+			ID:     "query1",
+			Status: "Approved",
+		}},
+	}
+
+	// query2 does not exist, thus will be added
+	cs.Update(byzcoin.Arguments{{
+		Name:  "query2",
+		Value: []byte("Rejected"),
+	}})
+
+	// check the skipchain (items in the ledger)
+	require.Equal(t, 2, len(cs.Storage))
+	require.Equal(t, "query1", cs.Storage[0].ID)
+	require.Equal(t, "Approved", cs.Storage[0].Status)
+	require.Equal(t, "query2", cs.Storage[1].ID)
+	require.Equal(t, "Rejected", cs.Storage[1].Status)
+
+	// Check the status of query1
+	err := cs.VerifyStatus(byzcoin.Arguments{{
+		Name: "query1",
+	}})
+	//The status of query1 is Approved, so should return nil
+	assert.Nil(t, err)
+
+	// Check the status of query2
+	err = cs.VerifyStatus(byzcoin.Arguments{{
+		Name: "query2",
+	}})
+
+	//The status of query2 is not Approved, so should return some error (i.e., not nil)
+	assert.NotNil(t, err)
+
+	// Check the status of query3
+	err = cs.VerifyStatus(byzcoin.Arguments{{
+		Name: "query3",
+	}})
+
+	//query3 does not exist, so chould return error
+	assert.NotNil(t, err)
+
 }
 
 // bcTest is used here to provide some simple test structure for different

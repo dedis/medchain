@@ -77,32 +77,51 @@ func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.In
 	var darcID darc.ID
 	_, _, _, darcID, err = rst.GetValues(inst.InstanceID.Slice())
 	if err != nil {
-		return
+		return nil, nil, xerrors.Errorf("failed to authorize the query with error:", err)
 	}
 
 	if inst.Invoke.Command != "update" && inst.Invoke.Command != "verifystatus" {
 		return nil, nil, errors.New("MedChain contract only supports spwan/update/verifystatus requests")
 	}
+
+	switch inst.Invoke.Command {
 	// One of the commands we can invoke is 'update' which will store the new values
 	// given in the arguments in the data.
 	//  1. decode the existing data
 	//  2. update the data
 	//  3. encode the data into protobuf again
-	switch inst.Invoke.Command {
 	case "update":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+	case "verifystatus":
+		kvd := &c.QueryData
+		err := kvd.VerifyStatus(inst.Invoke.Args)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to verify the query status with error: %v", err)
+		}
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Create, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+		return sc, cout, nil
 
 	}
-	kvd := &c.QueryData
-	kvd.Update(inst.Invoke.Args)
-	var buf []byte
-	buf, err = protobuf.Encode(kvd)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
-	}
-	sc = []byzcoin.StateChange{
-		byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
-			MedchainContractID, buf, darcID),
-	}
+
 	return
 }
 
@@ -130,21 +149,27 @@ func (cs *QueryData) Update(args byzcoin.Arguments) {
 	}
 }
 
-// Verifystatus goes through all the arguments and:
-// - if found: returns the status of the query off the ledger
-// - if not found: returns nil
-// func (cs *QueryData) Verifystatus(args byzcoin.Arguments) (sc []byzcoin.StateChange, cout []byzcoin.Coin, err error){
-// 	for _, kv := range args {
-// 		var found bool
-// 		for i, stored := range cs.Storage {
-// 			if stored.ID == kv.Name {
-// 				found = true
-// 				return kv.Value
-// 			}
+//VerifyStatus goes through all the arguments and:
+//- if found: returns the status of the query off the ledger
+//- if not found: returns nil
+func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
+	for _, kv := range args {
+		var found bool
+		for _, stored := range cs.Storage {
+			if stored.ID == kv.Name {
+				found = true
+				if stored.Status == "Approved" {
+					return nil
+				} else {
+					return xerrors.Errorf("query %s has status %s and has not been approved", stored.ID, stored.Status)
+				}
+			}
 
-// 		}
-// 		if !found {
-// 			return nil, nil, xerrors.Errorf("Could not locate the query with ID %s with error: %v",stored.ID, err)
-// 		}
-// 	}
-// }
+		}
+		if !found {
+			return xerrors.Errorf("could not find the query with ID %s", kv.Name)
+		}
+
+	}
+	return
+}
