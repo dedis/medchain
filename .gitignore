@@ -3,4 +3,6 @@ conode/co*
 conode/log
 conode/tmp
 conode/*.db
+conode/running
+running
 *.out

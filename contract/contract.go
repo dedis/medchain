@@ -13,7 +13,7 @@ import (
 
 // MedchainContractID denotes a contract that can store and update
 // key/value pairs corresponding to queries. Key is the query ID
-// and value is the query itself (i.e., it is the concatenation
+// and Status is the query Status (i.e., it is the concatenation
 // of query/status/user)
 var MedchainContractID = "queryContract"
 
@@ -160,9 +160,9 @@ func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
 				found = true
 				if stored.Status == "Approved" {
 					return nil
-				} else {
-					return xerrors.Errorf("query %s has status %s and has not been approved", stored.ID, stored.Status)
 				}
+				return xerrors.Errorf("query %s has status %s and has not been approved", stored.ID, stored.Status)
+
 			}
 
 		}
