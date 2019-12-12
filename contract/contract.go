@@ -22,7 +22,7 @@ type medchainContract struct {
 	QueryData
 }
 
-func contractValueFromBytes(in []byte) (byzcoin.Contract, error) {
+func contractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
 	cv := &medchainContract{}
 	err := protobuf.Decode(in, &cv.QueryData)
 	if err != nil {
@@ -172,4 +172,9 @@ func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
 
 	}
 	return
+}
+
+// VerifyDeferredInstruction implements the byzcoin.Contract interface
+func (c medchainContract) VerifyDeferredInstruction(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction, ctxHash []byte) error {
+	return inst.VerifyWithOption(rst, ctxHash, &byzcoin.VerificationOptions{IgnoreCounters: true})
 }

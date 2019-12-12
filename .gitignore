@@ -6,3 +6,5 @@ conode/*.db
 conode/running
 running
 *.out
+.DS_Store
+./report/.DS_Store

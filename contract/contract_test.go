@@ -260,7 +260,7 @@ func (bct *bcTest) Close() {
 
 func (bct *bcTest) createInstance(t *testing.T, args byzcoin.Arguments) byzcoin.InstanceID {
 	ctx, err := bct.cl.CreateTransaction(byzcoin.Instruction{
-		InstanceID:    byzcoin.NewInstanceID([]byte("projectA_darc")),
+		InstanceID:    byzcoin.NewInstanceID(bct.gDarc.GetBaseID()),
 		SignerCounter: []uint64{bct.ct},
 		Spawn: &byzcoin.Spawn{
 			ContractID: MedchainContractID,
