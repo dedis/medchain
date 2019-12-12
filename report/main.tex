@@ -1,0 +1,43 @@
+\documentclass[11pt, a4paper]{article} %draft twoside, openright
+
+\usepackage{graphicx,color}
+\usepackage{amssymb, amsmath, array}
+\usepackage{wrapfig}
+\usepackage{url}
+
+\begin{document}
+
+\input{cover}
+
+\newpage
+\thispagestyle{empty}
+\tableofcontents{\protect\thispagestyle{empty}
+\newpage
+
+% Start page count
+\setcounter{page}{1}
+
+\input{abstract}
+
+\input{intro}
+
+\input{background}
+
+\input{architecture}
+
+\input{implementation}
+
+\input{integration}
+
+\input{conclusion}
+
+\input{future}
+
+\clearpage
+	
+\addcontentsline{toc}{section}{References}
+\begin{thebibliography}{}
+
+\end{thebibliography}
+
+\end{document}

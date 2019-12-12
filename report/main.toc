@@ -1,0 +1,15 @@
+\contentsline {section}{\numberline {1}Abstract}{1}% 
+\contentsline {section}{\numberline {2}Introduction}{1}% 
+\contentsline {section}{\numberline {3}Background}{1}% 
+\contentsline {subsection}{\numberline {3.1}Cothority}{1}% 
+\contentsline {subsection}{\numberline {3.2}Byzcoin}{1}% 
+\contentsline {subsubsection}{\numberline {3.2.1}Smart Contracts}{1}% 
+\contentsline {subsubsection}{\numberline {3.2.2}Distributed Access Right Controls (DARCs)}{1}% 
+\contentsline {subsubsection}{\numberline {3.2.3}Deferred Transactions}{1}% 
+\contentsline {subsection}{\numberline {3.3}MedCo}{1}% 
+\contentsline {section}{\numberline {4}MedChain Architecture}{1}% 
+\contentsline {section}{\numberline {5}MedChain Implementation}{1}% 
+\contentsline {section}{\numberline {6}Integration of MedChain into MedCo}{1}% 
+\contentsline {section}{\numberline {7}Conclusion}{1}% 
+\contentsline {section}{\numberline {8}Future Work}{1}% 
+\contentsline {section}{References}{2}% 
