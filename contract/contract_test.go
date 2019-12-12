@@ -236,7 +236,7 @@ func newBCTest(t *testing.T) (out *bcTest) {
 	out.servers, out.roster, _ = out.local.GenTree(3, true)
 
 	// Then create a new ledger with the genesis darc having the right
-	// to create and update key-value contracts.
+	// to create and update medchain contract key-value instance.
 	var err error
 	out.gMsg, err = byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, out.roster,
 		[]string{"spawn:queryContract", "invoke:queryContract.update"}, out.signer.Identity())
@@ -260,7 +260,7 @@ func (bct *bcTest) Close() {
 
 func (bct *bcTest) createInstance(t *testing.T, args byzcoin.Arguments) byzcoin.InstanceID {
 	ctx, err := bct.cl.CreateTransaction(byzcoin.Instruction{
-		InstanceID:    byzcoin.NewInstanceID(bct.gDarc.GetBaseID()),
+		InstanceID:    byzcoin.NewInstanceID([]byte("projectA_darc")),
 		SignerCounter: []uint64{bct.ct},
 		Spawn: &byzcoin.Spawn{
 			ContractID: MedchainContractID,

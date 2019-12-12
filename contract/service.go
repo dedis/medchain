@@ -27,5 +27,6 @@ func newService(c *onet.Context) (onet.Service, error) {
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
 	byzcoin.RegisterContract(c, MedchainContractID, contractValueFromBytes)
+	byzcoin.RegisterContract(c, ProjectADarcID, projectADarcFromBytes)
 	return s, nil
 }
