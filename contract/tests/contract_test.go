@@ -233,6 +233,7 @@ func newBCTest(t *testing.T) (out *bcTest) {
 	out.local = onet.NewTCPTest(cothority.Suite)
 
 	out.signer = darc.NewSignerEd25519(nil, nil)
+	// generate a tree of n servers with a localRouter
 	out.servers, out.roster, _ = out.local.GenTree(3, true)
 
 	// Then create a new ledger with the genesis darc having the right

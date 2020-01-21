@@ -2,9 +2,11 @@
 conode/co*
 conode/log
 conode/tmp
+conode/conodes/log
 conode/*.db
 conode/running
 running
 *.out
 .DS_Store
 ./report/.DS_Store
+./app/build
