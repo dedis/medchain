@@ -1,0 +1,153 @@
+\documentclass[12pt]{article}
+\usepackage{fullpage}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{array} %to place content in one side of cell in table
+\usepackage{datetime}
+\usepackage{wrapfig}
+\usepackage{amsmath} % to be able to create matrices
+\usepackage[headsep=0.5cm,headheight=2cm]{geometry}
+\usepackage[parfill]{parskip} %remove the indent (tab) at the beginning of new paragraphs
+\usepackage{comment}
+\geometry{
+a4paper,
+total={170mm, 240mm}, %130
+left=20mm, %40
+top=25mm,
+}\usepackage{fancyhdr}
+
+\usepackage[comma,numbers,sort&compress]{natbib}
+\bibliographystyle{unsrtnat}
+\usepackage[pdfstartview=FitH,
+            breaklinks=true,
+            bookmarksopen=true,
+            bookmarksnumbered=true,
+            colorlinks=true,
+            urlcolor=blue,
+            linkcolor=black,
+            citecolor=black,
+            ]{hyperref}
+\usepackage{pbox}
+            
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=blue,      
+    urlcolor=magenta,
+}
+
+%défini la largeur du trait
+\pagestyle{fancy}\renewcommand
+\headrulewidth{1pt}
+%déclaration du contenu de l'entête
+\fancyhead[L]{Zahra Farsijani}
+\fancyhead[C]{Medchain}
+\fancyhead[R]{Project Report}
+
+\begin{document}
+
+\begin{titlepage}
+\center
+\includegraphics[width=7.2cm]{Images/EPFL_Logo_SVG.png}\vspace{23pt}\\
+\textsc{\Large Laboratory For Data Security (LDS)}\\[0.5cm]
+
+\vspace{25pt}
+\hrule
+\vspace{0.4cm}
+{\Large \bfseries MedChain: A Distributed Authorization and Authentication System for Medical Queries }\\[0.5cm] % Title of your document
+\normalsize{Master Semester Project Report}
+\vspace{0.4cm}
+\hrule 
+\vspace{1.5cm}
+\begin{minipage}{0.5\textwidth}\large
+\begin{flushleft}
+\emph{Author:}\\
+\textbf{Zahra \textsc{Farsijani}}\\
+School of Engineering, Electrical Engineering
+\end{flushleft}
+\end{minipage}
+~
+\begin{minipage}{0.4\textwidth}
+\begin{flushright} \large
+\emph{Professor:} \\
+\textbf{Jean-Pierre \textsc{Hubaux}}\\
+\emph{Supervisors:} \\
+\textbf{Juan \textsc{Troncoso-Pastoriza} }\\
+\textbf{David \textsc{Froelicher}}\\
+\textbf{Mickaël \textsc{Misbach}}
+
+\end{flushright}
+\end{minipage}\\
+\vfill
+\vspace{5pt}
+\vspace{20pt}
+{\large \today}\\[12cm]
+\vfill
+% 	\vspace*{\fill}
+% 	\begin{center}
+% 		\vspace{0.8cm}
+% 		{\LARGE Self-sealing icycle innertubes\\
+% 		Assessment of design, manufacturing and marketing feasibility \par}
+% 		\vspace{0.7cm}		
+% 		{\large Fatemeh Farsijani \\ Pavel Kalinin\\ Raúl Núñez \\ Valentin Perruchoud \\ Rachel Wong Min\par}
+% 		\vspace{0.7cm}
+% 		\today
+% 		\\
+% % 		\vspace{0.4cm}
+% % 		\includegraphics[width=6.5cm]{Images/EPFL_Logo_SVG.png}
+% 	\end{center}
+% 	\vspace*{\fill}
+\end{titlepage}		
+\pagebreak
+
+%\section*{Abstract}
+%\addcontentsline{toc}{section}{\protect\numberline{}Abstract}
+\input{00Abstract.tex}
+\pagebreak
+
+\tableofcontents
+\pagebreak
+
+\section{Introduction}\label{section1}
+\input{01Introduction.tex}
+
+\section{Background}\label{section2}
+\input{02Background.tex}
+
+\section{Design and System Architecture}\label{section3}
+\input{03Architecture.tex}
+
+\section{System Implementation}\label{section4}
+\input{04Implementation.tex}
+
+\section{System Evaluation}\label{section5}
+\input{05Evaluation.tex}
+
+
+\section{Future Work}\label{section6}
+\input{06Future.tex}
+
+\section{Conclusion}\label{section7}
+\input{07Conclusion.tex}
+
+
+
+
+%\newpage
+
+%\section{Appendix}\label{section11}
+%\input{11Appendix.tex}
+
+
+\pagebreak
+%%%%%%%%%%%%%%%% Bibliography %%%%%%%%%%%%%%%%
+\addtocontents{toc}{\vspace{.5\baselineskip}}
+\addcontentsline{toc}{section}{\protect\numberline{}{References}}
+\bibliography{bibliography}
+
+\end{document}

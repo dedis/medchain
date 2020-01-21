@@ -1,0 +1,96 @@
+In this section, we provide some background information about the building blocks of our software solution, namely, Medchain and some technologies used in its development. 
+
+\subsection{Cothority}\label{cothority}
+The collective authority (cothority) available at \cite{cothority:2019} is a project developed and maintained by DEDIS lab at EPFL. Its goal is to provide various frameworks for development, analysis, and deployment of decentralized and distributed (cryptographic) protocols. In order to be able to access the services provided by cothority, one should run a set of servers that run cothority protocols. Such set of servers is referred to as a \textbf{collective authority} or \textbf{cothority}. Furthermore, every single server in cothority is a cothority node and is called a cothority server or a \textbf{conode}. The code in cothority repository allows the developers to access the services of a cothority and/or run their own conodes. In the following sections, we look at some of the most important building blocks of Cothority as well its services, protocols, and some applications that use it.
+
+
+ \subsubsection{Conode}\label{background:conode}
+As it was mentioned earlier, a \textbf{conode} is server in a cothorit and conodes are linked together to form a cothority. Clients need to run conodes, either locally for local tests or in public mode, in order to access decentralized protocols and services offered by cothority.
+
+To operate a conode, one needs to correctly set up a host and run the conode program. The reader is referred to conode documentation and instructions on how to setup and use it found at \cite{conode:2019}.
+
+\subsection{ByzCoin}\label{background:byzcoin}
+ByzCoin in one of the services offered by cothority and there are many cothority applications that use ByzCoin as there building block. ByzCoin is a scalable Byzantine fault tolerant (BFT) consensus algorithm for open decentralized blockchain systems. It uses the skipchain \cite{skipchain:2019} as its underlying data-structure for storing blocks and thus has a distributed ledger holding keys and values. It also implements pre-compiled smart contracts. The \textbf{Omniledger} paper \cite{kokoris2018omniledger} describes the protocol that ByzCoin implements. The reader is referred to \cite{byzcoin:2019} for further details about ByzCoin: how to use it, its building blocks, etc. 
+
+There are various basic data structures used in ByzCoin. Below, we provide a brief overview of the most relevant ones:
+\begin{itemize}
+    \item{\textbf{Instructions}}: An Instruction is created by a client and it will be executed in ByzCoin. It can be a \texttt{Spawn}, \texttt{Invoke}, or \texttt{Delete} command which results in a \texttt{StateChange} if it is accepted by ByzCoin. The purpose of each command is described below:
+    \begin{itemize}
+        \item \texttt{Spawn}: create a new instance
+        \item \texttt{Invoke}: call a method of an instance such as \texttt{update}
+        \item \texttt{Delete}: remove an instance
+    \end{itemize}
+    
+    \item{\textbf{ClientTransaction}}: A \textit{ClientTransaction} holds one or more instructions and is sent by a client to one or more conodes in the roster. 
+    \item{\textbf{StateChange}}: Instructions (i.e., ClientTransactions) sent by a client correspond to a contract/object. The execution of these instructions (i.e., the calls to the contracts/objects) results in 0 or more changes in the global state referred to as \textbf{StateChange}. 
+    \item{\textbf{Distributed Access Right Controls (Darcs)}}: Darcs offer means to control access rights to the available resources in ByzCoin. Since Darc is one of the most important building blocks of Medchain, we have dedicated a separate section to it. Please refer to Section \ref{background:darc} to learn more about the Darcs. 
+
+\end{itemize}
+
+
+\subsubsection{Distributed Access Right Controls (Darcs)}\label{background:darc}
+Darcs enable us to control access to contracts/objects in ByzCoin and thus can be used for authorization and/or authentication in software systems. Instead of using a password or a public key for authentication, Darcs allow us to implement access control rules that can be \textit{evolved} based on a threshold number of keys. This essentially means that instead of having a static set of rules (e.g., a fixed list of identities that are allowed to access a resource), we can evolve the existing rules any time and thus achieve dynamism in our access right definitions.  
+
+As it was discussed in Section \ref{background:byzcoin}, Darc is one of data structures in ByzCoin. It contains a set of rules that defines what permissions are granted to any identity (i.e., public key). A Darc can be updated by an \textit{evolution} process: the identities that have the evolve permission in the Darc create a signature and sign off the new Darc. There is no limit to the number of evolutions that can be performed and evolutions result in a chain of Darcs, also known as a path. A path can be verified by starting at the oldest Darc (also known as the base Darc), walking down the path and verifying the signature at every step.
+
+
+Every Darc has a set of rules that are defines as a pair of action/expression. In order for an instruction to be executed on an instance (i.e., an instance of a smart contract stored in the ledger as the global state. Please refer to Section \ref{background:smart_contract} for more details about the smart contracts and instances in ByzCoin), the rules (i.e., the action/expression pair) in the Darc governing the instance have to be met. Every Darc is stored with an \textit{InstanceID} that is equal to the Darc's base ID. Once a Darc is evolved, this InstanceID is overwritten with the new value. Whenever the client sends an instruction for execution, he/she has to also provide the InstanceID of the Darc that governs the corresponding instance that is to be affected by the instruction. Thus, the Darc comes into play and checks if the client has the right to execute the instruction and consequently, approves or rejects the instruction on the instance. This scenario can be summarized into the steps below:
+
+\begin{enumerate}
+    \item Client sends the following instruction to ByzCoin (some fields are omitted for clarity):
+    \begin{itemize}
+        \item \texttt{InstanceID: [32]byte{GenesisDarcID}}
+        \item \texttt{Invoke}:
+        \begin{itemize}
+            \item \texttt{Command: Update}
+            \item \texttt{Args: {"Roster": NewRoster}}
+        \end{itemize}
+        \item \texttt{Signatures: [Sig1]}
+    \end{itemize}
+
+    \item ByzCoin finds the Darc instance using the \texttt{InstanceID} provided by the client in the instruction.
+    \item ByzCoin creates a \texttt{DarcRequest} using the \texttt{InstanceID} and the \texttt{Args}
+    \item ByzCoin checks the Darc found in step 2 and verifies that the request corresponds to the \texttt{invoke:update} rule (i.e., expression) in the Darc instance for the given identity (the client).
+\end{enumerate}
+
+Delegation is also possible in Darcs. That is, a Darc can be given \texttt{evolve} permission to evolve other Darcs and thus evolve the path.
+
+
+\subsection{Smart Contracts and Instances} \label{background:smart_contract}
+In Byzcoin, a smart contract is similar to a smart contract in Ethereum. The difference, however, is that in Byzcoin, contracts are pre-compiled and the conode holds the binary of the smart contract. In general, we can say that the smart contract is a collection of methods that provides the client with the API to interact with the skipchain (i.e., the ledger that holds the instances of the contract) through transactions. In other words, contract interprets the methods, namely the instructions, sent by the client for the cothority server (conode). The execution of a client instructions by smart contract results in a change in the shared \textbf{global state}, called a \texttt{StateChange}. In order to commit the transactions onto the ledger, the threshold of agreeing conodes must be reached. A conode can hold various contracts at the same time. Each contract is identified by a string pointing to it called the ``contractID". 
+
+Byzcoin uses coins as the mining reward. As an input, smart contracts receive a list of coins that are available to them. After the contract is run, it needs to give the new list of coins that is available. After all contracts have been run, the leftover coins are given to the leader as a mining reward.
+
+Below, you can find the list of input arguments given to a contract and its output arguments:
+
+\textbf{Input arguments}: 
+\begin{itemize}
+    \item pointer to database for read-access
+    \item Instruction from the client
+    \item key/value pairs of coins available
+\end{itemize}
+
+\textbf{Output arguments}: 
+\begin{itemize}
+    \item one StateChange (may be empty)
+    \item updated key/value pairs of coins still available
+    \item error that will abort the clientTransaction if it is non-zero. If any contract returns non-zero error, the state will not be changed.
+\end{itemize}
+
+\subsubsection{Contract Instance Structure}
+In ByzCoin, the global state holds the instances of contracts and is split by the Darcs that define the access to control the corresponding instances. Every instruction sent to an instance must resolve the rule in the governing Darc. Every instance is stored with the following information in the global state:
+
+\begin{itemize}
+    \item \textbf{InstanceID} is a globally unique identifier of the instance.
+    \item \textbf{Version} is the version number of this update to the instance, starting from 0.
+    \item \textbf{ContractID} points to the contract that will be called if the instance receives an instruction from the client
+    \item \textbf{Data} is interpreted by the contract and can change over time \item \textbf{DarcID} of the Darc that controls access to the instance.
+\end{itemize}
+
+\subsubsection{Interaction between Instructions and Instances}
+Once a client sends an instruction, he/she indicates the InstanceID to which it corresponds per an instruction argument. ByzCoin tries to first authorize the instruction through the process described in Section \ref{background:darc}, it then uses the InstanceID to look up the responsible contract for the instance and then send the instruction to that contract. 
+
+\subsection{MedCo}\label{background:medco}
+MedCo \cite{raisaro2018medco} is the first operational system that enables the exploration and analysis of distributed (sensitive) medical data in a privacy-preserving manner. By using strong collective encryption provided by collective authority \cite{syta2015certificate}, MedCo is able to offer security. MedCo aims to distribute trust among various medical data providers (such as medical institutions) so that their data can be used and queried by external users while privacy is preserved. 
+
+MedCo is built on top of existing and open-source technologies: (i) i2b2 \cite{murphy2010serving} is a clinical research platforms and together with SHRINE \cite{weber2009shared} they enable clinical data exploration; (ii) UnLynx \cite{froelicher2017unlynx} allows distributed and secure data processing in MedCo. 
