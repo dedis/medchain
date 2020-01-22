@@ -1,4 +1,4 @@
-The full Medchain code, instructions on how to run it and its documentation is available in the Github repository at \cite{medchain:2020}. In this section, we aim to provide details about the code structure of the Medchain and not instructions on how to use the code.  
+The full Medchain code, instructions on how to run it and its documentation is available in \href{https://github.com/ldsec/medchain/tree/dev}{Medchain Github repository}. In this section, we aim to provide details about the code structure of the Medchain and not instructions on how to use the code.  
 
 \subsection{Conode}
 Every Medchain node is a cothority server, known as a conode. There are several ways to initialize a conode that are described in conode documentation found at \cite{conode:2019}. In this project, we used \href{https://github.com/dedis/cothority/blob/master/conode/README.md#option-1-computer-configuration-setup-with-the-command-line}{configuration setup with the command line} to setup our network of 3 local conodes in an interactive manner. Also, in order to use the conodes we followed the instructions to \href{https://github.com/dedis/cothority/blob/master/conode/README.md#option-1-computer-run-with-the-command-line}{run} them. 
@@ -15,7 +15,7 @@ We developed the smart contract in Go using the template contract provided in co
 
 \begin{verbatim}
 type Query struct {
-	    ID     string //query_id:user_id:databaseX:<type of query>
+	    ID     string //<query_id>:<user_id:databaseX>:<type of query>
 	    Status string // "Submitted", "Authorized", or "Rejected"
 } 
 \end{verbatim}
@@ -24,7 +24,7 @@ As it is shown above, the key of a queryContract instance is the ID of the query
 
 To serve the purposes of Medchain, we changed some functionalities of the template contract so that it is adapted to Medchain ecosystem. In ByzCoin, the smart contract has to implement three API methods: \texttt{Spawn},\texttt{Invoke}, and \texttt{Delete}. The very first instance of a contract is created by creating a transaction using \texttt{Spawn} as the instruction. By this transaction, the user sets the query ID as the key of the instance and its status as the value. Later, the user can manipulate this instance of the contract by calling an \texttt{Invoke} on it. The \texttt{Invoke} method in queryContract implements two methods itself: \texttt{update} and \texttt{verifystatus}. Using update, the user is able to retrieve a specific contract instance (i.e., query) from the skipchain by its key (i.e., query ID) and update its value (i.e., the status of the query) if it already exists in the skipchain, however, if that is not the case, a new instance of the contract will be spawned using the provided key-value pair. \texttt{verifystatus} method is used by Medchain server itself to retrieve a query from the ledger and verify its status in a similar manner to \texttt{update} method. In Medchain, we decided not to implement the \texttt{Delete} function in contract as we do not want the user to be able to remove a query (i.e., an instance of the contract) from the global state. 
 
-whenever a contract instance is created (spawned) it is allocated an \texttt{InstanceID} that is based on the ID of the Darc contract governing it (please refer to Section \ref{background:smart_contract} for more details). Later, this instance of the contract is retrievable and authorized by the Darc controlling it using this \texttt{InstanceID}. 
+Whenever a contract instance is created (spawned) it is allocated an \texttt{InstanceID} that is based on the ID of the Darc contract governing it (please refer to Section \ref{background:smart_contract} for more details). Later, this instance of the contract is retrievable and authorized by the Darc controlling it using this \texttt{InstanceID}. 
 
 \subsubsection{Deferred Transactions} \label{impl:deferred_tx}
 In a real world scenario, it is not always possible for hospitals (running Medchain servers) to approve queries they receive from other Medchain servers instantly, for example, the hospital manager may not be present or the local Medchain server may be down. Thus, the query will be rejected as it will not receive the threshold number of signatures from other Medchain servers in the network it needs so that it is deemed as approved at the time it is created. There should be a mechanism in Medchain to handle this issue. \textbf{Deferred transactions} can be used as a solution for this problem. As the name suggests, deferred transactions allow a transaction to remain idle until it receives the threshold number of signatures it needs to be written in the ledger.  
@@ -34,7 +34,7 @@ In order to enable deferred transactions in ByzCoin server, the developer should
 \subsubsection{Darcs} \label{impl:darcs}
 In ByzCoin, Darcs are used to enable authorization and access management and are, in fact, smart contracts. The only difference between a Darc and a general smart contract is that a Darc supports \texttt{actions} and \texttt{expressions} that are used to define a set of rules in a Darc.
 
-ByzCoin offers some Darcs in its \texttt{darc} library such as \texttt{SecureDarc}, however, the developer can also develop their own Darc contract. In Medchain, we use \texttt{SecureContract} and have customized it to meet the requirements of Medchain. 
+ByzCoin offers some Darcs in its \texttt{darc} library such as \texttt{SecureDarc}, however, the developer can also develop his/her own Darc contract. In Medchain, we use \texttt{SecureContract} and have customized it to meet the requirements of Medchain. 
 
 \texttt{SecureDarc} contract defines access rules for all clients using the Darc data structure. Upon starting a cluster of Medchain servers, a new ByzCoin blockchain and a \texttt{genesis Darc} instance are created. The \texttt{genesis Darc} indicates what instructions need which signatures to be accepted. Below, you can see how the \texttt{genesis Darc} we use in Medchain looks like:
 
@@ -62,9 +62,9 @@ ByzCoin offers some Darcs in its \texttt{darc} library such as \texttt{SecureDar
     
 \end{verbatim}
 
-In the above \textit{genesis Darc}, we can see the pairs of \texttt{action - expression} that define different rules. For example, \texttt{spawn:queryContract - "ed25519:<ID\_client>"} where \texttt{ID\_client} refers to the ID of the client who is granted the permission for the action \texttt{spawn:queryContract}. Darc expressions are a simple language for defining complex policies. For example, in \texttt{invoke:config.view\_change - "ed25519:<ID\_server> | ed25519:<ID\_server> | ed25519:<ID\_server>"}, an "\texttt{or}" expression has been used among the IDs of Medchain cluster servers. 
+In the above \texttt{genesis Darc}, we can see the pairs of \texttt{action/expression} that define different rules. For example, \texttt{spawn:queryContract - "ed25519:<ID\_client>"} where \texttt{ID\_client} refers to the ID of the client who is granted the permission for the action \texttt{spawn:queryContract}. Darc expressions are a simple language for defining complex policies. For example, in the rule \texttt{invoke:config.view\_change - "ed25519:<ID\_server> | ed25519:<ID\_server>"}, an "\texttt{or}" expression has been used among the IDs of Medchain cluster servers. 
 
-Now, we create Darcs for different projects (e.g., \texttt{ProjectA} and \texttt{PrjectB}) in Medchain. We assume that each project has 3 clients (i.e., one client per Medchain server). We create new Darcs that are \texttt{evolved} from the \texttt{genesis Darc} and define rules for them. As an example, the Darc for Porject A is given below:
+Now, we create Darcs for different projects (e.g., \texttt{ProjectA} and \texttt{PrjectB}) in Medchain. We assume that each project has 3 clients (i.e., one client per Medchain server). We create new Darcs and define rules (i.e., action/expression pairs) for them. As an example, the Darc for porject A is given below:
 
 \begin{verbatim}
 - Darc:
@@ -103,9 +103,9 @@ Now, we create Darcs for different projects (e.g., \texttt{ProjectA} and \texttt
     -- Signatures:
 \end{verbatim}
 
-In the above Darc for Project A, we have defined rules using different types of actions and expressions. For example, any of the clients is granted permission for the action \texttt{databaseA.patient\_list}, however, only client 1 is given permission to query \texttt{count\_global} from database A (i.e., the action \texttt{databaseA.count\_global}). 
+In the above Darc for Project A, we have defined rules using different types of actions and expressions. For example, any of the clients is granted permission for action \texttt{databaseA.patient\_list}, however, only client 1 is given permission to query \texttt{count\_global} from database A (i.e., the action \texttt{databaseA.count\_global}). 
 
-Now, let's see how the Darc for Project A can authorize an action. The first step is that the client sends a spawn instruction to Project A Darc contract. Then, the client asks the instance to create a new instance with the contractID of Medchain smart contract, i.e., \texttt{queryContract}, which is different from the ID of the Darc instance itself. The client must be able to authenticate against a \texttt{spawn:queryContract} rule defined in the Project A Darc instance which is indeed the case according to Project A Darc definition above. The transaction client creates looks like below:
+Now, let's see how the Darc for Project A can authorize an action. The first step is that the client sends a spawn instruction to Project A Darc contract. Then, the client asks the instance to create a new instance with the \texttt{contractID} of Medchain smart contract, i.e., \texttt{queryContract}, which is different from the ID of the Darc instance itself. The client must be able to authenticate against a \texttt{spawn:queryContract} rule defined in the Project A Darc instance which is indeed the case according to Project A Darc definition above. The transaction that client creates looks like below:
 
 \begin{verbatim}
 instr := byzcoin.Instruction{
@@ -125,7 +125,7 @@ instr := byzcoin.Instruction{
 
 The new instance spawned will have an instance ID equal to the hash of the Spawn instruction. The client can remember this instance ID in order to invoke methods on it later. In Medchain, we also use \texttt{contract\_name} of ByzCoin. This contract is a singleton contract that is always created in the genesis block. One can only invoke the naming contract to create a mapping from a Darc ID and name tuple to another instance ID. Using this contract, the client does not need to store instance IDs as long as they are named and thus, makes it easier for the client to remember and use the instance IDs of the contracts.
 
-After this step, a queryContract instance spawned by the user (which is in fact the query submitted to Medchain from MedCo) is bound to Porject A Darc and is governed by this Darc; thus, Darc can check for the authorizations of the action the client is trying to take. 
+After this step, a queryContract instance spawned by the user (which is in fact the query submitted to Medchain from MedCo) is bound to porject A Darc and is governed by it; thus, the Darc can check for the authorizations of the action the client is trying to take. 
 
 \subsubsection{Client Implementation} \label{impl:client}
 To implement a client that can interact with Medchain, we used the default clients  implemented in ByzCoin Client library. The \texttt{Client} is a structure that communicates with the ByzCoin service and interacts with it. 
@@ -158,7 +158,7 @@ In Medchain, we mainly used two services: ByzCoin and Onet service. These servic
 \end{tabular}
 \end{table}
 
-To be able to use the services, we need to register them with the default Cothority suite. We use the services to define the API and interact with conodes and contracts.
+To be able to use the services, we need to register them with the default \href{https://github.com/dedis/cothority/blob/master/suite.go}{Cothority suite}. We use the services to define the API and interact with conodes and contracts.
 
 
 \subsection{App and Command-Line Interface (CLI)}\label{impl:cli}
