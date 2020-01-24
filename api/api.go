@@ -84,6 +84,7 @@ func (c *Client) Create() error {
 		fmt.Println("debug2")
 		return err
 	}
+	fmt.Println("[INFO] (Create) Contract_name instance was added to the ledger")
 
 	return nil
 }
@@ -176,6 +177,7 @@ func (c *Client) CreateQueryAndWait(numInterval int, signers []darc.Signer, qu .
 		fmt.Println("debug8")
 		return qu, nil, err
 	}
+	fmt.Println("[INFO] (Invoke) Query was added to the ledger")
 
 	return qu, keys, nil
 }
@@ -209,7 +211,6 @@ func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, err
 	// We need the identity part of the signatures before
 	// calling ToDarcRequest() below, because the identities
 	// go into the message digest.
-	fmt.Println("AUTHORIZATION... ")
 	sigs := make([]darc.Signature, len(c.Signers))
 	authorizations := make([]bool, len(signers))
 	for i, x := range c.Signers {
@@ -227,11 +228,8 @@ func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, err
 		// 	return err
 		// }
 		for proj, authAction := range c.rulesMap[signer.Identity().String()] {
-			fmt.Println("proj:", proj)
 			if proj == project {
 				for _, a := range strings.Split(authAction, ",") {
-					fmt.Println("authAction:", authAction)
-					fmt.Println(action, "+", a)
 					if "invoke:queryContract."+action == a {
 						authorizations[i] = true
 					} else {
@@ -242,7 +240,6 @@ func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, err
 
 		}
 	}
-	fmt.Println(authorizations)
 	return authorizations, nil
 }
 
@@ -272,7 +269,7 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 		default:
 			return nil, nil, fmt.Errorf("invalid project used")
 		}
-		// Check if the query is authorized
+		// Check if the query is authorized/rejected
 		authorizations, err := c.AuthorizeQuery(query, signers)
 		if err != nil {
 			return nil, nil, err
@@ -287,6 +284,7 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 				// This action will not be rejected by Darc and thus query rejection will be recorded
 				// in the ledger
 				action = "update"
+				fmt.Println("[INFO] (Invoke) Query was REJECTED")
 			}
 		}
 		if ok {
@@ -295,9 +293,9 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 				Value: []byte("Authorized"),
 			}
 			action = c.GetActionFromOneQuery(query)
+			fmt.Println("[INFO] (Invoke) Query was AUTHORIZED")
+
 		}
-		fmt.Println(ok)
-		fmt.Println(action)
 		// Get the instance ID of the query instance using its name
 		replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
 		if err != nil {
@@ -320,15 +318,12 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 	c.incrementSpecificCtrs(signers...)
 	tx, err := c.ByzCoin.CreateTransaction(instrs...)
 	if err != nil {
-		fmt.Println(err)
 		return nil, nil, err
 	}
 	if err := tx.FillSignersAndSignWith(signers...); err != nil {
-		fmt.Println(err)
 		return nil, nil, err
 	}
 	for i := range tx.Instructions {
-		fmt.Println(err)
 		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
 	}
 	return &tx, keys, nil
@@ -354,7 +349,6 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 	instrs := make([]byzcoin.Instruction, len(queries))
 
 	for i, query := range queries {
-		fmt.Println(projects[i])
 		switch projects[i] {
 		case "A":
 			darcID = c.aDarcID
@@ -385,16 +379,13 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 	}
 	tx, err := c.ByzCoin.CreateTransaction(instrs...)
 	if err != nil {
-		fmt.Println(err)
 		return nil, nil, err
 	}
 	if err := tx.FillSignersAndSignWith(c.Signers...); err != nil {
-		fmt.Println(err)
 		return nil, nil, err
 	}
 
 	for i := range tx.Instructions {
-		fmt.Println(err)
 		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
 		//fmt.Println(tx.Instructions[i].GetIdentityStrings())
 	}
@@ -403,12 +394,13 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 		fmt.Println("debug8-2")
 		return nil, nil, err
 	}
+	fmt.Println("[INFO] (SPAWN) Query was added to the ledger")
+
 	for i, query := range queries {
 		var darcID darc.ID
 		// name the instance of the query with as its key using contract_name to
 		// make retrievals easier
 		project := c.GetProjectFromOneQuery(query)
-		fmt.Println(project)
 		switch project {
 		case "A":
 			darcID = c.aDarcID
@@ -423,6 +415,8 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 			fmt.Println("debug4")
 			return nil, nil, err
 		}
+		fmt.Println("[INFO] Query instance was named ")
+
 	}
 	return queries, keys, nil
 }
@@ -676,7 +670,6 @@ func (c *Client) GetProjectFromOneQuery(query Query) string {
 // GetActionFromOneQuery exports the action from query
 func (c *Client) GetActionFromOneQuery(query Query) string {
 	action := strings.Split(query.ID, ":")[2]
-	fmt.Println(action)
 	return action
 }
 
@@ -713,14 +706,14 @@ func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	if err != nil {
 		return err
 	}
+	fmt.Println("[INFO] (Naming Contract) Query was added to the ledger")
 
-	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
-	// if err != nil {
-	// 	return err
-	// }
-	// if replyID != instID {
-	// 	return err
-	// }
-	fmt.Println("*** Successfully named the instance ***")
+	replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
+	if err != nil {
+		return err
+	}
+	if replyID != instID {
+		return err
+	}
 	return nil
 }
