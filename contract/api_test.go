@@ -30,23 +30,26 @@ var actionsList = "patient_list,count_per_site,count_per_site_obfuscated,count_p
 // }
 
 func TestClient_Medchain(t *testing.T) {
+	fmt.Println("[INFO] Starting the service")
 	s, c := newSer(t)
 	leader := s.services[0]
 	defer s.close()
 
+	fmt.Println("[INFO] Starting ByzCoin Client")
 	err := c.Create()
 	require.Nil(t, err)
 
 	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 1: Authorization -*-*-*-*-*-*-*-*-*-*-*-*-*
 	// ------------------ 1. Spwan query instances ------------------
 	// This query should be authorized
+	fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZED -*-*-*-*-*-")
+	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	t.Log("step1")
 	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
@@ -75,13 +78,14 @@ func TestClient_Medchain(t *testing.T) {
 	}
 
 	// ------------------ 2. Authorization ------------------
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0]}, NewQuery("wsdf65k80h:A:patient_list", "Submitted")) //, NewQuery("ierfghd4b6:B:count_per_site_shuffled_obfuscated ", "Submitted")) //, NewQuery(randomString(10, "")+":B:patient_list", "Submitted"))
+	fmt.Println("[INFO] Query Authorizazion ")
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
+
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	t.Log("step2")
 	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
@@ -112,14 +116,14 @@ func TestClient_Medchain(t *testing.T) {
 	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 2: Rejection  -*-*-*-*-*-*-*-*-*-*-*-*-*
 	// ------------------ 1. Spwan query instances ------------------
 	// This query should not be authorized
-
+	fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECTED -*-*-*-*-*-")
+	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err = c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	t.Log("step1")
 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
@@ -145,13 +149,13 @@ func TestClient_Medchain(t *testing.T) {
 
 	// ------------------ 2. Authorization ------------------
 	// This query should be rejected
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[2]}, NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
+	fmt.Println("[INFO] Query Authorization ")
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
 	// Expect it to not be accepted, because Darc conditions are not met
 	t.Log(err)
-	require.Contains(t, err, "instruction verification failed: evaluating darc: expression evaluated to false")
+	require.Nil(t, err)
 
 	// Loop while we wait for the next block to be created.
-	t.Log("step2")
 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
@@ -377,13 +381,11 @@ func newSer(t *testing.T) (*ser, *Client) {
 			"invoke:queryContract.count_global_obfuscated",
 	}
 
-	fmt.Println(c.rulesMap)
-
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
 	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
-	exprA := expression.InitOrExpr(c.Signers[0].Identity().String(),
+	exprA := expression.InitAndExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
 	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -437,9 +439,9 @@ func newSer(t *testing.T) (*ser, *Client) {
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
 	actionsB2 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
-	exprB1 := expression.InitOrExpr(c.Signers[0].Identity().String(),
+	exprB1 := expression.InitAndExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String())
-	exprB2 := expression.InitOrExpr(c.Signers[0].Identity().String(),
+	exprB2 := expression.InitAndExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
 	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB1, exprB1)
 	c.bDarc = c.UpdateDarcRule(c.bDarc, actionsB2, exprB2)
