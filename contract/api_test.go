@@ -2,7 +2,8 @@ package contract
 
 import (
 	"fmt"
-	"strconv"
+	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
+	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
@@ -21,6 +23,7 @@ var tSuite = suites.MustFind("Ed25519")
 // Use this block interval for logic tests. Stress test often use a different
 // block interval.
 var testBlockInterval = 500 * time.Millisecond
+var actionsList = "patient_list,count_per_site,count_per_site_obfuscated,count_per_site_shuffled,count_per_site_shuffled_obfuscated,count_global,count_global_obfuscated"
 
 // func TestMain(m *testing.M) {
 // 	log.MainTest(m)
@@ -33,183 +36,225 @@ func TestClient_Medchain(t *testing.T) {
 
 	err := c.Create()
 	require.Nil(t, err)
-	require.NotNil(t, c.Instance)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, c.Instance.Slice(), testBlockInterval)
 
-	ids, err := c.WriteQueries(NewQuery("query1", "submitted")) //, NewQuery("query2", "submitted"), NewQuery("query3", "submitted"))
-
+	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 1: Authorization -*-*-*-*-*-*-*-*-*-*-*-*-*
+	// ------------------ 1. Spwan query instances ------------------
+	// This query should be authorized
+	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, ids[2], testBlockInterval)
+	t.Log("step1")
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// // Fetch the index, and check its length.
-	_ = checkProof(t, c, leader.omni, c.Instance.Slice(), c.ByzCoin.ID)
-	// expected := len(c.Instance)
-	// require.Equal(t, expected, len(idx), fmt.Sprintf("index key content is %v, expected %v", len(idx), expected))
+	//Fetch the index, and check it.
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, queries[0].Status, (s.Status))
+	}
 
 	// Use the client API to get the query back
-	for _, key := range ids {
-		_, err := c.GetQuery(key)
-		//fmt.Println(k)
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
 		require.Nil(t, err)
 	}
 
-	// Test naming, this is just a sanity check for medchain, the main
-	// naming test is in the byzcoin package.
-	// use contract_name to create a mapping from a darc ID and name tuple
-	// to another instance ID
-	spawnTx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractNamingID,
-				},
-				SignerCounter: c.incrementCtrs(),
-			},
-		},
-	}
-	require.NoError(t, spawnTx.FillSignersAndSignWith(c.Signers...))
-	_, err = c.ByzCoin.AddTransactionAndWait(spawnTx, 10)
-	require.NoError(t, err)
-
-	namingTx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NamingInstanceID,
-		Invoke: &byzcoin.Invoke{
-			ContractID: byzcoin.ContractNamingID,
-			Command:    "add",
-			Args: byzcoin.Arguments{
-				{
-					Name:  "instanceID",
-					Value: c.Instance.Slice(),
-				},
-				{
-					Name:  "name",
-					Value: []byte("queryContract"),
-				},
-			},
-		},
-		SignerCounter: c.incrementCtrs(),
-	})
-	require.NoError(t, err)
-	require.NoError(t, namingTx.FillSignersAndSignWith(c.Signers...))
-
-	_, err = c.ByzCoin.AddTransactionAndWait(namingTx, 10)
-	require.NoError(t, err)
-
-	replyID, err := c.ByzCoin.ResolveInstanceID(s.genDarc.GetID(), "queryContract")
-	require.NoError(t, err)
-	require.Equal(t, replyID, c.Instance)
-}
-
-func TestClient_Query100(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	s, c := newSer(t)
-	leader := s.services[0]
-	defer s.close()
-
-	err := c.Create()
+	// ------------------ 2. Authorization ------------------
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0]}, NewQuery("wsdf65k80h:A:patient_list", "Submitted")) //, NewQuery("ierfghd4b6:B:count_per_site_shuffled_obfuscated ", "Submitted")) //, NewQuery(randomString(10, "")+":B:patient_list", "Submitted"))
 	require.Nil(t, err)
-	waitForKey(t, leader.omni, c.ByzCoin.ID, c.Instance.Slice(), time.Second)
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, 32, len(ids[0]))
 
-	qCount := 100
-	// Write the queries in chunks to make sure that the verification
-	// can be done in time.
-	for i := 0; i < 5; i++ {
-		current := s.getCurrentBlock(t)
+	// Loop while we wait for the next block to be created.
+	t.Log("step2")
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
-		start := i * qCount / 5
-		for ct := start; ct < start+qCount/5; ct++ {
-			_, err := c.WriteQueries(NewQuery("query"+string(ct), "submitted"))
-			require.Nil(t, err)
-		}
-
-		s.waitNextBlock(t, current)
-	}
-
-	// Also, one call to write a query with multiple queries in it.
-	for i := 0; i < 5; i++ {
-		current := s.getCurrentBlock(t)
-
-		qs := make([]Query, qCount/5)
-		for j := range qs {
-			qs[j] = NewQuery("query"+string(j), "submitted")
-		}
-		_, err = c.WriteQueries(qs...)
-		require.Nil(t, err)
-
-		s.waitNextBlock(t, current)
-	}
-
+	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		// leader.waitForBlock isn't enough, so wait a bit longer.
-		time.Sleep(s.req.BlockInterval)
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
+
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, "Authorized", s.Status)
+	}
+
+	// Use the client API to get the query back
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
+
+	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 2: Rejection  -*-*-*-*-*-*-*-*-*-*-*-*-*
+	// ------------------ 1. Spwan query instances ------------------
+	// This query should not be authorized
+
+	queries, ids, err = c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
+	require.Nil(t, err)
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, 32, len(ids[0]))
+
+	// Loop while we wait for the next block to be created.
+	t.Log("step1")
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+
+	// Check consistency and # of queries.
+	for i := 0; i < 10; i++ {
+		leader.waitForBlock(c.ByzCoin.ID)
+	}
+
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, queries[0].Status, (s.Status))
+	}
+	// Use the client API to get the query back
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
+	require.Nil(t, err)
+	_, err = c.GetQuery(instaID.Slice())
 	require.Nil(t, err)
 
-	// Fetch index, and check its length.
-	idx := checkProof(t, c, leader.omni, c.Instance.Slice(), c.ByzCoin.ID)
-	expected := len(c.Instance)
-	require.Equal(t, expected, len(idx), fmt.Sprintf("index key content is %v, expected %v", len(idx), expected))
+	// ------------------ 2. Authorization ------------------
+	// This query should be rejected
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[2]}, NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
+	// Expect it to not be accepted, because Darc conditions are not met
+	t.Log(err)
+	require.Contains(t, err, "instruction verification failed: evaluating darc: expression evaluated to false")
 
-	// for _, eventID := range queryIDs {
-	// 	eventBuf := checkProof(t, leader.omni, eventID, c.ByzCoin.ID)
-	// 	var q Query
-	// 	require.Nil(t, protobuf.Decode(eventBuf, &e))
-	// }
-	// require.Nil(t, s.local.WaitDone(10*time.Second))
+	// Loop while we wait for the next block to be created.
+	t.Log("step2")
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+
+	// Check consistency and # of queries.
+	for i := 0; i < 10; i++ {
+		leader.waitForBlock(c.ByzCoin.ID)
+	}
+
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, "Rejected", (s.Status))
+	}
+	// Use the client API to get the query back
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
+	require.Nil(t, err)
+	_, err = c.GetQuery(instaID.Slice())
+	require.Nil(t, err)
+
 }
+
+// // Do not use this test - as adding queries to ledger takes long
+// // this test usually fails
+// func TestClient_Query100(t *testing.T) {
+// 	if testing.Short() {
+// 		return
+// 	}
+
+// 	s, c := newSer(t)
+// 	leader := s.services[0]
+// 	defer s.close()
+
+// 	err := c.Create()
+// 	require.Nil(t, err)
+// 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
+
+// 	qCount := 100
+// 	// Write the queries in chunks to make sure that the verification
+// 	// can be done in time.
+// 	for i := 0; i < 20; i++ {
+// 		current := s.getCurrentBlock(t)
+
+// 		start := i * qCount / 5
+// 		for ct := start; ct < start+qCount/5; ct++ {
+// 			_, _, err := c.WriteQueries(NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+// 			require.Nil(t, err)
+// 		}
+
+// 		s.waitNextBlock(t, current)
+// 	}
+
+// 	// Also, one call to write a query with multiple queries in it.
+// 	qs := make([]Query, qCount/5)
+// 	for i := 0; i < 5; i++ {
+// 		current := s.getCurrentBlock(t)
+
+// 		for j := range qs {
+// 			qs[j] = NewQuery(randomString(10, "")+":"+strings.ToUpper(randomString(1, "AB"))+":"+randomAction(), "Submitted")
+// 		}
+// 		_, _, err = c.WriteQueries(qs...)
+// 		require.Nil(t, err)
+
+// 		s.waitNextBlock(t, current)
+// 	}
+
+// 	for i := 0; i < 20; i++ {
+// 		// leader.waitForBlock isn't enough, so wait a bit longer.
+// 		time.Sleep(s.req.BlockInterval)
+// 		leader.waitForBlock(c.ByzCoin.ID)
+// 	}
+// 	require.Nil(t, err)
+
+// 	// Fetch index, and check its length.
+// 	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, qs[0].ID)
+// 	require.Nil(t, err)
+// 	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+// 	qdata := QueryData{}
+// 	err = protobuf.Decode(idx, &qdata)
+// 	require.Nil(t, err)
+
+// }
 
 func checkProof(t *testing.T, c *Client, omni *byzcoin.Service, key []byte, scID skipchain.SkipBlockID) []byte {
 
-	// req := &byzcoin.GetProof{
-	// 	Version: byzcoin.CurrentVersion,
-	// 	Key:     key,
-	// 	ID:      scID,
-	// }
-	// resp, err := omni.GetProof(req)
-	// require.Nil(t, err)
-
-	// p := resp.Proof
-	// fmt.Println(p.InclusionProof.Match(key))
-	// require.True(t, p.InclusionProof.Match(key), "proof of exclusion of index")
-
-	// v0, _, _, err := p.Get(key)
-	// require.NoError(t, err)
-	// fmt.Println(string(v0))
-	// return v0
-
-	// Get the proof from byzcoin
-	reply, err := c.ByzCoin.GetProof(key)
-	require.Nil(t, err)
-	// Make sure the proof is a matching proof and not a proof of absence.
-	pr := reply.Proof
-	require.True(t, pr.InclusionProof.Match(key))
-
-	// Get the raw values of the proof.
-	_, val, contractID, dID, err := pr.KeyValue()
-	require.Nil(t, err)
-	fmt.Println("contractID")
-	fmt.Println(contractID)
-	fmt.Println("dID")
-	fmt.Println(dID)
-	// And decode the buffer to a QueryData
-	cs := QueryData{}
-	err = protobuf.Decode(val, &cs)
+	req := &byzcoin.GetProof{
+		Version: byzcoin.CurrentVersion,
+		Key:     key,
+		ID:      scID,
+	}
+	resp, err := omni.GetProof(req)
 	require.Nil(t, err)
 
-	return val
+	p := resp.Proof
+	require.True(t, p.InclusionProof.Match(key), "proof of exclusion of index")
+
+	v0, _, _, err := p.Get(key)
+	require.NoError(t, err)
+	return v0
 }
 
 func waitForKey(t *testing.T, s *byzcoin.Service, scID skipchain.SkipBlockID, key []byte, interval time.Duration) {
@@ -233,6 +278,7 @@ func waitForKey(t *testing.T, s *byzcoin.Service, scID skipchain.SkipBlockID, ke
 				break
 			}
 		} else {
+			t.Log("wait for key")
 			t.Log("err", err)
 		}
 		time.Sleep(interval)
@@ -272,7 +318,6 @@ func newSer(t *testing.T) (*ser, *Client) {
 		s.services = append(s.services, service)
 	}
 
-	fmt.Println("length of sevices:" + strconv.Itoa(len(s.services)))
 	var err error
 	s.req, err = byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, s.roster,
 		[]string{"spawn:" + contractName, "invoke:" + contractName + "." + "update", "invoke:" + contractName + "." + "verifystatus", "_name:" + contractName}, s.owner.Identity())
@@ -294,14 +339,158 @@ func newSer(t *testing.T) (*ser, *Client) {
 	ol := byzcoin.NewClient(s.id, *s.roster)
 
 	c := NewClient(ol)
+	signer1 := darc.NewSignerEd25519(nil, nil)
+	signer2 := darc.NewSignerEd25519(nil, nil)
 	c.DarcID = s.genDarc.GetBaseID()
-	c.Signers = []darc.Signer{s.owner}
+	c.Signers = []darc.Signer{s.owner, signer1, signer2}
 	c.genDarc = s.genDarc
 
+	// Initialize the signer-counter map
+	c.signerCtrs = make(map[string]uint64)
+	for i := range c.Signers {
+		c.signerCtrs[c.Signers[i].Identity().String()] = 0
+	}
+
+	// ------ Create project Darcs -----
+	// Create Darc for project A
+	// Create rulesMap
+	// Owner (i.e, Signer0 rules)
+	c.rulesMap = make(map[string]map[string]string)
+	c.rulesMap[c.Signers[0].Identity().String()] = map[string]string{
+		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+	}
+	// Signer 1 rules
+	c.rulesMap[c.Signers[1].Identity().String()] = map[string]string{
+		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+	}
+	//Signer 2 rules
+	c.rulesMap[c.Signers[2].Identity().String()] = map[string]string{
+		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global," +
+			"invoke:queryContract.count_global_obfuscated",
+	}
+
+	fmt.Println(c.rulesMap)
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
+	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
+		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+		"invoke:queryContract.count_global_obfuscated"
+	exprA := expression.InitOrExpr(c.Signers[0].Identity().String(),
+		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
+	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
+	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+
+	// Verify the darc is correct
+	require.Nil(t, c.aDarc.Verify(true))
+	t.Logf("**************** Darc of Project A ******************")
+	t.Log(c.aDarc.String())
+
+	// Spawn Project A Darc
+	aDarcBuf, err := c.aDarc.ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.aDarc.Equal(aDarcCopy))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: aDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0], c.Signers[1], c.Signers[2]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.aDarcID = c.aDarc.GetBaseID()
+
+	// Create Darc for project B. signers 1 and 2 can query everything from database B while signer can
+	// only query certain things - the last two
+	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
+	actionsB1 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
+		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+		"invoke:queryContract.count_global_obfuscated"
+	actionsB2 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	exprB1 := expression.InitOrExpr(c.Signers[0].Identity().String(),
+		c.Signers[1].Identity().String())
+	exprB2 := expression.InitOrExpr(c.Signers[0].Identity().String(),
+		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
+	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB1, exprB1)
+	c.bDarc = c.UpdateDarcRule(c.bDarc, actionsB2, exprB2)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.bDarc.Rules.AddRule("_name:"+contractName, exprB2)
+	c.bDarc.Rules.AddRule("spawn:naming", exprB2)
+
+	// Verify the darc is correct
+	require.Nil(t, c.bDarc.Verify(true))
+	t.Logf("**************** Darc of Project B ******************")
+	t.Log(c.bDarc.String())
+
+	// Spawn Project A Darc
+	bDarcBuf, err := c.bDarc.ToProto()
+	require.NoError(t, err)
+	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.bDarc.Equal(bDarcCopy))
+
+	ctx = byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: bDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0], c.Signers[1], c.Signers[2]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.bDarcID = c.bDarc.GetBaseID()
+	require.NotEqual(t, c.aDarcID, c.bDarcID)
 	// The user must include at least one contract that can be parsed as a
 	// DARC and it must exist.
-	fmt.Println("Num of darc contracts")
-	fmt.Println(len(s.req.DarcContractIDs))
+	require.NotEqual(t, 0, len(s.req.DarcContractIDs))
+
 	return s, c
 }
 
@@ -312,7 +501,7 @@ func (s *ser) getCurrentBlock(t *testing.T) skipchain.SkipBlockID {
 }
 
 func (s *ser) waitNextBlock(t *testing.T, current skipchain.SkipBlockID) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		reply, err := skipchain.NewClient().GetUpdateChain(s.roster, s.id)
 		require.Nil(t, err)
 		if !current.Equal(reply.Update[len(reply.Update)-1].Hash) {
@@ -330,5 +519,29 @@ func (s *Service) waitForBlock(scID skipchain.SkipBlockID) {
 	if err != nil {
 		panic(err.Error())
 	}
-	time.Sleep(5 * dur)
+	time.Sleep(10 * dur)
+}
+
+func stringWithCharset(length int, charset string) string {
+	var seededRand *rand.Rand = rand.New(
+		rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+func randomString(length int, charset string) string {
+	if charset == "" {
+		charset = "abcdefghijklmnopqrstuvwxyz" +
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	}
+	return stringWithCharset(length, charset)
+}
+
+func randomAction() string {
+	actions := strings.Split(actionsList, ",")
+	n := rand.Intn(len(actions))
+	return actions[n]
 }

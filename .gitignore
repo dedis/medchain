@@ -8,5 +8,5 @@ conode/running
 running
 *.out
 .DS_Store
-./report/.DS_Store
-./app/build
+report/.DS_Store
+app/build/*

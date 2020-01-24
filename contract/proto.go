@@ -50,9 +50,7 @@ func NewQuery(k, v string) Query {
 		ID:     k,
 		Status: v,
 	}
-
 	return res
-
 }
 
 // SearchRequest includes all the search parameters (AND of all provided search

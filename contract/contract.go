@@ -81,8 +81,8 @@ func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.In
 		return nil, nil, xerrors.Errorf("failed to authorize the query with error:", err)
 	}
 
-	if inst.Invoke.Command != "update" && inst.Invoke.Command != "verifystatus" {
-		return nil, nil, errors.New("MedChain contract only supports spwan/update/verifystatus requests")
+	if inst.Invoke.Command != "update" && inst.Invoke.Command != "verifystatus" && inst.Invoke.Command != "patient_list" && inst.Invoke.Command != "count_per_site" && inst.Invoke.Command != "count_per_site_obfuscated" && inst.Invoke.Command != "count_per_site_shuffled" && inst.Invoke.Command != "count_per_site_shuffled_obfuscated" && inst.Invoke.Command != "count_global" && inst.Invoke.Command != "count_global_obfuscated" {
+		return nil, nil, errors.New("This action is not supported by contract" + contractName)
 	}
 
 	switch inst.Invoke.Command {
@@ -116,6 +116,97 @@ func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.In
 		}
 		sc = []byzcoin.StateChange{
 			byzcoin.NewStateChange(byzcoin.Create, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "patient_list":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_per_site":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_per_site_obfuscated":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_per_site_shuffled":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_per_site_shuffled_obfuscated":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_global":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+				MedchainContractID, buf, darcID),
+		}
+
+	case "count_global_obfuscated":
+		kvd := &c.QueryData
+		kvd.Update(inst.Invoke.Args)
+		var buf []byte
+		buf, err = protobuf.Encode(kvd)
+		if err != nil {
+			return nil, nil, xerrors.Errorf("failed to encode data with error : %v", err)
+		}
+		sc = []byzcoin.StateChange{
+			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
 				MedchainContractID, buf, darcID),
 		}
 
@@ -159,10 +250,10 @@ func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
 		for _, stored := range cs.Storage {
 			if stored.ID == kv.Name {
 				found = true
-				if stored.Status == "Approved" {
+				if stored.Status == "Authorized" {
 					return nil
 				}
-				return xerrors.Errorf("query %s has status %s and has not been approved", stored.ID, stored.Status)
+				return xerrors.Errorf("query %s has status %s and has not been authorized", stored.ID, stored.Status)
 
 			}
 

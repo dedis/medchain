@@ -1,0 +1,36 @@
+[[servers]]
+  Address = "tls://localhost:2002"
+  Suite = "Ed25519"
+  Public = "d7a41380b91c1865f6dbd2778cd87eed2046548d82a05bf53288538d3e7c5f51"
+  Description = "Cot-1"
+  [servers.Services]
+    [servers.Services.ByzCoin]
+      Public = "4070ff7a0e2b733e52c34913d7e0d169fc6555377c47c938bd2ee695425b2ec541137addc32f58fca890138a5a9f2bd2f4346fe2508d69c11c273fc7567b83fd6ccecddb74188f622af07da40b59d97c294b3e1023b7be5cf6241c09b8961c792a4d229e876a0e5261d1d2f2cd2a4b15f76a8050361e494fbe1ba4867a272aea"
+      Suite = "bn256.adapter"
+    [servers.Services.Skipchain]
+      Public = "7d3a014174910a0ae7ce95fb60fdd23310684b1114a3bd39aaecfb4573ad5e2a6839030316f17f949cf7621e8b966304932d23f72324d728c61b8807fc2d0c496b22bde247a028efa6e12807d89283c7d8bbeced1d118db2b1860e2a4a8da6b33aae610acccd5e0e4d399bfa66d6825960823eed29858c23996e45e1f09a63a4"
+      Suite = "bn256.adapter"
+[[servers]]
+  Address = "tls://localhost:2004"
+  Suite = "Ed25519"
+  Public = "572e8175946b4c3b92904db600f69fd2d9124e5ab876e292b280554c50aaee99"
+  Description = "Cot-2"
+  [servers.Services]
+    [servers.Services.ByzCoin]
+      Public = "630eb37bbc6e3de940b039d21bb942c4559cf8d76e40614840bbb59ef6d6d66b87dc94a63d05ef22a079868dd6931ab71401662bee105696a0d4faf2f1ac949e033aaa2178f65fd70936b754c981f35ef9446fdde7bb4696b29a48dace19ca66419e56f96760daf1875576a7b05c3535fe4fd8ab6f44067381524358941fca38"
+      Suite = "bn256.adapter"
+    [servers.Services.Skipchain]
+      Public = "68906516ad1ee9f0b37fbe0b985b379d09a4faf3816416f241810bbf770230ad31682bde45e5e2f77f364623294ce00e0260724828761f5983c4c9b74364fa7356becf4d3dece204870df2d4157c4395689e602ddeb748cb19aa59d78a4fa52a5a237f4cbc56080a755ba1b29b19dbd499669f00e3ad978a42e17b5514b3ba51"
+      Suite = "bn256.adapter"
+[[servers]]
+  Address = "tls://localhost:2006"
+  Suite = "Ed25519"
+  Public = "43ca580df328b0148db20e01f941acfeaed1482f41eaccb41fe18943073a47a1"
+  Description = "Cot-3"
+  [servers.Services]
+    [servers.Services.ByzCoin]
+      Public = "2b202f03f26e78567a1a6afa4be377db7167e8daf33493349cda79dd3ea9ad2b41bccce2c9d5ff786f033988faaf6871f99c234b7ea3fad827ceb6675512c42c5f3263d6e3fa0952567aa4f4370aeef38998ead149d9faf4663f4b706b5c3a6011d50eb32449db82764b9c310bcf4293bc1e33908b6c8457a7476af8d6fbe19a"
+      Suite = "bn256.adapter"
+    [servers.Services.Skipchain]
+      Public = "8d5e389de8931508fde4c99c5ef390d8d3cb58f12acccafefe62eb135f0d30ff31c4dacfdfb51e211e727093844f1ea095b5f5169abcb040c321fa8b733f47832c165bf61f723c51385e73dec8308841cd3c33bf0dbd90302d8f300b296d03a384f903e03717227cac9954f2854746da87a8e1fbc5c07ff457f70ad3f25328f8"
+      Suite = "bn256.adapter"

@@ -24,15 +24,21 @@ type Client struct {
 	// The DarcID with "invoke:queryContract.update" & "invoke:queryContract.verifystatus "permission on it.
 	DarcID darc.ID
 	// Signers are the Darc signers that will sign transactions sent with this client.
-	Signers    []darc.Signer
-	Instance   byzcoin.InstanceID
-	c          *onet.Client
-	sc         *skipchain.Client
-	signerCtrs []uint64
+	Signers []darc.Signer
+	// Instance ID of naming contract
+	NamingInstance byzcoin.InstanceID
+	c              *onet.Client
+	sc             *skipchain.Client
+	// signerCtrs maps identity (string) to signer counter (int)
+	signerCtrs map[string]uint64
 	genDarc    *darc.Darc
 	aDarc      *darc.Darc // project A darc
+	aDarcID    darc.ID
 	bDarc      *darc.Darc //project B darc
+	bDarcID    darc.ID
 	gMsg       *byzcoin.CreateGenesisBlock
+	// Mapping of signer identities to projects and actions
+	rulesMap map[string]map[string]string
 }
 
 // NewClient creates a new client to talk to the medchain service.
@@ -53,25 +59,32 @@ func (c *Client) Create() error {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
-
-	instr := byzcoin.Instruction{
-		InstanceID:    byzcoin.NewInstanceID(c.DarcID),
-		Spawn:         &byzcoin.Spawn{ContractID: contractName},
-		SignerCounter: c.nextCtrs(),
-	}
-	tx, err := c.ByzCoin.CreateTransaction(instr)
-	if err != nil {
-		return err
-	}
-	if err := tx.FillSignersAndSignWith(c.Signers...); err != nil {
-		return err
-	}
-	if _, err := c.ByzCoin.AddTransactionAndWait(tx, 10); err != nil {
-		return err
+	if c.signerCtrs == nil {
+		c.RefreshSignerCounters()
 	}
 
-	c.incrementCtrs()
-	c.Instance = tx.Instructions[0].DeriveID("")
+	// Spawn an instance of naming contract
+	spawnNamingTx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractNamingID,
+				},
+				SignerCounter: c.incrementCtrs(),
+			},
+		},
+	}
+
+	if err := spawnNamingTx.FillSignersAndSignWith(c.Signers...); err != nil {
+		fmt.Println("debug1")
+		return err
+	}
+	if _, err := c.ByzCoin.AddTransactionAndWait(spawnNamingTx, 15); err != nil {
+		fmt.Println("debug2")
+		return err
+	}
+
 	return nil
 }
 
@@ -82,21 +95,38 @@ func (c *Client) RefreshSignerCounters() {
 	signerIDs := make([]string, len(c.Signers))
 	for i := range c.Signers {
 		signerIDs[i] = c.Signers[i].Identity().String()
+		signerCtrs, err := c.ByzCoin.GetSignerCounters(signerIDs[i])
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		c.signerCtrs[signerIDs[i]] = signerCtrs.Counters[i]
 	}
-	signerCtrs, err := c.ByzCoin.GetSignerCounters(signerIDs...)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	c.signerCtrs = signerCtrs.Counters
+
 }
 
 // incrementCtrs will update the client state
 func (c *Client) incrementCtrs() []uint64 {
 	out := make([]uint64, len(c.signerCtrs))
-	for i := range out {
-		c.signerCtrs[i]++
-		out[i] = c.signerCtrs[i]
+	i := 0
+	for k := range c.signerCtrs {
+		c.signerCtrs[k]++
+		out[i] = c.signerCtrs[k]
+		i++
+	}
+	return out
+}
+
+// incrementSpecificCtrs will insrease the counter for specific signers and update the client state
+func (c *Client) incrementSpecificCtrs(signers ...darc.Signer) []uint64 {
+	out := make([]uint64, len(c.signerCtrs))
+	i := 0
+	for j := range signers {
+		c.signerCtrs[signers[j].Identity().String()]++
+	}
+	for k := range c.signerCtrs {
+		out[i] = c.signerCtrs[k]
+		i++
 	}
 	return out
 }
@@ -104,8 +134,19 @@ func (c *Client) incrementCtrs() []uint64 {
 // nextCtrs will not update client state
 func (c *Client) nextCtrs() []uint64 {
 	out := make([]uint64, len(c.signerCtrs))
-	for i := range out {
-		out[i] = c.signerCtrs[i] + 1
+	i := 0
+	for k := range c.signerCtrs {
+		out[i] = c.signerCtrs[k] + 1
+		i++
+	}
+	return out
+}
+
+// tempCtrs will create a temmporary counters array  and will not update client state
+func (c *Client) tempCtrs(signers ...darc.Signer) []uint64 {
+	out := make([]uint64, len(signers))
+	for i := range signers {
+		out[i] = c.signerCtrs[signers[i].Identity().String()] + 1
 	}
 	return out
 }
@@ -115,73 +156,98 @@ func (c *Client) nextCtrs() []uint64 {
 type QueryKey []byte
 
 // WriteQueries asks the service to write queries to the ledger.
-func (c *Client) WriteQueries(qu ...Query) ([]QueryKey, error) {
-	return c.CreateQueryAndWait(10, qu...)
+func (c *Client) WriteQueries(signers []darc.Signer, qu ...Query) ([]Query, []QueryKey, error) {
+	return c.CreateQueryAndWait(10, signers, qu...)
 }
 
 // CreateQueryAndWait sends a request to create a query and waits for N block intervals
 // that the queries are added to the ledger
-func (c *Client) CreateQueryAndWait(numInterval int, qu ...Query) ([]QueryKey, error) {
+func (c *Client) CreateQueryAndWait(numInterval int, signers []darc.Signer, qu ...Query) ([]Query, []QueryKey, error) {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
 
-	tx, keys, err := c.prepareTx(qu)
+	tx, keys, err := c.prepareTx(qu, signers)
 	if err != nil {
-		return nil, err
+		fmt.Println("debug7")
+		return qu, nil, err
 	}
 	if _, err := c.ByzCoin.AddTransactionAndWait(*tx, numInterval); err != nil {
-		return nil, err
+		fmt.Println("debug8")
+		return qu, nil, err
 	}
-	return keys, nil
+
+	return qu, keys, nil
 }
 
 // GetQuery asks the service to retrieve a query from the ledger by its key.
 func (c *Client) GetQuery(key []byte) (*Query, error) {
-	// reply, err := c.ByzCoin.GetProof(key)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if !reply.Proof.InclusionProof.Match(key) {
-	// 	return nil, errors.New("not an inclusion proof")
-	// }
-	// k, v0, _, _, err := reply.Proof.KeyValue()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if !bytes.Equal(k, key) {
-	// 	return nil, errors.New("wrong key")
-	// }
-	// q := Query{}
-	// err = protobuf.Decode(v0, &q)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &q, nil
-
-	// Get the proof from byzcoin
 	reply, err := c.ByzCoin.GetProof(key)
 	if err != nil {
 		return nil, err
 	}
-	// Make sure the proof is a matching proof and not a proof of absence.
-	pr := reply.Proof
-
-	// Get the raw values of the proof.
-	_, val, _, _, err := pr.KeyValue()
+	if !reply.Proof.InclusionProof.Match(key) {
+		return nil, errors.New("not an inclusion proof")
+	}
+	k, v0, _, _, err := reply.Proof.KeyValue()
 	if err != nil {
 		return nil, err
 	}
-	// And decode the buffer to a Query struct
-	cs := Query{}
-	err = protobuf.Decode(val, &cs)
-	fmt.Println("*** *** *** *** ***")
-	fmt.Println(&cs)
-	return &cs, nil
+	if !bytes.Equal(k, key) {
+		return nil, errors.New("wrong key")
+	}
+	q := Query{}
+	err = protobuf.Decode(v0, &q)
+	if err != nil {
+		return nil, err
+	}
+	return &q, nil
+}
+
+// AuthorizeQuery checks authorizations for the query
+func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, error) {
+	// We need the identity part of the signatures before
+	// calling ToDarcRequest() below, because the identities
+	// go into the message digest.
+	fmt.Println("AUTHORIZATION... ")
+	sigs := make([]darc.Signature, len(c.Signers))
+	authorizations := make([]bool, len(signers))
+	for i, x := range c.Signers {
+		sigs[i].Signer = x.Identity()
+	}
+
+	action := c.GetActionFromOneQuery(query)
+	project := c.GetProjectFromOneQuery(query)
+
+	// Map signers to actions for a specific project
+	for i, signer := range signers {
+		// a, err := c.ByzCoin.CheckAuthorization(darcID, signer.Identity())
+		// darcActionMap[signer.Identity().String()] = a
+		// if err != nil {
+		// 	return err
+		// }
+		for proj, authAction := range c.rulesMap[signer.Identity().String()] {
+			fmt.Println("proj:", proj)
+			if proj == project {
+				for _, a := range strings.Split(authAction, ",") {
+					fmt.Println("authAction:", authAction)
+					fmt.Println(action, "+", a)
+					if "invoke:queryContract."+action == a {
+						authorizations[i] = true
+					} else {
+						continue
+					}
+				}
+			}
+
+		}
+	}
+	fmt.Println(authorizations)
+	return authorizations, nil
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(queries []Query) (*byzcoin.ClientTransaction, []QueryKey, error) {
+func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.ClientTransaction, []QueryKey, error) {
 	// We need the identity part of the signatures before
 	// calling ToDarcRequest() below, because the identities
 	// go into the message digest.
@@ -189,80 +255,216 @@ func (c *Client) prepareTx(queries []Query) (*byzcoin.ClientTransaction, []Query
 	for i, x := range c.Signers {
 		sigs[i].Signer = x.Identity()
 	}
-
+	ok := true
+	var action string
+	var args byzcoin.Argument
+	var darcID darc.ID
 	keys := make([]QueryKey, len(queries))
-
 	instrs := make([]byzcoin.Instruction, len(queries))
-	for i, id := range queries {
-		queryBuf, err := protobuf.Encode(&id)
+	projects := c.GetProjectFromQuery(queries)
+
+	for i, query := range queries {
+		switch projects[i] {
+		case "A":
+			darcID = c.aDarcID
+		case "B":
+			darcID = c.bDarcID
+		default:
+			return nil, nil, fmt.Errorf("invalid project used")
+		}
+		// Check if the query is authorized
+		authorizations, err := c.AuthorizeQuery(query, signers)
 		if err != nil {
 			return nil, nil, err
 		}
-		args := byzcoin.Argument{
-			Name:  id.ID,    //TODO:add the name of queries
-			Value: queryBuf, //put the correct value
+		for _, res := range authorizations {
+			if res == false {
+				ok = false //reject the query as at least one of the signers can't sign
+				args = byzcoin.Argument{
+					Name:  query.ID,
+					Value: []byte("Rejected"),
+				}
+				// This action will not be rejected by Darc and thus query rejection will be recorded
+				// in the ledger
+				action = "update"
+			}
 		}
+		if ok {
+			args = byzcoin.Argument{
+				Name:  query.ID,
+				Value: []byte("Authorized"),
+			}
+			action = c.GetActionFromOneQuery(query)
+		}
+		fmt.Println(ok)
+		fmt.Println(action)
+		// Get the instance ID of the query instance using its name
+		replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
+		if err != nil {
+			fmt.Println("debug6")
+			return nil, nil, err
+		}
+
 		instrs[i] = byzcoin.Instruction{
-			InstanceID: c.Instance,
+			InstanceID: replyID,
 			Invoke: &byzcoin.Invoke{
-				ContractID: MedchainContractID,
-				Command:    "update",
+				ContractID: contractName,
+				Command:    action,
 				Args:       []byzcoin.Argument{args},
+			},
+			SignerCounter: c.tempCtrs(signers...),
+		}
+
+	}
+	// Increment the corresponding counters in client
+	c.incrementSpecificCtrs(signers...)
+	tx, err := c.ByzCoin.CreateTransaction(instrs...)
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil, err
+	}
+	if err := tx.FillSignersAndSignWith(signers...); err != nil {
+		fmt.Println(err)
+		return nil, nil, err
+	}
+	for i := range tx.Instructions {
+		fmt.Println(err)
+		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
+	}
+	return &tx, keys, nil
+}
+
+//SpawnQuery spawns a query instance
+func (c *Client) SpawnQuery(qu ...Query) ([]Query, []QueryKey, error) {
+	return c.CreateInstance(10, qu)
+}
+
+//CreateInstance spawns a query
+func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []QueryKey, error) {
+	// We need the identity part of the signatures before
+	// calling ToDarcRequest() below, because the identities
+	// go into the message digest.
+	sigs := make([]darc.Signature, len(c.Signers))
+	for i, x := range c.Signers {
+		sigs[i].Signer = x.Identity()
+	}
+	var darcID darc.ID
+	keys := make([]QueryKey, len(queries))
+	projects := c.GetProjectFromQuery(queries)
+	instrs := make([]byzcoin.Instruction, len(queries))
+
+	for i, query := range queries {
+		fmt.Println(projects[i])
+		switch projects[i] {
+		case "A":
+			darcID = c.aDarcID
+		case "B":
+			darcID = c.bDarcID
+		default:
+			return nil, nil, fmt.Errorf("unexpected project name received")
+		}
+
+		// if the query has just been submitted, spawn a query instance;
+		//otherwise, inoke an update to change its status
+		// TODO: check proof instead of status to make this more stable and
+		// reliable
+
+		instrs[i] = byzcoin.Instruction{
+			InstanceID: byzcoin.NewInstanceID(darcID),
+			Spawn: &byzcoin.Spawn{
+				ContractID: contractName,
+				Args: byzcoin.Arguments{
+					{
+						Name:  query.ID,
+						Value: []byte(query.Status),
+					},
+				},
 			},
 			SignerCounter: c.incrementCtrs(),
 		}
 	}
 	tx, err := c.ByzCoin.CreateTransaction(instrs...)
 	if err != nil {
+		fmt.Println(err)
 		return nil, nil, err
 	}
 	if err := tx.FillSignersAndSignWith(c.Signers...); err != nil {
+		fmt.Println(err)
 		return nil, nil, err
 	}
+
 	for i := range tx.Instructions {
+		fmt.Println(err)
 		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
+		//fmt.Println(tx.Instructions[i].GetIdentityStrings())
 	}
-	return &tx, keys, nil
+
+	if _, err := c.ByzCoin.AddTransactionAndWait(tx, numInterval); err != nil {
+		fmt.Println("debug8-2")
+		return nil, nil, err
+	}
+	for i, query := range queries {
+		var darcID darc.ID
+		// name the instance of the query with as its key using contract_name to
+		// make retrievals easier
+		project := c.GetProjectFromOneQuery(query)
+		fmt.Println(project)
+		switch project {
+		case "A":
+			darcID = c.aDarcID
+		case "B":
+			darcID = c.bDarcID
+		default:
+			return nil, nil, fmt.Errorf("unexpected project name received")
+		}
+		instID := tx.Instructions[i].DeriveID("")
+		err = c.NameInstance(instID, darcID, query.ID)
+		if err != nil {
+			fmt.Println("debug4")
+			return nil, nil, err
+		}
+	}
+	return queries, keys, nil
 }
 
 // CreateNewSigner creates private and public key pairs
-func CreateNewSigner(public kyber.Point, private kyber.Scalar) darc.Signer {
+func (c *Client) CreateNewSigner(public kyber.Point, private kyber.Scalar) darc.Signer {
 	identity := darc.NewSignerEd25519(public, private)
 	return identity
 }
 
 // AddRuleToDarc adds action rules to the given darc
-func AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
+func (c *Client) AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
 	actions := strings.Split(action, ",")
 
 	for i := 0; i < len(actions); i++ {
 		dAction := darc.Action(actions[i])
-		//fmt.Println(dAction)
 		userDarc.Rules.AddRule(dAction, expr)
 	}
 	return userDarc
 }
 
 // UpdateDarcRule update action rules of the given darc
-func UpdateDarcRule(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
+func (c *Client) UpdateDarcRule(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
 	actions := strings.Split(action, ",")
 
 	for i := 0; i < len(actions); i++ {
 		dAction := darc.Action(actions[i])
-		//fmt.Println(dAction)
 		userDarc.Rules.UpdateRule(dAction, expr)
 	}
 	return userDarc
 }
 
-// CreateProjectDarc creates darcs for projects (i.e., databases) given the rules, actions, and
-// expressions.
-func CreateProjectDarc(desc string, rules darc.Rules, actions string, expr expression.Expr) *darc.Darc {
-	userDarc := darc.NewDarc(rules, []byte(desc))
-	userDarc = AddRuleToDarc(userDarc, actions, expr)
-	return userDarc
-
+// CreateDarc is used to create a new darc
+func (c *Client) CreateDarc(name string, rules darc.Rules, actions string, exprs expression.Expr) (*darc.Darc, error) {
+	projectDarc := darc.NewDarc(rules, []byte(name))
+	projectDarc = c.AddRuleToDarc(projectDarc, actions, exprs)
+	return projectDarc, nil
 }
+
+// func (c *Client) SpawnDarc  {
+
+// }
 
 // StreamHandler is the signature of the handler used when streaming queries.
 type StreamHandler func(query Query, blockID []byte, err error)
@@ -403,8 +605,7 @@ func (c *Client) EvolveDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSi
 	// creates a request and then sends it to the server.
 	darcEvol := darc.NewDarc(rules, []byte(name))
 	darcEvol.EvolveFrom(d1)
-	r, d2Buf, err := darcEvol.MakeEvolveRequest(prevSigners...)
-	fmt.Println(err)
+	r, d2Buf, _ := darcEvol.MakeEvolveRequest(prevSigners...)
 
 	// Client sends request r and serialised darc d2Buf to the server, and
 	// the server must verify it. Usually the server will look in its
@@ -430,49 +631,96 @@ func (c *Client) EvolveDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSi
 	return darcEvol, nil
 }
 
-// CreateDarc is used to create a new darc
-func (c *Client) CreateDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSigners ...darc.Signer) (*darc.Darc, error) {
-	// Now the client wants to evolve the darc (change the owner), so it
-	// creates a request and then sends it to the server.
-	darcEvol := darc.NewDarc(rules, []byte(name))
-	darcEvol.EvolveFrom(d1)
-	r, d2Buf, err := darcEvol.MakeEvolveRequest(prevSigners...)
-	fmt.Println(err)
+// // Search executes a search on the filter in req. See the definition of type
+// // SearchRequest for additional details about how the filter is interpreted.
+// // The ID and Instance fields of the SearchRequest will be filled in from c.
+// func (c *Client) Search(req *SearchRequest) (*SearchResponse, error) {
+// 	req.ID = c.ByzCoin.ID
+// 	req.Instance = c.Instance
 
-	// Client sends request r and serialised darc d2Buf to the server, and
-	// the server must verify it. Usually the server will look in its
-	// database for the base ID of the darc in the request and find the
-	// latest one. But in this case we assume it already knows. If the
-	// verification is successful, then the server should add the darc in
-	// the request to its database.
-	fmt.Println(r.Verify(d1)) // Assume we can find d1 given r.
-	d2Server, _ := r.MsgToDarc(d2Buf)
-	fmt.Println(bytes.Equal(d2Server.GetID(), darcEvol.GetID()))
+// 	reply := &SearchResponse{}
+// 	if err := c.c.SendProtobuf(c.ByzCoin.Roster.List[0], req, reply); err != nil {
+// 		return nil, err
+// 	}
+// 	return reply, nil
+// }
 
-	// If the darcs stored on the server are trustworthy, then using
-	// `Request.Verify` is enough. To do a complete verification,
-	// Darc.Verify should be used. This will traverse the chain of
-	// evolution and verify every evolution. However, the Darc.Path
-	// attribute must be set.
-	fmt.Println(d2Server.VerifyWithCB(func(s string, latest bool) *darc.Darc {
-		if s == darc.NewIdentityDarc(d1.GetID()).String() {
-			return d1
-		}
-		return nil
-	}, true))
-	return darcEvol, nil
-}
-
-// Search executes a search on the filter in req. See the definition of type
-// SearchRequest for additional details about how the filter is interpreted.
-// The ID and Instance fields of the SearchRequest will be filled in from c.
-func (c *Client) Search(req *SearchRequest) (*SearchResponse, error) {
-	req.ID = c.ByzCoin.ID
-	req.Instance = c.Instance
-
-	reply := &SearchResponse{}
-	if err := c.c.SendProtobuf(c.ByzCoin.Roster.List[0], req, reply); err != nil {
-		return nil, err
+// GetProjectFromQuery exports the projects to which queries are directed
+func (c *Client) GetProjectFromQuery(qu []Query) []string {
+	projects := make([]string, len(qu))
+	for i, query := range qu {
+		projects[i] = strings.Split(query.ID, ":")[1]
 	}
-	return reply, nil
+	return projects
+}
+
+// GetActionFromQuery exports the action from query
+func (c *Client) GetActionFromQuery(qu []Query) []string {
+	//projects := c.GetProjectFromQuery(qu)
+	actions := make([]string, len(qu))
+	for i, query := range qu {
+		actions[i] = strings.Split(query.ID, ":")[2]
+		//actions[i] = "database" + projects[i] + "." + actions[i]
+		fmt.Println(actions[i])
+	}
+	return actions
+}
+
+// GetProjectFromOneQuery exports the project to which query is directed
+func (c *Client) GetProjectFromOneQuery(query Query) string {
+	project := strings.Split(query.ID, ":")[1]
+	return project
+
+}
+
+// GetActionFromOneQuery exports the action from query
+func (c *Client) GetActionFromOneQuery(query Query) string {
+	action := strings.Split(query.ID, ":")[2]
+	fmt.Println(action)
+	return action
+}
+
+//NameInstance uses contract_name to name a contract instance
+func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name string) error {
+
+	namingTx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NamingInstanceID,
+		Invoke: &byzcoin.Invoke{
+			ContractID: byzcoin.ContractNamingID,
+			Command:    "add",
+			Args: byzcoin.Arguments{
+				{
+					Name:  "instanceID",
+					Value: instID.Slice(),
+				},
+				{
+					Name:  "name",
+					Value: []byte(name),
+				},
+			},
+		},
+		SignerCounter: c.incrementCtrs(),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = namingTx.FillSignersAndSignWith(c.Signers...)
+	if err != nil {
+		return err
+	}
+	_, err = c.ByzCoin.AddTransactionAndWait(namingTx, 12)
+	if err != nil {
+		return err
+	}
+
+	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
+	// if err != nil {
+	// 	return err
+	// }
+	// if replyID != instID {
+	// 	return err
+	// }
+	fmt.Println("*** Successfully named the instance ***")
+	return nil
 }
