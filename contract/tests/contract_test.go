@@ -24,7 +24,7 @@ func TestSpawn(t *testing.T) {
 	args := byzcoin.Arguments{
 		{
 			Name:  "queryID1",
-			Value: []byte("Approved"),
+			Value: []byte("Authorized"),
 		},
 		{
 			Name:  "queryID2",
@@ -68,7 +68,7 @@ func TestInvoke(t *testing.T) {
 
 	var queryArgs2 = Query{}
 	queryArgs2.ID = "query2"
-	queryArgs2.Status = "Approved"
+	queryArgs2.Status = "Authorized"
 
 	// Create a new instance with two key/values:
 	args := byzcoin.Arguments{
@@ -97,7 +97,7 @@ func TestInvoke(t *testing.T) {
 		},
 		{
 			Name:  "query3",
-			Value: []byte("Approved"),
+			Value: []byte("Authorized"),
 		},
 	}
 	bct.updateInstance(t, instID, args)
@@ -127,7 +127,7 @@ func TestUpdate(t *testing.T) {
 	cs := QueryData{
 		Storage: []Query{{
 			ID:     "query3",
-			Status: "Approved",
+			Status: "Authorized",
 		}},
 	}
 
@@ -141,7 +141,7 @@ func TestUpdate(t *testing.T) {
 	// query1 does not exist, thus will be added
 	cs.Update(byzcoin.Arguments{{
 		Name:  "query1",
-		Value: []byte("Approved"),
+		Value: []byte("Authorized"),
 	}})
 	require.Equal(t, 2, len(cs.Storage))
 
@@ -154,7 +154,7 @@ func TestUpdate(t *testing.T) {
 	require.Equal(t, "query3", cs.Storage[0].ID)
 	require.Equal(t, "Executed", cs.Storage[0].Status)
 	require.Equal(t, "query1", cs.Storage[1].ID)
-	require.Equal(t, "Approved", cs.Storage[1].Status)
+	require.Equal(t, "Authorized", cs.Storage[1].Status)
 	require.Equal(t, "query2", cs.Storage[2].ID)
 	require.Equal(t, "Executed", cs.Storage[2].Status)
 
@@ -172,7 +172,7 @@ func TestVerifyStatus(t *testing.T) {
 	cs := QueryData{
 		Storage: []Query{{
 			ID:     "query1",
-			Status: "Approved",
+			Status: "Authorized",
 		}},
 	}
 
@@ -185,7 +185,7 @@ func TestVerifyStatus(t *testing.T) {
 	// check the skipchain (items in the ledger)
 	require.Equal(t, 2, len(cs.Storage))
 	require.Equal(t, "query1", cs.Storage[0].ID)
-	require.Equal(t, "Approved", cs.Storage[0].Status)
+	require.Equal(t, "Authorized", cs.Storage[0].Status)
 	require.Equal(t, "query2", cs.Storage[1].ID)
 	require.Equal(t, "Rejected", cs.Storage[1].Status)
 
@@ -193,7 +193,7 @@ func TestVerifyStatus(t *testing.T) {
 	err := cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query1",
 	}})
-	//The status of query1 is Approved, so should return nil
+	//The status of query1 is Authorized, so should return nil
 	assert.Nil(t, err)
 
 	// Check the status of query2
@@ -201,7 +201,7 @@ func TestVerifyStatus(t *testing.T) {
 		Name: "query2",
 	}})
 
-	//The status of query2 is not Approved, so should return some error (i.e., not nil)
+	//The status of query2 is not Authorized, so should return some error (i.e., not nil)
 	assert.NotNil(t, err)
 
 	// Check the status of query3
