@@ -49,7 +49,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// 1. Spwan query instances
 	// ------------------------------------------------------------------------
 
-	fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZED -*-*-*-*-*-")
+	fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZE -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 	require.Nil(t, err)
@@ -76,19 +76,20 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 		require.Equal(t, queries[0].Status, (s.Status))
 	}
 
-	// Use the client API to get the query back
-	for _, query := range queries {
-		instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
-		require.Nil(t, err)
-		_, err := c.GetQuery(instaID.Slice())
-		require.Nil(t, err)
-	}
+	// // Use the client API to get the query back
+	// // Resolve instance takes much time to run
+	// for _, query := range queries {
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+	// 	require.Nil(t, err)
+	// 	_, err := c.GetQuery(instaID.Slice())
+	// 	require.Nil(t, err)
+	// }
 
 	// ------------------------------------------------------------------------
 	// 2. Check Authorizations
 	// ------------------------------------------------------------------------
 	fmt.Println("[INFO] Query Authorizazion ")
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0]}, ids, queries...)
 
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
@@ -114,14 +115,16 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 		require.Equal(t, "Authorized", s.Status)
 	}
 
-	// Use the client API to get the query back
-	for _, query := range queries {
-		instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
-		require.Nil(t, err)
-		_, err := c.GetQuery(instaID.Slice())
-		require.Nil(t, err)
-	}
+	// // Use the client API to get the query back
+	// // Resolve instance takes much time to run
+	// for _, query := range queries {
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+	// 	require.Nil(t, err)
+	// 	_, err := c.GetQuery(instaID.Slice())
+	// 	require.Nil(t, err)
+	// }
 }
+
 func TestClient_MedchainReject(t *testing.T) {
 
 	// ------------------------------------------------------------------------
@@ -143,7 +146,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	// 1. Spwan query instances
 	// ------------------------------------------------------------------------
 
-	fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECTED -*-*-*-*-*-")
+	fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECT -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err := c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
 	require.Nil(t, err)
@@ -168,19 +171,20 @@ func TestClient_MedchainReject(t *testing.T) {
 		require.Equal(t, queries[0].ID, s.ID)
 		require.Equal(t, queries[0].Status, (s.Status))
 	}
-	// Use the client API to get the query back
-	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
-	require.Nil(t, err)
-	_, err = c.GetQuery(instaID.Slice())
-	require.Nil(t, err)
+	// // Use the client API to get the query back
+	// // Resolve instance takes much time to run
+	// instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
+	// require.Nil(t, err)
+	// _, err = c.GetQuery(instaID.Slice())
+	// require.Nil(t, err)
 
 	// ------------------------------------------------------------------------
 	// 2. Check Authorizations
 	// ------------------------------------------------------------------------
 
 	fmt.Println("[INFO] Query Authorization ")
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
-	// Expect it to not be accepted, because Darc conditions are not met
+	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[2]}, ids, queries...)
+	// Expect the query to be rejected, because Darc conditions are not met
 	t.Log(err)
 	require.Nil(t, err)
 
@@ -203,74 +207,106 @@ func TestClient_MedchainReject(t *testing.T) {
 		require.Equal(t, queries[0].ID, s.ID)
 		require.Equal(t, "Rejected", (s.Status))
 	}
-	// Use the client API to get the query back
-	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
-	require.Nil(t, err)
-	_, err = c.GetQuery(instaID.Slice())
-	require.Nil(t, err)
+	// // Use the client API to get the query back
+	// // Resolve instance takes much time to run
+	// instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
+	// require.Nil(t, err)
+	// _, err = c.GetQuery(instaID.Slice())
+	// require.Nil(t, err)
 
 }
 
-// // Do not use this test - as adding queries to ledger takes much time and thus fails
-// // this test usually fails
-// func TestClient_Query100(t *testing.T) {
-// 	if testing.Short() {
-// 		return
-// 	}
+// Do not use this test - as adding queries to ledger takes much time and thus fails
+// this test usually fails
+func TestClient_100Query(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 
-// 	s, c := newSer(t)
-// 	leader := s.services[0]
-// 	defer s.close()
+	s, c := newSer(t)
+	leader := s.services[0]
+	defer s.close()
 
-// 	err := c.Create()
-// 	require.Nil(t, err)
-// 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
+	err := c.Create()
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
 
-// 	qCount := 100
-// 	// Write the queries in chunks to make sure that the verification
-// 	// can be done in time.
-// 	for i := 0; i < 20; i++ {
-// 		current := s.getCurrentBlock(t)
+	qCount := 100
+	// Write the queries in chunks to make sure that the verification
+	// can be done in time.
+	for i := 0; i < 20; i++ {
+		current := s.getCurrentBlock(t)
 
-// 		start := i * qCount / 5
-// 		for ct := start; ct < start+qCount/5; ct++ {
-// 			_, _, err := c.WriteQueries(NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
-// 			require.Nil(t, err)
-// 		}
+		start := i * qCount / 5
+		for ct := start; ct < start+qCount/5; ct++ {
 
-// 		s.waitNextBlock(t, current)
-// 	}
+			// ------------------------------------------------------------------------
+			// 1. Spwan query instances
+			// ------------------------------------------------------------------------
+			_, ids, err := c.SpawnQuery(NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+			require.Nil(t, err)
 
-// 	// Also, one call to write a query with multiple queries in it.
-// 	qs := make([]Query, qCount/5)
-// 	for i := 0; i < 5; i++ {
-// 		current := s.getCurrentBlock(t)
+			// ------------------------------------------------------------------------
+			// 2. Check Authorizations
+			// ------------------------------------------------------------------------
+			_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(2)]}, ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+		}
 
-// 		for j := range qs {
-// 			qs[j] = NewQuery(randomString(10, "")+":"+strings.ToUpper(randomString(1, "AB"))+":"+randomAction(), "Submitted")
-// 		}
-// 		_, _, err = c.WriteQueries(qs...)
-// 		require.Nil(t, err)
+		s.waitNextBlock(t, current)
+	}
+}
+func TestClient_100QueryInOneQuery(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 
-// 		s.waitNextBlock(t, current)
-// 	}
+	s, c := newSer(t)
+	leader := s.services[0]
+	defer s.close()
 
-// 	for i := 0; i < 20; i++ {
-// 		// leader.waitForBlock isn't enough, so wait a bit longer.
-// 		time.Sleep(s.req.BlockInterval)
-// 		leader.waitForBlock(c.ByzCoin.ID)
-// 	}
-// 	require.Nil(t, err)
+	err := c.Create()
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
 
-// 	// Fetch index, and check its length.
-// 	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, qs[0].ID)
-// 	require.Nil(t, err)
-// 	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-// 	qdata := QueryData{}
-// 	err = protobuf.Decode(idx, &qdata)
-// 	require.Nil(t, err)
+	qCount := 100
+	// Also, one call to write a query with multiple queries in it.
+	qs := make([]Query, qCount/5)
+	for i := 0; i < 5; i++ {
+		current := s.getCurrentBlock(t)
 
-// }
+		for j := range qs {
+			// ------------------------------------------------------------------------
+			// 1. Spwan query instances
+			// ------------------------------------------------------------------------
+			qs[j] = NewQuery(randomString(10, "")+":"+strings.ToUpper(randomString(1, "AB"))+":"+randomAction(), "Submitted")
+		}
+		_, ids, err := c.SpawnQuery(qs...)
+		require.Nil(t, err)
+		// ------------------------------------------------------------------------
+		// 2. Check Authorizations
+		// ------------------------------------------------------------------------
+		_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(2)]}, ids, qs...)
+		require.Nil(t, err)
+
+		s.waitNextBlock(t, current)
+	}
+
+	for i := 0; i < 20; i++ {
+		// leader.waitForBlock isn't enough, so wait a bit longer.
+		time.Sleep(s.req.BlockInterval)
+		leader.waitForBlock(c.ByzCoin.ID)
+	}
+	require.Nil(t, err)
+
+	// Fetch index, and check its length.
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, qs[0].ID)
+	require.Nil(t, err)
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+
+}
 
 func checkProof(t *testing.T, c *Client, omni *byzcoin.Service, key []byte, scID skipchain.SkipBlockID) []byte {
 
@@ -414,7 +450,7 @@ func newSer(t *testing.T) (*ser, *Client) {
 	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
-	exprA := expression.InitAndExpr(c.Signers[0].Identity().String(),
+	exprA := expression.InitOrExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
 	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -475,9 +511,9 @@ func newSer(t *testing.T) (*ser, *Client) {
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
 	actionsB2 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
-	exprB1 := expression.InitAndExpr(c.Signers[0].Identity().String(),
+	exprB1 := expression.InitOrExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String())
-	exprB2 := expression.InitAndExpr(c.Signers[0].Identity().String(),
+	exprB2 := expression.InitOrExpr(c.Signers[0].Identity().String(),
 		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
 	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB1, exprB1)
 	c.bDarc = c.UpdateDarcRule(c.bDarc, actionsB2, exprB2)

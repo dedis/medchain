@@ -18,6 +18,10 @@ import (
 	"go.dedis.ch/protobuf"
 )
 
+// QueryKey is an opaque unique identifier useful to find a given query later
+// via GetQuery.
+var QueryKey []byzcoin.InstanceID
+
 // Client is a structure to communicate with Medchain service
 type Client struct {
 	ByzCoin *byzcoin.Client
@@ -52,9 +56,8 @@ func NewClient(ol *byzcoin.Client) *Client {
 	}
 }
 
-// Create creates a new medchain. This method is synchronous: it will only
-// return once the new query has been committed into the ledger (or after
-// a timeout). Upon non-error return, c.Instance will be correctly set.
+// Create creates a new medchain by spawning an instance of Naming contract. Afte
+// this method is executed, c.NamingInstance will be correctly set.
 func (c *Client) Create() error {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
@@ -152,23 +155,19 @@ func (c *Client) tempCtrs(signers ...darc.Signer) []uint64 {
 	return out
 }
 
-// A QueryKey is an opaque unique identifier useful to find a given query later
-// via GetQuery.
-type QueryKey []byte
-
 // WriteQueries asks the service to write queries to the ledger.
-func (c *Client) WriteQueries(signers []darc.Signer, qu ...Query) ([]Query, []QueryKey, error) {
-	return c.CreateQueryAndWait(10, signers, qu...)
+func (c *Client) WriteQueries(signers []darc.Signer, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+	return c.CreateQueryAndWait(10, signers, spawnedKeys, qu...)
 }
 
 // CreateQueryAndWait sends a request to create a query and waits for N block intervals
 // that the queries are added to the ledger
-func (c *Client) CreateQueryAndWait(numInterval int, signers []darc.Signer, qu ...Query) ([]Query, []QueryKey, error) {
+func (c *Client) CreateQueryAndWait(numInterval int, signers []darc.Signer, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
 
-	tx, keys, err := c.prepareTx(qu, signers)
+	tx, keys, err := c.prepareTx(qu, signers, spawnedKeys)
 	if err != nil {
 		fmt.Println("debug7")
 		return qu, nil, err
@@ -244,31 +243,25 @@ func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, err
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.ClientTransaction, []QueryKey, error) {
-	// We need the identity part of the signatures before
-	// calling ToDarcRequest() below, because the identities
-	// go into the message digest.
-	sigs := make([]darc.Signature, len(c.Signers))
-	for i, x := range c.Signers {
-		sigs[i].Signer = x.Identity()
-	}
+func (c *Client) prepareTx(queries []Query, signers []darc.Signer, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
+
 	ok := true
 	var action string
 	var args byzcoin.Argument
-	var darcID darc.ID
-	keys := make([]QueryKey, len(queries))
+	//var darcID darc.ID
+	keys := make([]byzcoin.InstanceID, len(queries))
 	instrs := make([]byzcoin.Instruction, len(queries))
-	projects := c.GetProjectFromQuery(queries)
+	//projects := c.GetProjectFromQuery(queries)
 
 	for i, query := range queries {
-		switch projects[i] {
-		case "A":
-			darcID = c.aDarcID
-		case "B":
-			darcID = c.bDarcID
-		default:
-			return nil, nil, fmt.Errorf("invalid project used")
-		}
+		// switch projects[i] {
+		// case "A":
+		// 	darcID = c.aDarcID
+		// case "B":
+		// 	darcID = c.bDarcID
+		// default:
+		// 	return nil, nil, fmt.Errorf("invalid project used")
+		// }
 		// Check if the query is authorized/rejected
 		authorizations, err := c.AuthorizeQuery(query, signers)
 		if err != nil {
@@ -296,15 +289,19 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 			fmt.Println("[INFO] (Invoke) Query was AUTHORIZED")
 
 		}
-		// Get the instance ID of the query instance using its name
-		replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
-		if err != nil {
-			fmt.Println("debug6")
-			return nil, nil, err
-		}
+
+		// // Get the instance ID of the query instance using its name
+		// // For the sake of performance, one should try to avoidusing
+		// // ResolveInstance() to get the instance ID using its name.
+		// // TODO in later versions of MedChain
+		// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
+		// if err != nil {
+		// 	fmt.Println("debug6")
+		// 	return nil, nil, err
+		// }
 
 		instrs[i] = byzcoin.Instruction{
-			InstanceID: replyID,
+			InstanceID: spawnedKeys[i],
 			Invoke: &byzcoin.Invoke{
 				ContractID: contractName,
 				Command:    action,
@@ -324,27 +321,21 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer) (*byzcoin.Cli
 		return nil, nil, err
 	}
 	for i := range tx.Instructions {
-		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
+		keys[i] = tx.Instructions[i].DeriveID("")
 	}
 	return &tx, keys, nil
 }
 
 //SpawnQuery spawns a query instance
-func (c *Client) SpawnQuery(qu ...Query) ([]Query, []QueryKey, error) {
+func (c *Client) SpawnQuery(qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
 	return c.CreateInstance(10, qu)
 }
 
 //CreateInstance spawns a query
-func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []QueryKey, error) {
-	// We need the identity part of the signatures before
-	// calling ToDarcRequest() below, because the identities
-	// go into the message digest.
-	sigs := make([]darc.Signature, len(c.Signers))
-	for i, x := range c.Signers {
-		sigs[i].Signer = x.Identity()
-	}
+func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []byzcoin.InstanceID, error) {
+
 	var darcID darc.ID
-	keys := make([]QueryKey, len(queries))
+	keys := make([]byzcoin.InstanceID, len(queries))
 	projects := c.GetProjectFromQuery(queries)
 	instrs := make([]byzcoin.Instruction, len(queries))
 
@@ -361,7 +352,7 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 		// if the query has just been submitted, spawn a query instance;
 		//otherwise, inoke an update to change its status
 		// TODO: check proof instead of status to make this more stable and
-		// reliable
+		// reliable (the latter may not be very efficient)
 
 		instrs[i] = byzcoin.Instruction{
 			InstanceID: byzcoin.NewInstanceID(darcID),
@@ -386,7 +377,7 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 	}
 
 	for i := range tx.Instructions {
-		keys[i] = QueryKey(tx.Instructions[i].DeriveID("").Slice())
+		keys[i] = tx.Instructions[i].DeriveID("")
 		//fmt.Println(tx.Instructions[i].GetIdentityStrings())
 	}
 
@@ -705,13 +696,14 @@ func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	}
 	fmt.Println("[INFO] (Naming Contract) Query was added to the ledger")
 
-	replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
-	if err != nil {
-		return err
-	}
-	if replyID != instID {
-		return err
-	}
+	// // This sanity check heavily reduces the performance
+	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
+	// if err != nil {
+	// 	return err
+	// }
+	// if replyID != instID {
+	// 	return err
+	// }
 	return nil
 }
 
