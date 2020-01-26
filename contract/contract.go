@@ -267,6 +267,7 @@ func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
 }
 
 // VerifyDeferredInstruction implements the byzcoin.Contract interface
+// This should be implemented to be able to use the contract with deferred contract
 func (c medchainContract) VerifyDeferredInstruction(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction, ctxHash []byte) error {
 	return inst.VerifyWithOption(rst, ctxHash, &byzcoin.VerificationOptions{IgnoreCounters: true})
 }

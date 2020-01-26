@@ -15,6 +15,7 @@ import (
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
+	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/protobuf"
 )
 
@@ -25,11 +26,14 @@ var tSuite = suites.MustFind("Ed25519")
 var testBlockInterval = 500 * time.Millisecond
 var actionsList = "patient_list,count_per_site,count_per_site_obfuscated,count_per_site_shuffled,count_per_site_shuffled_obfuscated,count_global,count_global_obfuscated"
 
-// func TestMain(m *testing.M) {
-// 	log.MainTest(m)
-// }
+func TestMain(m *testing.M) {
+	log.MainTest(m)
+}
 
-func TestClient_Medchain(t *testing.T) {
+func TestClient_MedchainAuthorize(t *testing.T) {
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
 	fmt.Println("[INFO] Starting the service")
 	s, c := newSer(t)
 	leader := s.services[0]
@@ -39,9 +43,12 @@ func TestClient_Medchain(t *testing.T) {
 	err := c.Create()
 	require.Nil(t, err)
 
-	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 1: Authorization -*-*-*-*-*-*-*-*-*-*-*-*-*
-	// ------------------ 1. Spwan query instances ------------------
-	// This query should be authorized
+	//// *-*-*-*-*-*-*-*   Demo 1: Query should be Authorized *-*-*-*-*-*-*-*-*
+
+	// ------------------------------------------------------------------------
+	// 1. Spwan query instances
+	// ------------------------------------------------------------------------
+
 	fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZED -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
@@ -77,7 +84,9 @@ func TestClient_Medchain(t *testing.T) {
 		require.Nil(t, err)
 	}
 
-	// ------------------ 2. Authorization ------------------
+	// ------------------------------------------------------------------------
+	// 2. Check Authorizations
+	// ------------------------------------------------------------------------
 	fmt.Println("[INFO] Query Authorizazion ")
 	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 
@@ -112,19 +121,37 @@ func TestClient_Medchain(t *testing.T) {
 		_, err := c.GetQuery(instaID.Slice())
 		require.Nil(t, err)
 	}
+}
+func TestClient_MedchainReject(t *testing.T) {
 
-	//// -*-*-*-*-*-*-*-*-*-*-*-*-*   Demo 2: Rejection  -*-*-*-*-*-*-*-*-*-*-*-*-*
-	// ------------------ 1. Spwan query instances ------------------
-	// This query should not be authorized
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
+
+	fmt.Println("[INFO] Starting the service")
+	s, c := newSer(t)
+	leader := s.services[0]
+	defer s.close()
+
+	fmt.Println("[INFO] Starting ByzCoin Client")
+	err := c.Create()
+	require.Nil(t, err)
+
+	//// *-*-*-*-*-*-*-*   Demo 2: Query should be Rejected *-*-*-*-*-*-*-*-*
+
+	// ------------------------------------------------------------------------
+	// 1. Spwan query instances
+	// ------------------------------------------------------------------------
+
 	fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECTED -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
-	queries, ids, err = c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
+	queries, ids, err := c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
@@ -134,8 +161,8 @@ func TestClient_Medchain(t *testing.T) {
 	}
 
 	//Fetch the index, and check it.
-	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	qdata = QueryData{}
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	for _, s := range qdata.Storage {
 		require.Equal(t, queries[0].ID, s.ID)
@@ -147,8 +174,10 @@ func TestClient_Medchain(t *testing.T) {
 	_, err = c.GetQuery(instaID.Slice())
 	require.Nil(t, err)
 
-	// ------------------ 2. Authorization ------------------
-	// This query should be rejected
+	// ------------------------------------------------------------------------
+	// 2. Check Authorizations
+	// ------------------------------------------------------------------------
+
 	fmt.Println("[INFO] Query Authorization ")
 	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0], c.Signers[1], c.Signers[2]}, NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
 	// Expect it to not be accepted, because Darc conditions are not met
@@ -182,7 +211,7 @@ func TestClient_Medchain(t *testing.T) {
 
 }
 
-// // Do not use this test - as adding queries to ledger takes long
+// // Do not use this test - as adding queries to ledger takes much time and thus fails
 // // this test usually fails
 // func TestClient_Query100(t *testing.T) {
 // 	if testing.Short() {
@@ -354,11 +383,11 @@ func newSer(t *testing.T) (*ser, *Client) {
 	for i := range c.Signers {
 		c.signerCtrs[c.Signers[i].Identity().String()] = 0
 	}
+	// ------------------------------------------------------------------------
+	// Create Darc for Project A
+	// ------------------------------------------------------------------------
 
-	// ------ Create project Darcs -----
-	// Create Darc for project A
 	// Create rulesMap
-	// Owner (i.e, Signer0 rules)
 	c.rulesMap = make(map[string]map[string]string)
 	c.rulesMap[c.Signers[0].Identity().String()] = map[string]string{
 		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
@@ -398,12 +427,15 @@ func newSer(t *testing.T) (*ser, *Client) {
 	t.Logf("**************** Darc of Project A ******************")
 	t.Log(c.aDarc.String())
 
-	// Spawn Project A Darc
 	aDarcBuf, err := c.aDarc.ToProto()
 	require.NoError(t, err)
 	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
 	require.NoError(t, err)
 	require.True(t, c.aDarc.Equal(aDarcCopy))
+
+	// ------------------------------------------------------------------------
+	// Add Project A Darc
+	// ------------------------------------------------------------------------
 
 	ctx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -432,7 +464,11 @@ func newSer(t *testing.T) (*ser, *Client) {
 	require.Nil(t, err)
 	c.aDarcID = c.aDarc.GetBaseID()
 
-	// Create Darc for project B. signers 1 and 2 can query everything from database B while signer can
+	// ------------------------------------------------------------------------
+	// Create Darc for Project B
+	// ------------------------------------------------------------------------
+
+	// signers 1 and 2 can query everything from database B while signer can
 	// only query certain things - the last two
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
 	actionsB1 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
@@ -455,13 +491,15 @@ func newSer(t *testing.T) (*ser, *Client) {
 	t.Logf("**************** Darc of Project B ******************")
 	t.Log(c.bDarc.String())
 
-	// Spawn Project A Darc
 	bDarcBuf, err := c.bDarc.ToProto()
 	require.NoError(t, err)
 	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
 	require.NoError(t, err)
 	require.True(t, c.bDarc.Equal(bDarcCopy))
 
+	// ------------------------------------------------------------------------
+	// Add Project B Darc
+	// ------------------------------------------------------------------------
 	ctx = byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
 			{

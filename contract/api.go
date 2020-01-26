@@ -416,7 +416,6 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []Qu
 			return nil, nil, err
 		}
 		fmt.Println("[INFO] Query instance was named ")
-
 	}
 	return queries, keys, nil
 }
@@ -613,9 +612,7 @@ func (c *Client) EvolveDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSi
 
 	// If the darcs stored on the server are trustworthy, then using
 	// `Request.Verify` is enough. To do a complete verification,
-	// Darc.Verify should be used. This will traverse the chain of
-	// evolution and verify every evolution. However, the Darc.Path
-	// attribute must be set.
+	// Darc.Verify should be used.
 	fmt.Println(d2Server.VerifyWithCB(func(s string, latest bool) *darc.Darc {
 		if s == darc.NewIdentityDarc(d1.GetID()).String() {
 			return d1
@@ -717,3 +714,8 @@ func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	}
 	return nil
 }
+
+// // SpawnDeferredContract spawns an instance of the Deferred Contract
+// func (c *Client) CreateDeferredContract() {
+
+// }
