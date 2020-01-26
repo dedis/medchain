@@ -249,7 +249,7 @@ func TestClient_100Query(t *testing.T) {
 			// ------------------------------------------------------------------------
 			// 2. Check Authorizations
 			// ------------------------------------------------------------------------
-			_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(2)]}, ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+			_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(3)]}, ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
 		}
 
 		s.waitNextBlock(t, current)
@@ -285,7 +285,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 		// ------------------------------------------------------------------------
 		// 2. Check Authorizations
 		// ------------------------------------------------------------------------
-		_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(2)]}, ids, qs...)
+		_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(3)]}, ids, qs...)
 		require.Nil(t, err)
 
 		s.waitNextBlock(t, current)
