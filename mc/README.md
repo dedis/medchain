@@ -2,7 +2,7 @@
 
 Here are some examples of how to use mc.
 
-## Make a new key pair and creating a query
+## Making a new key pair and creating a query
 
 Using the `mc` tool, you can create a key pair:
 
@@ -14,7 +14,7 @@ The public key is printed on stdout. The private one is stored in the `app`
 configuration directory. To use a custom configuration directory use the
 `-config $dir`. You will give the public key to the ByzCoin administrator who
 will use the "bcadmin darc rule" command to give your private key the right to
-make new event logs (add "spawn:queryContract" and "invoke:queryConctract.update" rules to a
+make new queries (add "spawn:queryContract" and "invoke:queryConctract.update" rules to a
 Darc). In order to understand how to configure ByzCoin, more information can be 
 found in the [bcadmin documentation](https://github.com/dedis/cothority/blob/master/byzcoin/bcadmin/README.md).
 
@@ -40,10 +40,9 @@ $ mc query -id <Query ID> -status <Status of Query> -sign $key
 ```
 
 The above command creates a query. If `-id` is not set, it defaults to
-the empty string. If `-status` is not set, `mc query` defaults to reading one
-line at a time from stdin and logging those with the given `-id`.
+the empty string. If `-status` is not set, `mc query` will read from stdin and adding those with the given `-id`.
 
-An interesting test that creates and adds  100 queries, one every 0.1 second, so
+An interesting test that creates and adds 100 queries, one every 0.1 second, so
 that you can see the queries being added over the course of several
 block creation epochs:
 
@@ -61,8 +60,8 @@ Status, and Timestamp. This funtionality may look like below:
 $ mc search -stat <Status> -from 12:00 -to 13:00 -count 5
 ```
 
-The exit code will tell you if the search was truncated or not.
+The exit code will tell you if the search was successful or not.
 
-If `-id` is not set, it defaults to the empty string. If you give
+If `-id` is not set, it will default to empty string. If you give
 `-from`, then you must not give `-to`.
 
