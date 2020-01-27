@@ -30,23 +30,23 @@ There are various basic data structures used in ByzCoin. Below, we provide a bri
 \end{itemize}
 
 \subsection{Smart Contracts and Instances} \label{background:smart_contract}
-A smart contract is a piece of code that implements a digital protocol which guarantees the automatic execution of a contract when the agreed conditions are met. In Byzcoin, contracts are pre-compiled and the conode holds the binary of the smart contract. In general, we can say that the smart contract is a collection of methods that provides the client with the API to interact with the skipchain (i.e., the ledger that holds the instances of the contract) through transactions. In other words, contract interprets the methods, namely the instructions, sent by the client for the cothority server (conode). The execution of a client instructions by smart contract results in a change in the shared \textbf{global state}, called a \texttt{StateChange}. In order to commit the transactions onto the ledger, the threshold of agreeing conodes must be reached. A conode can hold various contracts at the same time. Each contract is identified by a string pointing to it called the ``contractID". 
+A smart contract is a piece of code that implements a protocol which guarantees the automatic execution of a contract when the specified conditions are met. In Byzcoin, contracts are pre-compiled and the conode holds the binary of the smart contract. In general, we can say that the smart contract is a collection of methods that provides the client with the API to interact with the skipchain (i.e., the ledger that holds the instances of the contract) through transactions. In other words, contract interprets the methods, namely the instructions, sent by the client for the cothority server (conode). The execution of a client instructions by smart contract results in a change in the shared \textbf{global state}, called a \texttt{StateChange}. In order to commit the transactions onto the ledger, the threshold of agreeing conodes must be reached. A conode can hold various contracts at the same time. Each contract is identified by a string pointing to it called the ``contractID". 
 
-Byzcoin uses coins as the mining reward. As an input, smart contracts receive a list of coins that are available to them. After the contract is run, it needs to give the new list of coins that is available. After all contracts have been run, the leftover coins are given to the leader as a mining reward.
+Byzcoin uses coins as the mining reward. At the input a list of all available coins it provided to the contract. After the contract is run, it needs to return the new list of coins that are available. 
 
 Below, you can find the list of input arguments given to a contract and its output arguments:
 
 \textbf{Input arguments}: 
 \begin{itemize}
     \item pointer to database for read-access
-    \item Instruction from the client
-    \item key/value pairs of coins available
+    \item Instructions sent from the client
+    \item key/value pairs of available coins 
 \end{itemize}
 
 \textbf{Output arguments}: 
 \begin{itemize}
     \item one StateChange (may be empty)
-    \item updated key/value pairs of coins still available
+    \item updated key/value pairs of remaining coins
     \item error that will abort the clientTransaction if it is non-zero. If any contract returns non-zero error, the state will not be changed.
 \end{itemize}
 
@@ -61,7 +61,7 @@ In ByzCoin, the global state holds the instances of contracts and is split by th
 \end{itemize}
 
 \subsubsection{Interaction between Instructions and Instances}
-Once a client sends an instruction, he/she indicates the InstanceID to which it corresponds per an instruction argument. ByzCoin tries to first authorize the instruction through the process described in Section \ref{background:darc}, it then uses the InstanceID to look up the responsible contract for the instance and then send the instruction to that contract. 
+Once a client sends an instruction, he/she indicates the InstanceID to which it corresponds per an instruction argument. ByzCoin tries to first authorize the instruction through the process described in Section \ref{background:darc}, it then uses the \texttt{InstanceID} to look up the responsible contract for the instance and then send the instruction to that contract. 
 
 
 \subsubsection{Distributed Access Right Controls (Darcs)}\label{background:darc}

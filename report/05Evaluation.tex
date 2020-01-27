@@ -1,3 +1,7 @@
-\subsection{Fulfilment of Requirements}
+%\subsection{Fulfilment of Requirements}
 
 \subsection{Limitations}
+Medchain has some limitations in its current version. First, it is the low latency in authorizing queries which results in low query throughput. The latency stems from the fact that for query authorization the \texttt{InstanceID} of the query should be retrieved so that the authorization is based on the responsible Darc that governs the query. Every time a query is spawned, its \texttt{InstanceID} is named so that it is easily fetched from the global state by its name later using function \texttt{ResolveInstanceID()} of ByzCoin. However, this function returns the results very slowly and thus impedes the authorization of other queries in the pipeline. 
+Our workaround to overcome this issue was to save the \texttt{InstanceID} of all queries in a secondary data type called \texttt{QueryKey[]} as soon as they are spawned and every time retrieve the \texttt{InstanceID} from \texttt{QueryKey[]} instead of the global state. This method helps improve the speed and remove the overhead of transactions needed for naming the query instances at the price of more space complexity. The other drawback of this workaround is that it is prone to error and cannot be trusted. 
+
+Second, Medchain CLI requires the admin to define project Darcs by adding rules to them at system startup which is both an involved and time-consuming process. We aim to introduce ways to automate this process and make it more straight-forward.  

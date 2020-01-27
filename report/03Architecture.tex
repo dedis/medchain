@@ -62,11 +62,11 @@ In this figure, there are three hospitals each running their own local Medchain 
     \begin{verbatim}
         {ID:<Query ID>,Status:<Query Status>}
     \end{verbatim}
-   And the query itself has the following format:
+The query itself has the following format:
    \begin{verbatim}
        <user_id>:<databaseX>:<type of query>
    \end{verbatim}
-   Where \texttt{<use\_id>} is part of the user's token provided by Keycloak, \texttt{<databaseX>} is the name of the database (i.e., the project) user is querying, and \texttt{<type of query>} is what the user is trying to access from the database which can be one of the below:
+   Where \texttt{<user\_id>} is part of the user's token provided by Keycloak, \texttt{<databaseX>} is the name of the database (i.e., the project) user is querying, and \texttt{<type of query>} is what the user is trying to access from the database which can be one of the below:
    \begin{itemize}
         \item \texttt{patient\_list}
         \item \texttt{count\_per\_site}
@@ -77,8 +77,10 @@ In this figure, there are three hospitals each running their own local Medchain 
         \item \texttt{count\_global\_obfuscated}
    \end{itemize}
    
+   Finally, \texttt{Status} is the status of the query in Medchain and it could be: \texttt{"Submitted"}, \texttt{"Authorized"}, or \texttt{"Rejected"}.
+   
     \item \textbf{Query Transaction Creation}: \label{workflow:step 5}
-    Medchain creates a transaction to spawns a \texttt{Query} (i.e., an instance of \texttt{queryContract}) and signs it. The transaction looks like below:
+    Medchain creates a transaction to spawn a \texttt{Query} (i.e., an instance of \texttt{queryContract}) and signs it. The transaction looks like below:
         \begin{verbatim}
 CreateTransaction(byzcoin.Instruction{
     InstanceID:    byzcoin.NewInstanceID(<Project X Darc ID>),
@@ -97,11 +99,11 @@ CreateTransaction(byzcoin.Instruction{
     
     If a number of Medchain servers in the network are down and/or the responsible entities to accept or reject a query are not present (e.g., a manager at the hospital) at the time of transaction broadcast, the transaction execution is deferred until the threshold number of entities can react to it and either reject or accept it.  
     
-    If the query is authorized by the Darc, and all Medchain servers approve it, the \texttt{Status} of the query is updated to \texttt{Authorized} and if it is rejected, the \texttt{Status} is set to \texttt{Rejected}. In any case, the query and the result of this stage is written to the ledger.  
+    If the query is authorized by the Darc, and all Medchain servers approve it, the \texttt{Status} of the query is updated to \texttt{Authorized} and if it is rejected, the \texttt{Status} is set to \texttt{Rejected}. In any case, the query and the result of this stage is written to the ledger. 
     
-    \item \textbf{Query Execution}: In the mean time, MedCo-connector is waiting for a reply from Medchain nodes. If the query is authorized, the query is directed to MedCo-connector in order for execution; otherwise, MedCo-connector receives no reply from Medchain. (In fact, MedCo-connector, i2b2 server, and MedCo-UnLynx all take part in query execution step, however, because the focus here is on Medchain, we overlook the details related to the query execution and only resort to high-level descriptions.) 
+    \item \textbf{Query Execution}: In the mean time, MedCo-connector is waiting for a reply from Medchain nodes. If the query is authorized, the query is directed to MedCo-connector in order for execution; otherwise, MedCo-connector receives a rejection message from Medchain. (In fact, MedCo-connector, i2b2 server, and MedCo-UnLynx all take part in query execution step, however, because the focus here is on Medchain, we overlook the details related to the query execution and only resort to high-level descriptions.) 
     
-    \item \textbf{Commit Final Query Status To The Ledger}: After MedCo-connector executes the query, it submits the new query status (e.g., “Executed”) to Medchain server. Then, Medchain creates a transaction to update the status of the query. Finally, this transaction is added to the ledger. 
+    \item \textbf{Commit Final Query Status To The Ledger}: After MedCo-connector executes the query, it submits the new query status (e.g., “Executed”) to Medchain server. Then, Medchain creates a transaction to update the status of the query to \texttt{Executed}. Finally, this transaction is added to the ledger. 
 
 Starting from step \ref{workflow:step 5}, the query's \texttt{InstanceID} is preserved and using this \texttt{InstanceID}, we can keep track of the query and update its status accordingly. This is explained in more details in Section \ref{impl:darcs}.
     
