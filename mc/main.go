@@ -262,7 +262,7 @@ func create(c *cli.Context) error {
 		return err
 	}
 
-	log.Infof("export MC=%x", cl.Instance.Slice())
+	log.Infof("export MC=%x", cl.NamingInstance.Slice())
 	return bcadminlib.WaitPropagation(c, cl.ByzCoin)
 }
 
@@ -279,7 +279,7 @@ func createQuery(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	cl.Instance = byzcoin.NewInstanceID(eb)
+	cl.NamingInstance = byzcoin.NewInstanceID(eb)
 
 	id := c.String("id")
 	stat := c.String("status")

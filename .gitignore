@@ -9,4 +9,4 @@ running
 *.out
 .DS_Store
 report/.DS_Store
-app/build/*
+mc/build/

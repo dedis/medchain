@@ -61,13 +61,6 @@ testMedchain(){
 	echo ghi | testOK $mc query -w 10 -sign "$KEY"
 	seq 10 | testOK $mc query -id seq100 -w 10 -sign "$KEY"
 
-	# testGrep "abc" $mc search -t test
-	# testCountLines 13 $mc search
-
-	# testCountLines 0 $mc search -t test -from '0s ago'
-	# # The first form of relative date is for MacOS, the second for Linux.
-	# testCountLines 0 $mc search -t test -from '1h ago' -to `date -v -1d +%Y-%m-%d || date -d yesterday +%Y-%m-%d`
-	# testCountLines 1 $mc search -t test -to `date -v +1d +%Y-%m-%d || date -d tomorrow +%Y-%m-%d`
 }
 
 main

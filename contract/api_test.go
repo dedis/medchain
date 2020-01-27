@@ -259,7 +259,9 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
 	s, c := newSer(t)
 	leader := s.services[0]
 	defer s.close()
@@ -305,6 +307,26 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
+
+}
+func TestClient_EvolveDarc(t *testing.T) {
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
+	fmt.Println("[INFO] Starting the service")
+	s, c := newSer(t)
+	leader := s.services[0]
+	defer s.close()
+
+	fmt.Println("[INFO] Starting ByzCoin Client")
+	err := c.Create()
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
+	fmt.Println("[INFO] Evolving the Darc")
+	newRulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
+	c.bDarc, err = c.EvolveDarc(c.bDarc, newRulesB, "Project A Darc Evolved", c.Signers[0], c.Signers[1], c.Signers[2])
+	require.Nil(t, err)
+	t.Log(c.bDarc.String())
 
 }
 

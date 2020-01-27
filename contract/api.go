@@ -597,9 +597,13 @@ func (c *Client) EvolveDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSi
 	// latest one. But in this case we assume it already knows. If the
 	// verification is successful, then the server should add the darc in
 	// the request to its database.
-	fmt.Println(r.Verify(d1)) // Assume we can find d1 given r.
-	d2Server, _ := r.MsgToDarc(d2Buf)
-	fmt.Println(bytes.Equal(d2Server.GetID(), darcEvol.GetID()))
+	d2Server, err := r.MsgToDarc(d2Buf)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(d2Server.GetID(), darcEvol.GetID()) {
+		return nil, fmt.Errorf("Darc Evolution failed")
+	}
 
 	// If the darcs stored on the server are trustworthy, then using
 	// `Request.Verify` is enough. To do a complete verification,
