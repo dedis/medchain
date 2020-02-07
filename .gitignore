@@ -10,3 +10,4 @@ running
 .DS_Store
 report/.DS_Store
 mc/build/
+.vscode/

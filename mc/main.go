@@ -19,7 +19,6 @@ import (
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
 
-	//"go.dedis.ch/cothority/v3/eventlog"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/cfgpath"
@@ -30,7 +29,7 @@ import (
 
 type config struct {
 	Name    string
-	QueryID byzcoin.InstanceID //EventLogID
+	QueryID byzcoin.InstanceID //
 }
 
 type bcConfig struct {
@@ -179,7 +178,6 @@ func init() {
 		return nil
 	}
 
-	//network.RegisterMessage(&openidCfg{})
 }
 
 func main() {
@@ -216,6 +214,8 @@ func getClient(c *cli.Context, priv bool) (*medchain.Client, error) {
 		return nil, err
 	}
 	cl.DarcID = d.GetBaseID()
+
+	// Create project Darcs
 
 	// The caller doesn't want/need signers.
 	if !priv {
