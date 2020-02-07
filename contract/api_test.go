@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.dedis.ch/cothority/darc/expression"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
-	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
@@ -35,6 +35,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
 	fmt.Println("[INFO] Starting the service")
+	t.Log("[INFO] Starting the service")
 	s, c := newSer(t)
 	leader := s.services[0]
 	defer s.close()
@@ -43,13 +44,66 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	err := c.Create()
 	require.Nil(t, err)
 
+	// ------------------------------------------------------------------------
+	// 1. Add Project A Darc
+	// ------------------------------------------------------------------------
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
+		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+		"invoke:queryContract.count_global_obfuscated"
+	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
+	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+
+	// Verify the darc is correct
+	require.Nil(t, c.aDarc.Verify(true))
+	t.Logf("**************** Darc of Project A ******************")
+	t.Log(c.aDarc.String())
+
+	aDarcBuf, err := c.aDarc.ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.aDarc.Equal(aDarcCopy))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: aDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.aDarcID = c.aDarc.GetBaseID()
+
 	//// *-*-*-*-*-*-*-*   Demo 1: Query should be Authorized *-*-*-*-*-*-*-*-*
 
 	// ------------------------------------------------------------------------
-	// 1. Spwan query instances
+	// 2. Spwan query instances
 	// ------------------------------------------------------------------------
 
-	fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZE -*-*-*-*-*-")
+	//fmt.Println("[INFO] -*-*-*-*-*- DEMO 1 - AUTHORIZE -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
 	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 	require.Nil(t, err)
@@ -79,17 +133,17 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-cod query darc
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)
 	// }
 
 	// ------------------------------------------------------------------------
-	// 2. Check Authorizations
+	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
-	fmt.Println("[INFO] Query Authorizazion ")
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[0]}, ids, queries...)
+	fmt.Println("[INFO] Query Authorization ")
+	queries, ids, err = c.WriteQueries(ids, queries...)
 
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
@@ -118,7 +172,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, query.ID) //TODO: not hard-cod query darc
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-code query darc
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)
@@ -126,11 +180,9 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 }
 
 func TestClient_MedchainReject(t *testing.T) {
-
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
-
 	fmt.Println("[INFO] Starting the service")
 	s, c := newSer(t)
 	leader := s.services[0]
@@ -140,15 +192,66 @@ func TestClient_MedchainReject(t *testing.T) {
 	err := c.Create()
 	require.Nil(t, err)
 
-	//// *-*-*-*-*-*-*-*   Demo 2: Query should be Rejected *-*-*-*-*-*-*-*-*
+	// ------------------------------------------------------------------------
+	// 1. Add Project B Darc
+	// ------------------------------------------------------------------------
+	// signer can only query certain things from the database
+	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
+	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+
+	// Verify the darc is correct
+	require.Nil(t, c.bDarc.Verify(true))
+	t.Logf("**************** Darc of Project B ******************")
+	t.Log(c.bDarc.String())
+
+	bDarcBuf, err := c.bDarc.ToProto()
+	require.NoError(t, err)
+	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.bDarc.Equal(bDarcCopy))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: bDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.bDarcID = c.bDarc.GetBaseID()
+
+	//// *-*-*-*-*-*-*-*   Demo 2: Query should be rejected *-*-*-*-*-*-*-*-*
 
 	// ------------------------------------------------------------------------
-	// 1. Spwan query instances
+	// 2. Spwan query instances
 	// ------------------------------------------------------------------------
 
-	fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECT -*-*-*-*-*-")
+	//fmt.Println("[INFO] -*-*-*-*-*- DEMO 2 - REJECT -*-*-*-*-*-")
 	fmt.Println("[INFO] Spawning the query ")
-	queries, ids, err := c.SpawnQuery(NewQuery("ahf65j9kei:B:patient_list", "Submitted"))
+	queries, ids, err := c.SpawnQuery(NewQuery("wsdf65k80h:B:patient_list", "Submitted"))
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
@@ -167,26 +270,30 @@ func TestClient_MedchainReject(t *testing.T) {
 	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
 	for _, s := range qdata.Storage {
 		require.Equal(t, queries[0].ID, s.ID)
 		require.Equal(t, queries[0].Status, (s.Status))
 	}
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
-	// require.Nil(t, err)
-	// _, err = c.GetQuery(instaID.Slice())
-	// require.Nil(t, err)
+
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-cod query darc
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 
 	// ------------------------------------------------------------------------
-	// 2. Check Authorizations
+	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
-
 	fmt.Println("[INFO] Query Authorization ")
-	queries, ids, err = c.WriteQueries([]darc.Signer{c.Signers[2]}, ids, queries...)
-	// Expect the query to be rejected, because Darc conditions are not met
-	t.Log(err)
+	queries, ids, err = c.WriteQueries(ids, queries...)
+
 	require.Nil(t, err)
+	require.Equal(t, 1, len(ids))
+	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
@@ -205,14 +312,17 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.Nil(t, err)
 	for _, s := range qdata.Storage {
 		require.Equal(t, queries[0].ID, s.ID)
-		require.Equal(t, "Rejected", (s.Status))
+		require.Equal(t, "Rejected", s.Status)
 	}
+
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
-	// instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID) //TODO: not hard-cod query darc
-	// require.Nil(t, err)
-	// _, err = c.GetQuery(instaID.Slice())
-	// require.Nil(t, err)
+	// for _, query := range queries {
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-code query darc
+	// 	require.Nil(t, err)
+	// 	_, err := c.GetQuery(instaID.Slice())
+	// 	require.Nil(t, err)
+	// }
 
 }
 
@@ -231,6 +341,110 @@ func TestClient_100Query(t *testing.T) {
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
 
+	// ------------------------------------------------------------------------
+	// 1. Add Project A Darc
+	// ------------------------------------------------------------------------
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
+		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+		"invoke:queryContract.count_global_obfuscated"
+	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
+	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+
+	// Verify the darc is correct
+	require.Nil(t, c.aDarc.Verify(true))
+	t.Logf("**************** Darc of Project A ******************")
+	t.Log(c.aDarc.String())
+
+	aDarcBuf, err := c.aDarc.ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.aDarc.Equal(aDarcCopy))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: aDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.aDarcID = c.aDarc.GetBaseID()
+
+	// ------------------------------------------------------------------------
+	// 2. Add Project B Darc
+	// ------------------------------------------------------------------------
+	// signer can only query certain things from the database
+	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
+	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+
+	// Verify the darc is correct
+	require.Nil(t, c.bDarc.Verify(true))
+	t.Logf("**************** Darc of Project B ******************")
+	t.Log(c.bDarc.String())
+
+	bDarcBuf, err := c.bDarc.ToProto()
+	require.NoError(t, err)
+	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.bDarc.Equal(bDarcCopy))
+
+	ctx = byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: bDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.bDarcID = c.bDarc.GetBaseID()
+
 	qCount := 100
 	// Write the queries in chunks to make sure that the verification
 	// can be done in time.
@@ -241,20 +455,21 @@ func TestClient_100Query(t *testing.T) {
 		for ct := start; ct < start+qCount/5; ct++ {
 
 			// ------------------------------------------------------------------------
-			// 1. Spwan query instances
+			// 3. Spwan query instances
 			// ------------------------------------------------------------------------
 			_, ids, err := c.SpawnQuery(NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
 			require.Nil(t, err)
 
 			// ------------------------------------------------------------------------
-			// 2. Check Authorizations
+			// 4. Check Authorizations
 			// ------------------------------------------------------------------------
-			_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(3)]}, ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+			_, _, err = c.WriteQueries(ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
 		}
 
 		s.waitNextBlock(t, current)
 	}
 }
+
 func TestClient_100QueryInOneQuery(t *testing.T) {
 	if testing.Short() {
 		return
@@ -268,6 +483,111 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 
 	err := c.Create()
 	require.Nil(t, err)
+
+	// ------------------------------------------------------------------------
+	// 1. Add Project A Darc
+	// ------------------------------------------------------------------------
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
+		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
+		"invoke:queryContract.count_global_obfuscated"
+	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
+	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+
+	// Verify the darc is correct
+	require.Nil(t, c.aDarc.Verify(true))
+	t.Logf("**************** Darc of Project A ******************")
+	t.Log(c.aDarc.String())
+
+	aDarcBuf, err := c.aDarc.ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.aDarc.Equal(aDarcCopy))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: aDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.aDarcID = c.aDarc.GetBaseID()
+
+	// ------------------------------------------------------------------------
+	// 2. Add Project B Darc
+	// ------------------------------------------------------------------------
+	// signer can only query certain things from the database
+	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
+	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+
+	// Verify the darc is correct
+	require.Nil(t, c.bDarc.Verify(true))
+	t.Logf("**************** Darc of Project B ******************")
+	t.Log(c.bDarc.String())
+
+	bDarcBuf, err := c.bDarc.ToProto()
+	require.NoError(t, err)
+	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
+	require.NoError(t, err)
+	require.True(t, c.bDarc.Equal(bDarcCopy))
+
+	ctx = byzcoin.ClientTransaction{
+		Instructions: byzcoin.Instructions{
+			{
+				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDarcID,
+					Args: byzcoin.Arguments{
+						{
+							Name:  "darc",
+							Value: bDarcBuf,
+						},
+					},
+				},
+				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+				SignerCounter:    c.incrementCtrs(),
+			},
+		},
+	}
+	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	require.Nil(t, err)
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	c.bDarcID = c.bDarc.GetBaseID()
+
 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
 
 	qCount := 100
@@ -278,16 +598,16 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 
 		for j := range qs {
 			// ------------------------------------------------------------------------
-			// 1. Spwan query instances
+			// 3. Spwan query instances
 			// ------------------------------------------------------------------------
 			qs[j] = NewQuery(randomString(10, "")+":"+strings.ToUpper(randomString(1, "AB"))+":"+randomAction(), "Submitted")
 		}
 		_, ids, err := c.SpawnQuery(qs...)
 		require.Nil(t, err)
 		// ------------------------------------------------------------------------
-		// 2. Check Authorizations
+		// 4. Check Authorizations
 		// ------------------------------------------------------------------------
-		_, _, err = c.WriteQueries([]darc.Signer{c.Signers[rand.Intn(3)]}, ids, qs...)
+		_, _, err = c.WriteQueries(ids, qs...)
 		require.Nil(t, err)
 
 		s.waitNextBlock(t, current)
@@ -309,26 +629,27 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	require.Nil(t, err)
 
 }
-func TestClient_EvolveDarc(t *testing.T) {
-	// ------------------------------------------------------------------------
-	// 0. Set up and start service
-	// ------------------------------------------------------------------------
-	fmt.Println("[INFO] Starting the service")
-	s, c := newSer(t)
-	leader := s.services[0]
-	defer s.close()
 
-	fmt.Println("[INFO] Starting ByzCoin Client")
-	err := c.Create()
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
-	fmt.Println("[INFO] Evolving the Darc")
-	newRulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
-	c.bDarc, err = c.EvolveDarc(c.bDarc, newRulesB, "Project A Darc Evolved", c.Signers[0], c.Signers[1], c.Signers[2])
-	require.Nil(t, err)
-	t.Log(c.bDarc.String())
+// func TestClient_EvolveDarc(t *testing.T) {
+// 	// ------------------------------------------------------------------------
+// 	// 0. Set up and start service
+// 	// ------------------------------------------------------------------------
+// 	fmt.Println("[INFO] Starting the service")
+// 	s, c := newSer(t)
+// 	leader := s.services[0]
+// 	defer s.close()
 
-}
+// 	fmt.Println("[INFO] Starting ByzCoin Client")
+// 	err := c.Create()
+// 	require.Nil(t, err)
+// 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
+// 	fmt.Println("[INFO] Evolving the Darc")
+// 	newRulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
+// 	c.bDarc, err = c.EvolveDarc(c.bDarc, newRulesB, "Project A Darc Evolved", c.Signers[0], c.Signers[1], c.Signers[2])
+// 	require.Nil(t, err)
+// 	t.Log(c.bDarc.String())
+
+// }
 
 func checkProof(t *testing.T, c *Client, omni *byzcoin.Service, key []byte, scID skipchain.SkipBlockID) []byte {
 
@@ -403,9 +724,8 @@ func newSer(t *testing.T) (*ser, *Client) {
 	}
 	s.hosts, s.roster, _ = s.local.GenTree(3, true)
 
-	for sv := range s.local.GetServices(s.hosts, sid) {
-
-		service := s.local.GetServices(s.hosts, sid)[sv].(*Service)
+	for _, sv := range s.local.GetServices(s.hosts, sid) {
+		service := sv.(*Service)
 		s.services = append(s.services, service)
 	}
 
@@ -416,7 +736,6 @@ func newSer(t *testing.T) (*ser, *Client) {
 		t.Fatal(err)
 	}
 	s.genDarc = &s.req.GenesisDarc
-	fmt.Println(s.genDarc.String())
 	s.req.BlockInterval = testBlockInterval
 	cl := onet.NewClient(cothority.Suite, byzcoin.ServiceName)
 
@@ -430,168 +749,12 @@ func newSer(t *testing.T) (*ser, *Client) {
 	ol := byzcoin.NewClient(s.id, *s.roster)
 
 	c := NewClient(ol)
-	signer1 := darc.NewSignerEd25519(nil, nil)
-	signer2 := darc.NewSignerEd25519(nil, nil)
 	c.DarcID = s.genDarc.GetBaseID()
-	c.Signers = []darc.Signer{s.owner, signer1, signer2}
+	c.Signers = []darc.Signer{s.owner}
 	c.genDarc = s.genDarc
-
-	// Initialize the signer-counter map
-	c.signerCtrs = make(map[string]uint64)
-	for i := range c.Signers {
-		c.signerCtrs[c.Signers[i].Identity().String()] = 0
-	}
-	// ------------------------------------------------------------------------
-	// Create Darc for Project A
-	// ------------------------------------------------------------------------
-
-	// Create rulesMap
-	c.rulesMap = make(map[string]map[string]string)
-	c.rulesMap[c.Signers[0].Identity().String()] = map[string]string{
-		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-	}
-	// Signer 1 rules
-	c.rulesMap[c.Signers[1].Identity().String()] = map[string]string{
-		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-	}
-	//Signer 2 rules
-	c.rulesMap[c.Signers[2].Identity().String()] = map[string]string{
-		"A": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated,invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-		"B": "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global," +
-			"invoke:queryContract.count_global_obfuscated",
-	}
-
-	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
-	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
-		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-		"invoke:queryContract.count_global_obfuscated"
-	exprA := expression.InitOrExpr(c.Signers[0].Identity().String(),
-		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
-	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
-
-	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
-	c.aDarc.Rules.AddRule("spawn:naming", exprA)
-
-	// Verify the darc is correct
-	require.Nil(t, c.aDarc.Verify(true))
-	t.Logf("**************** Darc of Project A ******************")
-	t.Log(c.aDarc.String())
-
-	aDarcBuf, err := c.aDarc.ToProto()
-	require.NoError(t, err)
-	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
-	require.NoError(t, err)
-	require.True(t, c.aDarc.Equal(aDarcCopy))
-
-	// ------------------------------------------------------------------------
-	// Add Project A Darc
-	// ------------------------------------------------------------------------
-
-	ctx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: aDarcBuf,
-						},
-					},
-				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()},
-				SignerCounter:    c.incrementCtrs(),
-			},
-		},
-	}
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0], c.Signers[1], c.Signers[2]))
-
-	err = ctx.FillSignersAndSignWith(c.Signers...)
-	require.Nil(t, err)
-
-	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
-	require.Nil(t, err)
-	c.aDarcID = c.aDarc.GetBaseID()
-
-	// ------------------------------------------------------------------------
-	// Create Darc for Project B
-	// ------------------------------------------------------------------------
-
-	// signers 1 and 2 can query everything from database B while signer can
-	// only query certain things - the last two
-	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()})
-	actionsB1 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
-		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-		"invoke:queryContract.count_global_obfuscated"
-	actionsB2 := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
-	exprB1 := expression.InitOrExpr(c.Signers[0].Identity().String(),
-		c.Signers[1].Identity().String())
-	exprB2 := expression.InitOrExpr(c.Signers[0].Identity().String(),
-		c.Signers[1].Identity().String(), c.Signers[2].Identity().String())
-	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB1, exprB1)
-	c.bDarc = c.UpdateDarcRule(c.bDarc, actionsB2, exprB2)
-
-	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.bDarc.Rules.AddRule("_name:"+contractName, exprB2)
-	c.bDarc.Rules.AddRule("spawn:naming", exprB2)
-
-	// Verify the darc is correct
-	require.Nil(t, c.bDarc.Verify(true))
-	t.Logf("**************** Darc of Project B ******************")
-	t.Log(c.bDarc.String())
-
-	bDarcBuf, err := c.bDarc.ToProto()
-	require.NoError(t, err)
-	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
-	require.NoError(t, err)
-	require.True(t, c.bDarc.Equal(bDarcCopy))
-
-	// ------------------------------------------------------------------------
-	// Add Project B Darc
-	// ------------------------------------------------------------------------
-	ctx = byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: bDarcBuf,
-						},
-					},
-				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity(), c.Signers[1].Identity(), c.Signers[2].Identity()},
-				SignerCounter:    c.incrementCtrs(),
-			},
-		},
-	}
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0], c.Signers[1], c.Signers[2]))
-
-	err = ctx.FillSignersAndSignWith(c.Signers...)
-	require.Nil(t, err)
-
-	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
-	require.Nil(t, err)
-	c.bDarcID = c.bDarc.GetBaseID()
-	require.NotEqual(t, c.aDarcID, c.bDarcID)
-	// The user must include at least one contract that can be parsed as a
-	// DARC and it must exist.
-	require.NotEqual(t, 0, len(s.req.DarcContractIDs))
-
+	fmt.Println("[INFO] Created the services")
 	return s, c
 }
-
 func (s *ser) getCurrentBlock(t *testing.T) skipchain.SkipBlockID {
 	reply, err := skipchain.NewClient().GetUpdateChain(s.roster, s.id)
 	require.Nil(t, err)

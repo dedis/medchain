@@ -33,8 +33,8 @@ type Client struct {
 	NamingInstance byzcoin.InstanceID
 	c              *onet.Client
 	sc             *skipchain.Client
-	// signerCtrs maps identity (string) to signer counter (int)
-	signerCtrs map[string]uint64
+
+	signerCtrs []uint64
 	genDarc    *darc.Darc
 	aDarc      *darc.Darc // project A darc
 	aDarcID    darc.ID
@@ -99,38 +99,20 @@ func (c *Client) RefreshSignerCounters() {
 	signerIDs := make([]string, len(c.Signers))
 	for i := range c.Signers {
 		signerIDs[i] = c.Signers[i].Identity().String()
-		signerCtrs, err := c.ByzCoin.GetSignerCounters(signerIDs[i])
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		c.signerCtrs[signerIDs[i]] = signerCtrs.Counters[i]
 	}
-
+	signerCtrs, err := c.ByzCoin.GetSignerCounters(signerIDs...)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	c.signerCtrs = signerCtrs.Counters
 }
 
-// incrementCtrs will update the client state
 func (c *Client) incrementCtrs() []uint64 {
 	out := make([]uint64, len(c.signerCtrs))
-	i := 0
-	for k := range c.signerCtrs {
-		c.signerCtrs[k]++
-		out[i] = c.signerCtrs[k]
-		i++
-	}
-	return out
-}
-
-// incrementSpecificCtrs will insrease the counter for specific signers and update the client state
-func (c *Client) incrementSpecificCtrs(signers ...darc.Signer) []uint64 {
-	out := make([]uint64, len(c.signerCtrs))
-	i := 0
-	for j := range signers {
-		c.signerCtrs[signers[j].Identity().String()]++
-	}
-	for k := range c.signerCtrs {
-		out[i] = c.signerCtrs[k]
-		i++
+	for i := range out {
+		c.signerCtrs[i]++
+		out[i] = c.signerCtrs[i]
 	}
 	return out
 }
@@ -138,36 +120,25 @@ func (c *Client) incrementSpecificCtrs(signers ...darc.Signer) []uint64 {
 // nextCtrs will not update client state
 func (c *Client) nextCtrs() []uint64 {
 	out := make([]uint64, len(c.signerCtrs))
-	i := 0
-	for k := range c.signerCtrs {
-		out[i] = c.signerCtrs[k] + 1
-		i++
-	}
-	return out
-}
-
-// tempCtrs will create a temmporary counters array  and will not update client state
-func (c *Client) tempCtrs(signers ...darc.Signer) []uint64 {
-	out := make([]uint64, len(signers))
-	for i := range signers {
-		out[i] = c.signerCtrs[signers[i].Identity().String()] + 1
+	for i := range out {
+		out[i] = c.signerCtrs[i] + 1
 	}
 	return out
 }
 
 // WriteQueries asks the service to write queries to the ledger.
-func (c *Client) WriteQueries(signers []darc.Signer, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
-	return c.CreateQueryAndWait(10, signers, spawnedKeys, qu...)
+func (c *Client) WriteQueries(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+	return c.CreateQueryAndWait(10, spawnedKeys, qu...)
 }
 
 // CreateQueryAndWait sends a request to create a query and waits for N block intervals
 // that the queries are added to the ledger
-func (c *Client) CreateQueryAndWait(numInterval int, signers []darc.Signer, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+func (c *Client) CreateQueryAndWait(numInterval int, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
 
-	tx, keys, err := c.prepareTx(qu, signers, spawnedKeys)
+	tx, keys, err := c.prepareTx(qu, spawnedKeys)
 	if err != nil {
 		fmt.Println("debug7")
 		return qu, nil, err
@@ -206,64 +177,58 @@ func (c *Client) GetQuery(key []byte) (*Query, error) {
 }
 
 // AuthorizeQuery checks authorizations for the query
-func (c *Client) AuthorizeQuery(query Query, signers []darc.Signer) ([]bool, error) {
+func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, project string, action string) ([]bool, error) {
 	// We need the identity part of the signatures before
 	// calling ToDarcRequest() below, because the identities
 	// go into the message digest.
 	sigs := make([]darc.Signature, len(c.Signers))
-	authorizations := make([]bool, len(signers))
+	authorizations := make([]bool, len(c.Signers))
 	for i, x := range c.Signers {
 		sigs[i].Signer = x.Identity()
 	}
 
-	action := c.GetActionFromOneQuery(query)
-	project := c.GetProjectFromOneQuery(query)
+	// Check signers' authorizations for a specific action
+	for i, signer := range c.Signers {
+		a, err := c.ByzCoin.CheckAuthorization(darcID, signer.Identity())
+		if err != nil {
+			return authorizations, err
+		}
 
-	// Map signers to actions for a specific project
-	for i, signer := range signers {
-		// a, err := c.ByzCoin.CheckAuthorization(darcID, signer.Identity())
-		// darcActionMap[signer.Identity().String()] = a
-		// if err != nil {
-		// 	return err
-		// }
-		for proj, authAction := range c.rulesMap[signer.Identity().String()] {
-			if proj == project {
-				for _, a := range strings.Split(authAction, ",") {
-					if "invoke:queryContract."+action == a {
-						authorizations[i] = true
-					} else {
-						continue
-					}
-				}
+		for _, authAction := range a {
+			if darc.Action("invoke:queryContract."+action) == authAction {
+				authorizations[i] = true
+			} else {
+				continue
 			}
-
 		}
 	}
+	fmt.Println(authorizations)
 	return authorizations, nil
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(queries []Query, signers []darc.Signer, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
+func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
 
 	ok := true
-	var action string
+	//var action string
 	var args byzcoin.Argument
-	//var darcID darc.ID
+	var darcID darc.ID
 	keys := make([]byzcoin.InstanceID, len(queries))
 	instrs := make([]byzcoin.Instruction, len(queries))
-	//projects := c.GetProjectFromQuery(queries)
+	projects := c.GetProjectFromQuery(queries)
 
 	for i, query := range queries {
-		// switch projects[i] {
-		// case "A":
-		// 	darcID = c.aDarcID
-		// case "B":
-		// 	darcID = c.bDarcID
-		// default:
-		// 	return nil, nil, fmt.Errorf("invalid project used")
-		// }
+		switch projects[i] {
+		case "A":
+			darcID = c.aDarcID
+		case "B":
+			darcID = c.bDarcID
+		default:
+			return nil, nil, fmt.Errorf("invalid project used")
+		}
 		// Check if the query is authorized/rejected
-		authorizations, err := c.AuthorizeQuery(query, signers)
+		action := c.GetActionFromOneQuery(query)
+		authorizations, err := c.AuthorizeQuery(query, darcID, projects[i], action)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -307,17 +272,16 @@ func (c *Client) prepareTx(queries []Query, signers []darc.Signer, spawnedKeys [
 				Command:    action,
 				Args:       []byzcoin.Argument{args},
 			},
-			SignerCounter: c.tempCtrs(signers...),
+			SignerCounter: c.incrementCtrs(),
 		}
 
 	}
-	// Increment the corresponding counters in client
-	c.incrementSpecificCtrs(signers...)
+
 	tx, err := c.ByzCoin.CreateTransaction(instrs...)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := tx.FillSignersAndSignWith(signers...); err != nil {
+	if err := tx.FillSignersAndSignWith(c.Signers...); err != nil {
 		return nil, nil, err
 	}
 	for i := range tx.Instructions {
@@ -545,7 +509,7 @@ func handleBlocks(handler StreamHandler, sb *skipchain.SkipBlock) error {
 	var header byzcoin.DataHeader
 	err = protobuf.DecodeWithConstructors(sb.Data, &header, network.DefaultConstructors(cothority.Suite))
 	if err != nil {
-		err = errors.New("could not unmarshal header while streaming events " + err.Error())
+		err = errors.New("could not unmarshal header while streaming the queries " + err.Error())
 		handler(Query{}, nil, err)
 		return err
 	}
