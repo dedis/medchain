@@ -14,10 +14,13 @@ import (
 
 	medchain "github.com/medchain/contract"
 	cli "github.com/urfave/cli"
+	"go.dedis.ch/cothority/byzcoin/bcadmin/lib"
+	"go.dedis.ch/cothority/darc/expression"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
+	"golang.org/x/xerrors"
 
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/onet/v3"
@@ -104,6 +107,157 @@ var cmds = cli.Commands{
 			},
 		},
 	},
+	{
+		Name:    "darc",
+		Usage:   "tool used to manage project darcs",
+		Aliases: []string{"d"},
+		Subcommands: cli.Commands{
+			{
+				Name:   "show",
+				Usage:  "Show a DARC",
+				Action: darcShow,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config to use (required)",
+					},
+					cli.StringFlag{
+						Name:  "darc",
+						Usage: "the darc to show (admin darc by default)",
+					},
+				},
+			},
+			{
+				Name:   "cdesc",
+				Usage:  "Edit the description of a DARC",
+				Action: darcCdesc,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config to use (required)",
+					},
+					cli.StringFlag{
+						Name:  "darc",
+						Usage: "the id of the darc to edit (config admin darc by default)",
+					},
+					cli.StringFlag{
+						Name:  "sign, signer",
+						Usage: "public key which will sign the request (default: the ledger admin identity)",
+					},
+					cli.StringFlag{
+						Name:  "desc",
+						Usage: "the new description of the darc (required)",
+					},
+				},
+			},
+			{
+				Name:   "add",
+				Usage:  "Add a new DARC with default rules.",
+				Action: darcAdd,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config to use (required)",
+					},
+					cli.StringFlag{
+						Name:  "sign, signer",
+						Usage: "public key which will sign the DARC spawn request (default: the ledger admin identity)",
+					},
+					cli.StringFlag{
+						Name:  "darc",
+						Usage: "DARC with the right to create a new DARC (default is the admin DARC)",
+					},
+					cli.StringSliceFlag{
+						Name:  "identity, id",
+						Usage: "an identity, multiple use of this param is allowed. If empty it will create a new identity. Each provided identity is checked by the evaluation parser.",
+					},
+					cli.BoolFlag{
+						Name:  "unrestricted",
+						Usage: "add the invoke:evolve_unrestricted rule",
+					},
+					cli.BoolFlag{
+						Name:  "deferred",
+						Usage: "adds rules related to deferred contract: spawn:deferred, invoke:deferred.addProof, invoke:deferred.execProposedTx",
+					},
+					cli.StringFlag{
+						Name:  "out_id",
+						Usage: "output file for the darc id (optional)",
+					},
+					cli.StringFlag{
+						Name:  "out_key",
+						Usage: "output file for the darc key (optional)",
+					},
+					cli.StringFlag{
+						Name:  "desc",
+						Usage: "the description for the new DARC (default: random)",
+					},
+				},
+			},
+			{
+				Name:   "prule",
+				Usage:  "print rule. Will print the rule given identities and a minimum to have M out of N rule",
+				Action: darcPrintRule,
+				Flags: []cli.Flag{
+					cli.StringSliceFlag{
+						Name:  "identity, id",
+						Usage: "an identity, multiple use of this param is allowed. If empty it will create a new identity. Each provided identity is checked by the evaluation parser.",
+					},
+					cli.UintFlag{
+						Name:  "minimum, M",
+						Usage: "if this flag is set, the rule is computed to be \"M out of N\" identities. Otherwise it uses ANDs",
+					},
+				},
+			},
+			{
+				Name:   "rule",
+				Usage:  "Edit DARC rules.",
+				Action: darcRule,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config to use (required)",
+					},
+					cli.StringFlag{
+						Name:  "darc",
+						Usage: "the DARC to update (default is the admin DARC)",
+					},
+					cli.StringFlag{
+						Name:  "sign",
+						Usage: "public key of the signing entity (default is the admin public key)",
+					},
+					cli.StringFlag{
+						Name:  "rule",
+						Usage: "the rule to be added, updated or deleted",
+					},
+					cli.StringSliceFlag{
+						Name:  "identity, id",
+						Usage: "the identity of the signer who will be allowed to use the rule. Multiple use of this param is allowed. Each identity is checked by the evaluation parser.",
+					},
+					cli.UintFlag{
+						Name:  "minimum, M",
+						Usage: "if this flag is set, the rule is computed to be \"M out of N\" identities. Otherwise it uses ANDs",
+					},
+					cli.BoolFlag{
+						Name:  "replace",
+						Usage: "if this rule already exists, replace it with this new one",
+					},
+					cli.BoolFlag{
+						Name:  "delete",
+						Usage: "delete the rule",
+					},
+					cli.BoolFlag{
+						Name:  "restricted, r",
+						Usage: "evolves the darc in a restricted mode, ie. NOT using the invoke:darc.evolve_unrestricted command",
+					},
+				},
+			},
+		},
+	},
+
 	// {
 	// 	Name:    "search",
 	// 	Usage:   "search for queries",
@@ -225,7 +379,9 @@ func getClient(c *cli.Context, priv bool) (*medchain.Client, error) {
 	}
 	cl.DarcID = d.GetBaseID()
 
-	// Create project Darcs
+	// Initialize project Darcs hash map
+	cl.AllDarcs = make(map[string]*darc.Darc)
+	cl.AllDarcIDs = make(map[string]darc.ID)
 
 	// The caller doesn't want/need signers.
 	if !priv {
@@ -297,14 +453,14 @@ func createQuery(c *cli.Context) error {
 
 	// Status is set, so one shot query.
 	if stat != "" {
-		_, err := cl.CreateInstance(w, medchain.NewQuery(id, stat))
+		_, _, err := cl.CreateInstance(w, medchain.NewQuery(id, stat))
 		return err
 	}
 
 	// Status is empty, so read from stdin.
 	s := bufio.NewScanner(os.Stdin)
 	for s.Scan() {
-		_, err := cl.CreateInstance(w, medchain.NewQuery(id, s.Text()))
+		_, _, err := cl.CreateInstance(w, medchain.NewQuery(id, s.Text()))
 		if err != nil {
 			return err
 		}
@@ -439,7 +595,150 @@ func key(c *cli.Context) error {
 	return err
 }
 
-func projectDarc(c *cli.Context) error {
+func addProjectDarc(c *cli.Context) error {
+	mcArg := c.String("mc")
+	if mcArg == "" {
+		return xerrors.New("--mc flag is required")
+	}
+
+	cfg, cl, err := lib.LoadConfig(mcArg)
+	if err != nil {
+		return err
+	}
+
+	dstr := c.String("darc")
+	if dstr == "" {
+		dstr = cfg.AdminDarc.GetIdentityString()
+	}
+	dSpawn, err := lib.GetDarcByString(cl, dstr)
+	if err != nil {
+		return err
+	}
+
+	var signer *darc.Signer
+
+	identities := c.StringSlice("identity")
+
+	if len(identities) == 0 {
+		s := darc.NewSignerEd25519(nil, nil)
+		err = lib.SaveKey(s)
+		if err != nil {
+			return err
+		}
+		identities = append(identities, s.Identity().String())
+	}
+
+	Y := expression.InitParser(func(s string) bool { return true })
+
+	for _, id := range identities {
+		expr := []byte(id)
+		_, err := expression.Evaluate(Y, expr)
+		if err != nil {
+			return xerrors.Errorf("failed to parse id: %v", err)
+		}
+	}
+
+	sstr := c.String("sign")
+	if sstr == "" {
+		signer, err = lib.LoadKey(cfg.AdminIdentity)
+	} else {
+		signer, err = lib.LoadKeyFromString(sstr)
+	}
+	if err != nil {
+		return err
+	}
+
+	var desc []byte
+	if c.String("desc") == "" {
+		desc = []byte(lib.RandString(10))
+	} else {
+		if len(c.String("desc")) > 1024 {
+			return xerrors.New("descriptions longer than 1024 characters are not allowed")
+		}
+		desc = []byte(c.String("desc"))
+	}
+
+	deferredExpr := expression.InitOrExpr(identities...)
+	adminExpr := expression.InitAndExpr(identities...)
+
+	rules := darc.NewRules()
+	rules.AddRule("invoke:"+byzcoin.ContractDarcID+".evolve", adminExpr)
+	rules.AddRule("_sign", adminExpr)
+	if c.Bool("deferred") {
+		rules.AddRule("spawn:deferred", deferredExpr)
+		rules.AddRule("invoke:deferred.addProof", deferredExpr)
+		rules.AddRule("invoke:deferred.execProposedTx", deferredExpr)
+	}
+	if c.Bool("unrestricted") {
+		err = rules.AddRule("invoke:"+byzcoin.ContractDarcID+".evolve_unrestricted", adminExpr)
+		if err != nil {
+			return err
+		}
+	}
+
+	d := darc.NewDarc(rules, desc)
+
+	dBuf, err := d.ToProto()
+	if err != nil {
+		return err
+	}
+
+	instID := byzcoin.NewInstanceID(dSpawn.GetBaseID())
+
+	counters, err := cl.GetSignerCounters(signer.Identity().String())
+
+	spawn := byzcoin.Spawn{
+		ContractID: byzcoin.ContractDarcID,
+		Args: []byzcoin.Argument{
+			{
+				Name:  "darc",
+				Value: dBuf,
+			},
+		},
+	}
+
+	ctx, err := cl.CreateTransaction(byzcoin.Instruction{
+		InstanceID:    instID,
+		Spawn:         &spawn,
+		SignerCounter: []uint64{counters.Counters[0] + 1},
+	})
+	if err != nil {
+		return err
+	}
+	err = ctx.FillSignersAndSignWith(*signer)
+	if err != nil {
+		return err
+	}
+
+	_, err = cl.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintln(c.App.Writer, d.String())
+	if err != nil {
+		return err
+	}
+
+	// Saving ID in special file
+	output := c.String("out_id")
+	if output != "" {
+		err = ioutil.WriteFile(output, []byte(d.GetIdentityString()), 0644)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Saving key in special file
+	output = c.String("out_key")
+	if len(c.StringSlice("identity")) == 0 && output != "" {
+		err = ioutil.WriteFile(output, []byte(identities[0]), 0600)
+		if err != nil {
+			return err
+		}
+	}
+
+	return lib.WaitPropagation(c, cl)
 
 }
 

@@ -33,9 +33,8 @@ type Client struct {
 	NamingInstance byzcoin.InstanceID
 	genDarc        *darc.Darc
 	// Map projects to their darcs
-	allDarcs map[string]*darc.Darc
-	// Map projects to their darc IDs
-	allDarcIDs map[string]darc.ID
+	AllDarcs   map[string]*darc.Darc
+	AllDarcIDs map[string]darc.ID
 	gMsg       *byzcoin.CreateGenesisBlock
 	// Mapping of signer identities to projects and actions
 	rulesMap   map[string]map[string]string
@@ -64,8 +63,8 @@ func (c *Client) Create() error {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
-	c.allDarcs = make(map[string]*darc.Darc)
-	c.allDarcIDs = make(map[string]darc.ID)
+	c.AllDarcs = make(map[string]*darc.Darc)
+	c.AllDarcIDs = make(map[string]darc.ID)
 	// Spawn an instance of naming contract
 	spawnNamingTx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -217,7 +216,7 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 	for i, query := range queries {
 		// Get the project darc
 		project := c.GetProjectFromOneQuery(query)
-		darcID := c.allDarcIDs[project]
+		darcID := c.AllDarcIDs[project]
 		action := c.GetActionFromOneQuery(query)
 
 		// Check if the query is authorized/rejected
@@ -285,11 +284,11 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 
 //SpawnQuery spawns a query instance
 func (c *Client) SpawnQuery(qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
-	return c.CreateInstance(10, qu)
+	return c.CreateInstance(10, qu...)
 }
 
 //CreateInstance spawns a query
-func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []byzcoin.InstanceID, error) {
+func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []byzcoin.InstanceID, error) {
 
 	keys := make([]byzcoin.InstanceID, len(queries))
 	instrs := make([]byzcoin.Instruction, len(queries))
@@ -297,7 +296,7 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []by
 	for i, query := range queries {
 		// Get the project darc
 		project := c.GetProjectFromOneQuery(query)
-		darcID := c.allDarcIDs[project]
+		darcID := c.AllDarcIDs[project]
 
 		// if the query has just been submitted, spawn a query instance;
 		//otherwise, inoke an update to change its status
@@ -339,7 +338,7 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []by
 	for i, query := range queries {
 		// Get the project darc
 		project := c.GetProjectFromOneQuery(query)
-		darcID := c.allDarcIDs[project]
+		darcID := c.AllDarcIDs[project]
 		instID := tx.Instructions[i].DeriveID("")
 		// name the instance of the query with as its key using contract_name to
 		// make retrievals easier
