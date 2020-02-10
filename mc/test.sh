@@ -2,7 +2,7 @@
 
 DBG_TEST=1
 DBG_SRV=2
-export DEBUG_LVL=5
+export DEBUG_LVL=2
 export BC_WAIT=true
 export  GO111MODULE=on
 
@@ -47,17 +47,19 @@ testMedchain(){
 	testOK ./bcadmin -c . darc rule -rule invoke:queryContract.update --identity "$KEY"
     ./bcadmin debug counters bc*cfg key*cfg
 	testOK ./bcadmin -c . darc rule -rule invoke:queryContract.verifystatus --identity "$KEY"
+	./bcadmin debug counters bc*cfg key*cfg
+	testOK ./bcadmin -c . darc rule -rule _name:queryContract --identity "$KEY"
 
-	runGrepSed "export QUERY=" "" $mc create -sign "$KEY"
+	runGrepSed "export MC=" "" $mc create -sign "$KEY"
 	eval "$SED"
-	[ -z "$QUERY" ] #&& exit 1
+	[ -z "$MC" ] && exit 1
 	
 	##### testing phase
 	echo 'Testing Phase'
 
-	testOK $mc query -id 'query1' -stat 'Submitted' -w 10 -sign "$KEY" 
+	testOK $mc query -id 'wsdf65k80h:A:patient_list' -stat 'Submitted' -w 10 -sign "$KEY" 
 	echo $KEY
-	testOK $mc query -id 'query2' -stat 'Authorized' -w 10 -sign "$KEY"
+	testOK $mc query -id 'wqdesf547z:B:patient_list' -stat 'Submitted' -w 10 -sign "$KEY"
 	echo ghi | testOK $mc query -w 10 -sign "$KEY"
 	seq 10 | testOK $mc query -id seq100 -w 10 -sign "$KEY"
 

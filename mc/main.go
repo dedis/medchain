@@ -27,6 +27,15 @@ import (
 	"go.dedis.ch/protobuf"
 )
 
+// PLEASE READ THIS
+//
+// In order to keep a consistant formatting please keep the following
+// conventions:
+//
+// - Keep commands SORTED BY NAME
+// - Use the following order for the arguments: Name, Usage, ArgsUsage, Action, Flags
+// - "Flags" should always be the last argument
+
 type config struct {
 	Name    string
 	QueryID byzcoin.InstanceID //
@@ -40,8 +49,9 @@ type bcConfig struct {
 var cmds = cli.Commands{
 	{
 		Name:    "create",
-		Usage:   "create a medchain CLI app",
+		Usage:   "create a MedChain CLI app",
 		Aliases: []string{"c"},
+		Action:  create,
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "sign",
@@ -57,13 +67,13 @@ var cmds = cli.Commands{
 				Usage: "the DarcID that has the spawn:queryContract rule (default is the genesis DarcID)",
 			},
 		},
-		Action: create,
 	},
 
 	{
 		Name:    "query",
 		Usage:   "create one or more queries",
-		Aliases: []string{"l"},
+		Aliases: []string{"q"},
+		Action:  createQuery,
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "sign",
@@ -76,8 +86,8 @@ var cmds = cli.Commands{
 			},
 			cli.StringFlag{
 				Name:   "mc",
-				EnvVar: "QUERY",
-				Usage:  "the query id, from \"mc create\"",
+				EnvVar: "MC",
+				Usage:  "the MedChain id, from \"mc create\"",
 			},
 			cli.StringFlag{
 				Name:  "id",
@@ -93,12 +103,12 @@ var cmds = cli.Commands{
 				Value: 0,
 			},
 		},
-		Action: createQuery,
 	},
 	// {
 	// 	Name:    "search",
 	// 	Usage:   "search for queries",
 	// 	Aliases: []string{"s"},
+	// 	Action: search,
 	// 	Flags: []cli.Flag{
 	// 		cli.StringFlag{
 	// 			Name:   "bc",
@@ -131,12 +141,13 @@ var cmds = cli.Commands{
 	// 			Usage: "return queries for this long after the from time (when for is given, to is ignored)",
 	// 		},
 	// 	},
-	// 	Action: search,
+
 	// },
 	{
 		Name:    "key",
 		Usage:   "generates a new keypair and prints the public key in the stdout",
 		Aliases: []string{"k"},
+		Action:  key,
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "save",
@@ -147,7 +158,6 @@ var cmds = cli.Commands{
 				Usage: "print the private and public key",
 			},
 		},
-		Action: key,
 	},
 }
 
@@ -287,18 +297,19 @@ func createQuery(c *cli.Context) error {
 
 	// Status is set, so one shot query.
 	if stat != "" {
-		_, err := cl.CreateQueryAndWait(w, medchain.NewQuery(id, stat))
+		_, err := cl.CreateInstance(w, medchain.NewQuery(id, stat))
 		return err
 	}
 
 	// Status is empty, so read from stdin.
 	s := bufio.NewScanner(os.Stdin)
 	for s.Scan() {
-		_, err := cl.CreateQueryAndWait(w, medchain.NewQuery(id, s.Text()))
+		_, err := cl.CreateInstance(w, medchain.NewQuery(id, s.Text()))
 		if err != nil {
 			return err
 		}
 	}
+
 	return bcadminlib.WaitPropagation(c, cl.ByzCoin)
 }
 
@@ -426,6 +437,10 @@ func key(c *cli.Context) error {
 	}
 	_, err = fmt.Fprintln(fo, newSigner.Identity().String())
 	return err
+}
+
+func projectDarc(c *cli.Context) error {
+
 }
 
 func faultThreshold(n int) int {

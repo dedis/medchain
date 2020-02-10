@@ -53,22 +53,22 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+	c.allDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
-	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+	c.allDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.allDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
-	require.Nil(t, c.aDarc.Verify(true))
+	require.Nil(t, c.allDarcs["A"].Verify(true))
 	t.Logf("**************** Darc of Project A ******************")
-	t.Log(c.aDarc.String())
+	t.Log(c.allDarcs["A"].String())
 
-	aDarcBuf, err := c.aDarc.ToProto()
+	aDarcBuf, err := c.allDarcs["A"].ToProto()
 	require.NoError(t, err)
 	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.aDarc.Equal(aDarcCopy))
+	require.True(t, c.allDarcs["A"].Equal(aDarcCopy))
 
 	ctx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -95,7 +95,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.aDarcID = c.aDarc.GetBaseID()
+	c.allDarcIDs["A"] = c.allDarcs["A"].GetBaseID()
 
 	//// *-*-*-*-*-*-*-*   Demo 1: Query should be Authorized *-*-*-*-*-*-*-*-*
 
@@ -111,7 +111,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.allDarcIDs["A"], queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
@@ -150,7 +150,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	instaID, err = c.ByzCoin.ResolveInstanceID(c.aDarcID, queries[0].ID)
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.allDarcIDs["A"], queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
@@ -199,22 +199,22 @@ func TestClient_MedchainReject(t *testing.T) {
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
 	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+	c.allDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
-	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+	c.allDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.allDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
-	require.Nil(t, c.bDarc.Verify(true))
+	require.Nil(t, c.allDarcs["B"].Verify(true))
 	t.Logf("**************** Darc of Project B ******************")
-	t.Log(c.bDarc.String())
+	t.Log(c.allDarcs["B"].String())
 
-	bDarcBuf, err := c.bDarc.ToProto()
+	bDarcBuf, err := c.allDarcs["B"].ToProto()
 	require.NoError(t, err)
 	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.bDarc.Equal(bDarcCopy))
+	require.True(t, c.allDarcs["B"].Equal(bDarcCopy))
 
 	ctx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -241,7 +241,7 @@ func TestClient_MedchainReject(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.bDarcID = c.bDarc.GetBaseID()
+	c.allDarcIDs["B"] = c.allDarcs["B"].GetBaseID()
 
 	//// *-*-*-*-*-*-*-*   Demo 2: Query should be rejected *-*-*-*-*-*-*-*-*
 
@@ -257,7 +257,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	instaID, err := c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.allDarcIDs["B"], queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
@@ -279,7 +279,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
 	for _, query := range queries {
-		instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-cod query darc
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.allDarcIDs["B"], query.ID) //TODO: not hard-cod query darc
 		require.Nil(t, err)
 		_, err := c.GetQuery(instaID.Slice())
 		require.Nil(t, err)
@@ -296,7 +296,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.Equal(t, 32, len(ids[0]))
 
 	// Loop while we wait for the next block to be created.
-	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, queries[0].ID)
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.allDarcIDs["B"], queries[0].ID)
 	require.Nil(t, err)
 	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
@@ -350,22 +350,22 @@ func TestClient_100Query(t *testing.T) {
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+	c.allDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
-	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+	c.allDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.allDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
-	require.Nil(t, c.aDarc.Verify(true))
+	require.Nil(t, c.allDarcs["A"].Verify(true))
 	t.Logf("**************** Darc of Project A ******************")
-	t.Log(c.aDarc.String())
+	t.Log(c.allDarcs["A"].String())
 
-	aDarcBuf, err := c.aDarc.ToProto()
+	aDarcBuf, err := c.allDarcs["A"].ToProto()
 	require.NoError(t, err)
 	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.aDarc.Equal(aDarcCopy))
+	require.True(t, c.allDarcs["A"].Equal(aDarcCopy))
 
 	ctx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -392,7 +392,7 @@ func TestClient_100Query(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.aDarcID = c.aDarc.GetBaseID()
+	c.allDarcIDs["A"] = c.allDarcs["A"].GetBaseID()
 
 	// ------------------------------------------------------------------------
 	// 2. Add Project B Darc
@@ -401,22 +401,22 @@ func TestClient_100Query(t *testing.T) {
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
 	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+	c.allDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
-	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+	c.allDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.allDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
-	require.Nil(t, c.bDarc.Verify(true))
+	require.Nil(t, c.allDarcs["B"].Verify(true))
 	t.Logf("**************** Darc of Project B ******************")
-	t.Log(c.bDarc.String())
+	t.Log(c.allDarcs["B"].String())
 
-	bDarcBuf, err := c.bDarc.ToProto()
+	bDarcBuf, err := c.allDarcs["B"].ToProto()
 	require.NoError(t, err)
 	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.bDarc.Equal(bDarcCopy))
+	require.True(t, c.allDarcs["B"].Equal(bDarcCopy))
 
 	ctx = byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -443,7 +443,7 @@ func TestClient_100Query(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.bDarcID = c.bDarc.GetBaseID()
+	c.allDarcIDs["B"] = c.allDarcs["B"].GetBaseID()
 
 	qCount := 100
 	// Write the queries in chunks to make sure that the verification
@@ -493,22 +493,22 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
 		"invoke:queryContract.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.aDarc, _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+	c.allDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.aDarc.Rules.AddRule("_name:"+contractName, exprA)
-	c.aDarc.Rules.AddRule("spawn:naming", exprA)
+	c.allDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.allDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
-	require.Nil(t, c.aDarc.Verify(true))
+	require.Nil(t, c.allDarcs["A"].Verify(true))
 	t.Logf("**************** Darc of Project A ******************")
-	t.Log(c.aDarc.String())
+	t.Log(c.allDarcs["A"].String())
 
-	aDarcBuf, err := c.aDarc.ToProto()
+	aDarcBuf, err := c.allDarcs["A"].ToProto()
 	require.NoError(t, err)
 	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.aDarc.Equal(aDarcCopy))
+	require.True(t, c.allDarcs["A"].Equal(aDarcCopy))
 
 	ctx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -535,7 +535,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.aDarcID = c.aDarc.GetBaseID()
+	c.allDarcIDs["A"] = c.allDarcs["A"].GetBaseID()
 
 	// ------------------------------------------------------------------------
 	// 2. Add Project B Darc
@@ -544,22 +544,22 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
 	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.bDarc, _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
+	c.allDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.bDarc.Rules.AddRule("_name:"+contractName, exprB)
-	c.bDarc.Rules.AddRule("spawn:naming", exprB)
+	c.allDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.allDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
-	require.Nil(t, c.bDarc.Verify(true))
+	require.Nil(t, c.allDarcs["B"].Verify(true))
 	t.Logf("**************** Darc of Project B ******************")
-	t.Log(c.bDarc.String())
+	t.Log(c.allDarcs["B"].String())
 
-	bDarcBuf, err := c.bDarc.ToProto()
+	bDarcBuf, err := c.allDarcs["B"].ToProto()
 	require.NoError(t, err)
 	bDarcCopy, err := darc.NewFromProtobuf(bDarcBuf)
 	require.NoError(t, err)
-	require.True(t, c.bDarc.Equal(bDarcCopy))
+	require.True(t, c.allDarcs["B"].Equal(bDarcCopy))
 
 	ctx = byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -586,7 +586,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
-	c.bDarcID = c.bDarc.GetBaseID()
+	c.allDarcIDs["B"] = c.allDarcs["B"].GetBaseID()
 
 	waitForKey(t, leader.omni, c.ByzCoin.ID, c.NamingInstance.Slice(), time.Second)
 
@@ -621,7 +621,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	require.Nil(t, err)
 
 	// Fetch index, and check its length.
-	instaID, err := c.ByzCoin.ResolveInstanceID(c.aDarcID, qs[0].ID)
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.allDarcIDs["A"], qs[0].ID)
 	require.Nil(t, err)
 	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
 	qdata := QueryData{}

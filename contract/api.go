@@ -31,18 +31,17 @@ type Client struct {
 	Signers []darc.Signer
 	// Instance ID of naming contract
 	NamingInstance byzcoin.InstanceID
-	c              *onet.Client
-	sc             *skipchain.Client
-
-	signerCtrs []uint64
-	genDarc    *darc.Darc
-	aDarc      *darc.Darc // project A darc
-	aDarcID    darc.ID
-	bDarc      *darc.Darc //project B darc
-	bDarcID    darc.ID
+	genDarc        *darc.Darc
+	// Map projects to their darcs
+	allDarcs map[string]*darc.Darc
+	// Map projects to their darc IDs
+	allDarcIDs map[string]darc.ID
 	gMsg       *byzcoin.CreateGenesisBlock
 	// Mapping of signer identities to projects and actions
-	rulesMap map[string]map[string]string
+	rulesMap   map[string]map[string]string
+	c          *onet.Client
+	sc         *skipchain.Client
+	signerCtrs []uint64
 }
 
 // NewClient creates a new client to talk to the medchain service.
@@ -65,7 +64,8 @@ func (c *Client) Create() error {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
-
+	c.allDarcs = make(map[string]*darc.Darc)
+	c.allDarcIDs = make(map[string]darc.ID)
 	// Spawn an instance of naming contract
 	spawnNamingTx := byzcoin.ClientTransaction{
 		Instructions: byzcoin.Instructions{
@@ -177,7 +177,7 @@ func (c *Client) GetQuery(key []byte) (*Query, error) {
 }
 
 // AuthorizeQuery checks authorizations for the query
-func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, project string, action string) ([]bool, error) {
+func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, action string) ([]bool, error) {
 	// We need the identity part of the signatures before
 	// calling ToDarcRequest() below, because the identities
 	// go into the message digest.
@@ -202,7 +202,6 @@ func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, project string, act
 			}
 		}
 	}
-	fmt.Println(authorizations)
 	return authorizations, nil
 }
 
@@ -212,23 +211,17 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 	ok := true
 	//var action string
 	var args byzcoin.Argument
-	var darcID darc.ID
 	keys := make([]byzcoin.InstanceID, len(queries))
 	instrs := make([]byzcoin.Instruction, len(queries))
-	projects := c.GetProjectFromQuery(queries)
 
 	for i, query := range queries {
-		switch projects[i] {
-		case "A":
-			darcID = c.aDarcID
-		case "B":
-			darcID = c.bDarcID
-		default:
-			return nil, nil, fmt.Errorf("invalid project used")
-		}
-		// Check if the query is authorized/rejected
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.allDarcIDs[project]
 		action := c.GetActionFromOneQuery(query)
-		authorizations, err := c.AuthorizeQuery(query, darcID, projects[i], action)
+
+		// Check if the query is authorized/rejected
+		authorizations, err := c.AuthorizeQuery(query, darcID, action)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -298,26 +291,18 @@ func (c *Client) SpawnQuery(qu ...Query) ([]Query, []byzcoin.InstanceID, error) 
 //CreateInstance spawns a query
 func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []byzcoin.InstanceID, error) {
 
-	var darcID darc.ID
 	keys := make([]byzcoin.InstanceID, len(queries))
-	projects := c.GetProjectFromQuery(queries)
 	instrs := make([]byzcoin.Instruction, len(queries))
 
 	for i, query := range queries {
-		switch projects[i] {
-		case "A":
-			darcID = c.aDarcID
-		case "B":
-			darcID = c.bDarcID
-		default:
-			return nil, nil, fmt.Errorf("unexpected project name received")
-		}
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.allDarcIDs[project]
 
 		// if the query has just been submitted, spawn a query instance;
 		//otherwise, inoke an update to change its status
 		// TODO: check proof instead of status to make this more stable and
 		// reliable (the latter may not be very efficient)
-
 		instrs[i] = byzcoin.Instruction{
 			InstanceID: byzcoin.NewInstanceID(darcID),
 			Spawn: &byzcoin.Spawn{
@@ -352,19 +337,12 @@ func (c *Client) CreateInstance(numInterval int, queries []Query) ([]Query, []by
 	fmt.Println("[INFO] (SPAWN) Query was added to the ledger")
 
 	for i, query := range queries {
-		var darcID darc.ID
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.allDarcIDs[project]
+		instID := tx.Instructions[i].DeriveID("")
 		// name the instance of the query with as its key using contract_name to
 		// make retrievals easier
-		project := c.GetProjectFromOneQuery(query)
-		switch project {
-		case "A":
-			darcID = c.aDarcID
-		case "B":
-			darcID = c.bDarcID
-		default:
-			return nil, nil, fmt.Errorf("unexpected project name received")
-		}
-		instID := tx.Instructions[i].DeriveID("")
 		err = c.NameInstance(instID, darcID, query.ID)
 		if err != nil {
 			fmt.Println("debug4")
@@ -611,7 +589,6 @@ func (c *Client) GetActionFromQuery(qu []Query) []string {
 	for i, query := range qu {
 		actions[i] = strings.Split(query.ID, ":")[2]
 		//actions[i] = "database" + projects[i] + "." + actions[i]
-		fmt.Println(actions[i])
 	}
 	return actions
 }
