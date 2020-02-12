@@ -25,7 +25,7 @@ var QueryKey []byzcoin.InstanceID
 // Client is a structure to communicate with Medchain service
 type Client struct {
 	ByzCoin *byzcoin.Client
-	// The DarcID with "invoke:queryContract.update" & "invoke:queryContract.verifystatus "permission on it.
+	// The DarcID with "invoke:medchain.update" & "invoke:medchain.verifystatus "permission on it.
 	DarcID darc.ID
 	// Signers are the Darc signers that will sign transactions sent with this client.
 	Signers []darc.Signer
@@ -195,7 +195,7 @@ func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, action string) ([]b
 		}
 
 		for _, authAction := range a {
-			if darc.Action("invoke:queryContract."+action) == authAction {
+			if darc.Action("invoke:medchain."+action) == authAction {
 				authorizations[i] = true
 			} else {
 				continue

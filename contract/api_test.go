@@ -49,9 +49,9 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
-		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-		"invoke:queryContract.count_global_obfuscated"
+	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:v.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -194,7 +194,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// signer can only query certain things from the database
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	actionsB := "spawn:medchain,invoke:medchain.update,invoke:medchain.count_global,invoke:medchain.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
@@ -340,9 +340,9 @@ func TestClient_100Query(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
-		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-		"invoke:queryContract.count_global_obfuscated"
+	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:medchain.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -390,7 +390,7 @@ func TestClient_100Query(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// signer can only query certain things from the database
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	actionsB := "spawn:medchain,invoke:medchain.update,invoke:medchain.count_global,invoke:medchain.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
@@ -477,9 +477,9 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsA := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.patient_list,invoke:queryContract.count_per_site,invoke:queryContract.count_per_site_obfuscated," +
-		"invoke:queryContract.count_per_site_shuffled,invoke:queryContract.count_per_site_shuffled_obfuscated,invoke:queryContract.count_global," +
-		"invoke:queryContract.count_global_obfuscated"
+	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:medchain.count_global_obfuscated"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -527,7 +527,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// signer can only query certain things from the database
 	rulesB := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	actionsB := "spawn:queryContract,invoke:queryContract.update,invoke:queryContract.count_global,invoke:queryContract.count_global_obfuscated"
+	actionsB := "spawn:medchain,invoke:medchain.update,invoke:medchain.count_global,invoke:medchain.count_global_obfuscated"
 	exprB := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 

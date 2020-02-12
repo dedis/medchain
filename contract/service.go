@@ -16,7 +16,7 @@ import (
 // ServiceName is the service name for the medchain service.
 var ServiceName = "MedChainService"
 
-const contractName = "queryContract"
+const contractName = "medchain"
 
 // sid is the onet identifier (service ID).
 var sid onet.ServiceID

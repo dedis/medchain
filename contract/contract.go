@@ -15,7 +15,7 @@ import (
 // key/value pairs corresponding to queries. Key is the query ID
 // and Status is the query Status (i.e., it is the concatenation
 // of query/status/user)
-var MedchainContractID = "queryContract"
+var MedchainContractID = "medchain"
 
 type medchainContract struct {
 	byzcoin.BasicContract

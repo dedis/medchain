@@ -14,12 +14,11 @@ import (
 
 	medchain "github.com/medchain/contract"
 	cli "github.com/urfave/cli"
-	"go.dedis.ch/cothority/byzcoin/bcadmin/lib"
-	"go.dedis.ch/cothority/darc/expression"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
+	"go.dedis.ch/cothority/v3/darc/expression"
 	"golang.org/x/xerrors"
 
 	"go.dedis.ch/cothority/v3/skipchain"
@@ -113,9 +112,9 @@ var cmds = cli.Commands{
 		Aliases: []string{"d"},
 		Subcommands: cli.Commands{
 			{
-				Name:   "show",
-				Usage:  "Show a DARC",
-				Action: darcShow,
+				Name:  "show",
+				Usage: "Show a DARC",
+				//Action: darcShow,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
@@ -129,9 +128,9 @@ var cmds = cli.Commands{
 				},
 			},
 			{
-				Name:   "cdesc",
-				Usage:  "Edit the description of a DARC",
-				Action: darcCdesc,
+				Name:  "cdesc",
+				Usage: "Edit the description of a DARC",
+				//Action: darcCdesc,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
@@ -154,8 +153,8 @@ var cmds = cli.Commands{
 			},
 			{
 				Name:   "add",
-				Usage:  "Add a new DARC with default rules.",
-				Action: darcAdd,
+				Usage:  "Add a new project DARC with default rules.",
+				Action: addProjectDarc,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
@@ -191,15 +190,15 @@ var cmds = cli.Commands{
 						Usage: "output file for the darc key (optional)",
 					},
 					cli.StringFlag{
-						Name:  "desc",
-						Usage: "the description for the new DARC (default: random)",
+						Name:  "name",
+						Usage: "the name for the new DARC (default: random)",
 					},
 				},
 			},
 			{
-				Name:   "prule",
-				Usage:  "print rule. Will print the rule given identities and a minimum to have M out of N rule",
-				Action: darcPrintRule,
+				Name:  "prule",
+				Usage: "print rule. Will print the rule given identities and a minimum to have M out of N rule",
+				//Action: darcPrintRule,
 				Flags: []cli.Flag{
 					cli.StringSliceFlag{
 						Name:  "identity, id",
@@ -213,7 +212,7 @@ var cmds = cli.Commands{
 			},
 			{
 				Name:   "rule",
-				Usage:  "Edit DARC rules.",
+				Usage:  "Edit project DARC rules.",
 				Action: darcRule,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -222,8 +221,12 @@ var cmds = cli.Commands{
 						Usage:  "the ByzCoin config to use (required)",
 					},
 					cli.StringFlag{
-						Name:  "darc",
-						Usage: "the DARC to update (default is the admin DARC)",
+						Name:  "id",
+						Usage: "the ID of the DARC to update (default is the admin DARC)",
+					},
+					cli.StringFlag{
+						Name:  "name",
+						Usage: "the name of the DARC to update (default is the admin DARC)",
 					},
 					cli.StringFlag{
 						Name:  "sign",
@@ -234,7 +237,7 @@ var cmds = cli.Commands{
 						Usage: "the rule to be added, updated or deleted",
 					},
 					cli.StringSliceFlag{
-						Name:  "identity, id",
+						Name:  "identity, signer_id",
 						Usage: "the identity of the signer who will be allowed to use the rule. Multiple use of this param is allowed. Each identity is checked by the evaluation parser.",
 					},
 					cli.UintFlag{
@@ -427,7 +430,7 @@ func create(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
+	// TODO: MC is not required
 	log.Infof("export MC=%x", cl.NamingInstance.Slice())
 	return bcadminlib.WaitPropagation(c, cl.ByzCoin)
 }
@@ -453,14 +456,27 @@ func createQuery(c *cli.Context) error {
 
 	// Status is set, so one shot query.
 	if stat != "" {
-		_, _, err := cl.CreateInstance(w, medchain.NewQuery(id, stat))
-		return err
+		queries, ids, err := cl.CreateInstance(w, medchain.NewQuery(id, stat))
+		if err != nil {
+			return err
+		}
+		// check for auuthorizations and write to ledger
+		_, _, err = cl.CreateQueryAndWait(10, ids, queries...)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Status is empty, so read from stdin.
 	s := bufio.NewScanner(os.Stdin)
 	for s.Scan() {
-		_, _, err := cl.CreateInstance(w, medchain.NewQuery(id, s.Text()))
+		queries, ids, err := cl.CreateInstance(w, medchain.NewQuery(id, s.Text()))
+		if err != nil {
+			return err
+		}
+		// check for auuthorizations and write to ledger
+
+		_, _, err = cl.CreateQueryAndWait(10, ids, queries...)
 		if err != nil {
 			return err
 		}
@@ -596,12 +612,17 @@ func key(c *cli.Context) error {
 }
 
 func addProjectDarc(c *cli.Context) error {
-	mcArg := c.String("mc")
-	if mcArg == "" {
-		return xerrors.New("--mc flag is required")
+
+	bcArg := c.String("bc")
+	if bcArg == "" {
+		return xerrors.New("--bc flag is required")
 	}
 
-	cfg, cl, err := lib.LoadConfig(mcArg)
+	cfg, cl, err := bcadminlib.LoadConfig(bcArg)
+	if err != nil {
+		return err
+	}
+	mccl, err := getClient(c, true)
 	if err != nil {
 		return err
 	}
@@ -610,7 +631,7 @@ func addProjectDarc(c *cli.Context) error {
 	if dstr == "" {
 		dstr = cfg.AdminDarc.GetIdentityString()
 	}
-	dSpawn, err := lib.GetDarcByString(cl, dstr)
+	dSpawn, err := bcadminlib.GetDarcByString(cl, dstr)
 	if err != nil {
 		return err
 	}
@@ -621,7 +642,7 @@ func addProjectDarc(c *cli.Context) error {
 
 	if len(identities) == 0 {
 		s := darc.NewSignerEd25519(nil, nil)
-		err = lib.SaveKey(s)
+		err = bcadminlib.SaveKey(s)
 		if err != nil {
 			return err
 		}
@@ -640,22 +661,23 @@ func addProjectDarc(c *cli.Context) error {
 
 	sstr := c.String("sign")
 	if sstr == "" {
-		signer, err = lib.LoadKey(cfg.AdminIdentity)
+		signer, err = bcadminlib.LoadKey(cfg.AdminIdentity)
 	} else {
-		signer, err = lib.LoadKeyFromString(sstr)
+		signer, err = bcadminlib.LoadKeyFromString(sstr)
 	}
 	if err != nil {
 		return err
 	}
 
 	var desc []byte
-	if c.String("desc") == "" {
-		desc = []byte(lib.RandString(10))
+	name := c.String("name")
+	if name == "" {
+		desc = []byte(bcadminlib.RandString(10))
 	} else {
-		if len(c.String("desc")) > 1024 {
-			return xerrors.New("descriptions longer than 1024 characters are not allowed")
+		if len(c.String("name")) > 1024 {
+			return xerrors.New("Project names longer than 1024 characters are not allowed")
 		}
-		desc = []byte(c.String("desc"))
+		desc = []byte(c.String("name"))
 	}
 
 	deferredExpr := expression.InitOrExpr(identities...)
@@ -676,9 +698,9 @@ func addProjectDarc(c *cli.Context) error {
 		}
 	}
 
-	d := darc.NewDarc(rules, desc)
+	mccl.AllDarcs[name] = darc.NewDarc(rules, desc)
 
-	dBuf, err := d.ToProto()
+	dBuf, err := mccl.AllDarcs[name].ToProto()
 	if err != nil {
 		return err
 	}
@@ -714,8 +736,8 @@ func addProjectDarc(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = fmt.Fprintln(c.App.Writer, d.String())
+	mccl.AllDarcIDs[name] = mccl.AllDarcs[name].GetBaseID()
+	_, err = fmt.Fprintln(c.App.Writer, mccl.AllDarcs[name].String())
 	if err != nil {
 		return err
 	}
@@ -723,7 +745,7 @@ func addProjectDarc(c *cli.Context) error {
 	// Saving ID in special file
 	output := c.String("out_id")
 	if output != "" {
-		err = ioutil.WriteFile(output, []byte(d.GetIdentityString()), 0644)
+		err = ioutil.WriteFile(output, []byte(mccl.AllDarcs[name].GetIdentityString()), 0644)
 		if err != nil {
 			return err
 		}
@@ -738,8 +760,155 @@ func addProjectDarc(c *cli.Context) error {
 		}
 	}
 
-	return lib.WaitPropagation(c, cl)
+	return bcadminlib.WaitPropagation(c, cl)
 
+}
+
+func darcRule(c *cli.Context) error {
+	bcArg := c.String("bc")
+	if bcArg == "" {
+		return xerrors.New("--bc flag is required")
+	}
+
+	cfg, cl, err := bcadminlib.LoadConfig(bcArg)
+	if err != nil {
+		return err
+	}
+	mccl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+	var dstr string
+	id := c.String("id")
+	name := c.String("name")
+	if id == "" && name == "" {
+		dstr = cfg.AdminDarc.GetIdentityString()
+
+	} else if id != "" && name == "" {
+		dstr = id
+
+	} else if id == "" && name != "" {
+		dstr = string(mccl.AllDarcIDs[name])
+
+	} else {
+		if string(mccl.AllDarcIDs[name]) != id {
+			return xerrors.New("DARC ID and name provided do not match")
+		}
+		dstr = id
+	}
+	d, err := bcadminlib.GetDarcByString(cl, dstr)
+	if err != nil {
+		return err
+	}
+	var signer *darc.Signer
+
+	sstr := c.String("sign")
+	if sstr == "" {
+		signer, err = bcadminlib.LoadKey(cfg.AdminIdentity)
+	} else {
+		signer, err = bcadminlib.LoadKeyFromString(sstr)
+	}
+	if err != nil {
+		return err
+	}
+
+	action := c.String("rule")
+	if action == "" {
+		return xerrors.New("--rule flag is required")
+	}
+
+	identities := c.StringSlice("identity")
+
+	if len(identities) == 0 {
+		if !c.Bool("delete") {
+			return xerrors.New("--identity flag is required")
+		}
+	}
+
+	Y := expression.InitParser(func(s string) bool { return true })
+
+	for _, id := range identities {
+		expr := []byte(id)
+		_, err := expression.Evaluate(Y, expr)
+		if err != nil {
+			return xerrors.Errorf("failed to parse id: %v", err)
+		}
+	}
+
+	var groupExpr expression.Expr
+	min := c.Uint("minimum")
+	if min == 0 {
+		groupExpr = expression.InitAndExpr(identities...)
+	} else {
+		andGroups := bcadminlib.CombinationAnds(identities, int(min))
+		groupExpr = expression.InitOrExpr(andGroups...)
+	}
+
+	d2 := d.Copy()
+	err = d2.EvolveFrom(d)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case c.Bool("delete"):
+		err = d2.Rules.DeleteRules(darc.Action(action))
+	case c.Bool("replace"):
+		if action == "_sign" {
+			err = d2.Rules.UpdateSign(groupExpr)
+		} else {
+			err = d2.Rules.UpdateRule(darc.Action(action), groupExpr)
+		}
+	default:
+		err = d2.Rules.AddRule(darc.Action(action), groupExpr)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	d2Buf, err := d2.ToProto()
+	if err != nil {
+		return err
+	}
+
+	counters, err := cl.GetSignerCounters(signer.Identity().String())
+
+	command := "evolve_unrestricted"
+	if c.Bool("restricted") {
+		command = "evolve"
+	}
+
+	invoke := byzcoin.Invoke{
+		ContractID: byzcoin.ContractDarcID,
+		Command:    command,
+		Args: []byzcoin.Argument{
+			{
+				Name:  "darc",
+				Value: d2Buf,
+			},
+		},
+	}
+
+	ctx, err := cl.CreateTransaction(byzcoin.Instruction{
+		InstanceID:    byzcoin.NewInstanceID(d2.GetBaseID()),
+		Invoke:        &invoke,
+		SignerCounter: []uint64{counters.Counters[0] + 1},
+	})
+	if err != nil {
+		return err
+	}
+	err = ctx.FillSignersAndSignWith(*signer)
+	if err != nil {
+		return err
+	}
+
+	_, err = cl.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return err
+	}
+
+	return bcadminlib.WaitPropagation(c, cl)
 }
 
 func faultThreshold(n int) int {

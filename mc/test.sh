@@ -40,19 +40,22 @@ testMedchain(){
 	
 	KEY=$(./mc -c . key)
 	echo "Key is" $KEY
-
-	./bcadmin debug counters bc*cfg key*cfg
-	testOK ./bcadmin -c . darc rule -rule spawn:queryContract --identity "$KEY"
-	./bcadmin debug counters bc*cfg key*cfg
-	testOK ./bcadmin -c . darc rule -rule invoke:queryContract.update --identity "$KEY"
-    ./bcadmin debug counters bc*cfg key*cfg
-	testOK ./bcadmin -c . darc rule -rule invoke:queryContract.verifystatus --identity "$KEY"
-	./bcadmin debug counters bc*cfg key*cfg
-	testOK ./bcadmin -c . darc rule -rule _name:queryContract --identity "$KEY"
-
+	sleep 5
 	runGrepSed "export MC=" "" $mc create -sign "$KEY"
 	eval "$SED"
 	[ -z "$MC" ] && exit 1
+
+	
+ 	./bcadmin debug counters bc*cfg key*cfg
+	testOK ./mc -c . darc rule -rule spawn:queryContract -identity "$KEY"
+	./bcadmin debug counters bc*cfg key*cfg
+	testOK ./mc -c . darc rule -rule invoke:queryContract.update -identity "$KEY"
+    ./bcadmin debug counters bc*cfg key*cfg
+	testOK ./mc -c . darc rule -rule invoke:queryContract.verifystatus -identity "$KEY"
+	./bcadmin debug counters bc*cfg key*cfg
+	testOK ./mc -c . darc rule -rule _name:queryContract -identity "$KEY"
+	testOK ./mc -c . darc add -name "A" -identity "$KEY" -out_id "out_id.txt" -out_key "out_key.txt"
+	
 	
 	##### testing phase
 	echo 'Testing Phase'
