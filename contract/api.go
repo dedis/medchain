@@ -66,16 +66,17 @@ func (c *Client) Create() error {
 	c.AllDarcs = make(map[string]*darc.Darc)
 	c.AllDarcIDs = make(map[string]darc.ID)
 	// Spawn an instance of naming contract
-	spawnNamingTx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractNamingID,
-				},
-				SignerCounter: c.incrementCtrs(),
+	spawnNamingTx, err := c.ByzCoin.CreateTransaction(
+		byzcoin.Instruction{
+			InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
+			Spawn: &byzcoin.Spawn{
+				ContractID: byzcoin.ContractNamingID,
 			},
+			SignerCounter: c.incrementCtrs(),
 		},
+	)
+	if err != nil {
+		return err
 	}
 
 	if err := spawnNamingTx.FillSignersAndSignWith(c.Signers...); err != nil {
@@ -387,9 +388,54 @@ func (c *Client) CreateDarc(name string, rules darc.Rules, actions string, exprs
 	return projectDarc, nil
 }
 
-// func (c *Client) SpawnDarc  {
+// AddProjectDarc is used to create project darcs with default rules
+func (c *Client) AddProjectDarc(name string) error {
 
-// }
+	rules := darc.InitRules([]darc.Identity{c.Signers[0].Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	c.AllDarcs[name] = darc.NewDarc(rules, []byte(name))
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.AllDarcs[name].Rules.AddRule("_name:"+contractName, expr)
+	c.AllDarcs[name].Rules.AddRule("spawn:naming", expr)
+	darcBuf, err := c.AllDarcs[name].ToProto()
+	if err != nil {
+		return err
+	}
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: darcBuf,
+				},
+			},
+		},
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	if err != nil {
+		return err
+	}
+	err = ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0])
+	if err != nil {
+		return err
+	}
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return err
+	}
+	c.AllDarcIDs[name] = c.AllDarcs[name].GetBaseID()
+
+	return nil
+}
 
 // StreamHandler is the signature of the handler used when streaming queries.
 type StreamHandler func(query Query, blockID []byte, err error)

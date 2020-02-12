@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.dedis.ch/cothority/darc/expression"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
+	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
@@ -70,24 +70,21 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: aDarcBuf,
-						},
-					},
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: aDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
@@ -216,24 +213,21 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["B"].Equal(bDarcCopy))
 
-	ctx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: bDarcBuf,
-						},
-					},
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: bDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
@@ -367,24 +361,21 @@ func TestClient_100Query(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: aDarcBuf,
-						},
-					},
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: aDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
@@ -418,24 +409,21 @@ func TestClient_100Query(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["B"].Equal(bDarcCopy))
 
-	ctx = byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: bDarcBuf,
-						},
-					},
+	ctx, err = c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: bDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
@@ -510,24 +498,21 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx := byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: aDarcBuf,
-						},
-					},
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: aDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
@@ -561,24 +546,21 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, c.AllDarcs["B"].Equal(bDarcCopy))
 
-	ctx = byzcoin.ClientTransaction{
-		Instructions: byzcoin.Instructions{
-			{
-				InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
-				Spawn: &byzcoin.Spawn{
-					ContractID: byzcoin.ContractDarcID,
-					Args: byzcoin.Arguments{
-						{
-							Name:  "darc",
-							Value: bDarcBuf,
-						},
-					},
+	ctx, err = c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: bDarcBuf,
 				},
-				SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-				SignerCounter:    c.incrementCtrs(),
 			},
 		},
-	}
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.incrementCtrs(),
+	})
+	require.Nil(t, err)
 	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
