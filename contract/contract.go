@@ -32,7 +32,7 @@ func contractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
 	return cv, nil
 }
 
-// medchianContract implments the main logic of medchian node
+// medchainContract implments the main logic of medchian node
 // It is a key/value store type contract that manipulates queries
 // received from the client (e.g., medco-connector) and writes to
 // Byzcoin "instances".
@@ -71,6 +71,9 @@ func (c *medchainContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Ins
 	return sc, cout, nil
 }
 
+// Invoke implements update and the database funtions (i.e., the user queries)
+// It is also possible to have the queries not implmented as functions here.
+// However, they have to be added to the project darcs.
 func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction, coins []byzcoin.Coin) (sc []byzcoin.StateChange, cout []byzcoin.Coin, err error) {
 	cout = coins
 
