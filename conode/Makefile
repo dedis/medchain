@@ -1,4 +1,4 @@
-CONTAINER = conode_template
+CONTAINER = conode_medchain
 IMAGE_NAME = dedis/$(CONTAINER)
 DATA_DIR = $(shell pwd)/conode_data
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)

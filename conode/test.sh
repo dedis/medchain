@@ -7,7 +7,7 @@ DBG_APP=2
 
 main(){
     startTest
-    setupConode github.com/dedis/cothority_template/service
+    setupConode github.com/medchain/contract
     run testBuild
     stopTest
 }

@@ -5,6 +5,7 @@ conode/tmp
 conode/conodes/log
 conode/*.db
 conode/running
+conode/build
 running
 *.out
 .DS_Store

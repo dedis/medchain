@@ -23,10 +23,6 @@ var sid onet.ServiceID
 
 const defaultBlockInterval = 5 * time.Second
 
-// func init() {
-// 	_, err := onet.RegisterNewService(ServiceName, NewService)
-// 	log.ErrFatal(err)
-// }
 func init() {
 	var err error
 	sid, err = onet.RegisterNewService(ServiceName, NewService)
@@ -57,10 +53,6 @@ func NewService(c *onet.Context) (onet.Service, error) {
 		ServiceProcessor: onet.NewServiceProcessor(c),
 		omni:             c.Service(byzcoin.ServiceName).(*byzcoin.Service),
 	}
-	// err := byzcoin.RegisterContract(c, MedchainContractID, contractMedchainFromBytes)
-	// if err != nil {
-	// 	log.ErrFatal(err)
-	// }
 
 	return s, nil
 }
