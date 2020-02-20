@@ -16,7 +16,8 @@ import (
 // ServiceName is the service name for the medchain service.
 var ServiceName = "MedChainService"
 
-const contractName = "medchain"
+// ContractName is the name of the contract
+const ContractName = "medchain"
 
 // sid is the onet identifier (service ID).
 var sid onet.ServiceID
@@ -30,7 +31,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	err = byzcoin.RegisterGlobalContract(contractName, contractMedchainFromBytes)
+	err = byzcoin.RegisterGlobalContract(ContractName, contractMedchainFromBytes)
 	if err != nil {
 		log.ErrFatal(err)
 	}

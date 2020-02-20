@@ -31,7 +31,7 @@ type Client struct {
 	Signers []darc.Signer
 	// Instance ID of naming contract
 	NamingInstance byzcoin.InstanceID
-	genDarc        *darc.Darc
+	GenDarc        *darc.Darc
 	// Map projects to their darcs
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
@@ -68,11 +68,11 @@ func (c *Client) Create() error {
 	// Spawn an instance of naming contract
 	spawnNamingTx, err := c.ByzCoin.CreateTransaction(
 		byzcoin.Instruction{
-			InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
+			InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 			Spawn: &byzcoin.Spawn{
 				ContractID: byzcoin.ContractNamingID,
 			},
-			SignerCounter: c.incrementCtrs(),
+			SignerCounter: c.IncrementCtrs(),
 		},
 	)
 	if err != nil {
@@ -108,7 +108,8 @@ func (c *Client) RefreshSignerCounters() {
 	c.signerCtrs = signerCtrs.Counters
 }
 
-func (c *Client) incrementCtrs() []uint64 {
+// IncrementCtrs is used to increment the signer counters
+func (c *Client) IncrementCtrs() []uint64 {
 	out := make([]uint64, len(c.signerCtrs))
 	for i := range out {
 		c.signerCtrs[i]++
@@ -261,11 +262,11 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 		instrs[i] = byzcoin.Instruction{
 			InstanceID: spawnedKeys[i],
 			Invoke: &byzcoin.Invoke{
-				ContractID: contractName,
+				ContractID: ContractName,
 				Command:    action,
 				Args:       []byzcoin.Argument{args},
 			},
-			SignerCounter: c.incrementCtrs(),
+			SignerCounter: c.IncrementCtrs(),
 		}
 
 	}
@@ -306,7 +307,7 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 		instrs[i] = byzcoin.Instruction{
 			InstanceID: byzcoin.NewInstanceID(darcID),
 			Spawn: &byzcoin.Spawn{
-				ContractID: contractName,
+				ContractID: ContractName,
 				Args: byzcoin.Arguments{
 					{
 						Name:  query.ID,
@@ -314,7 +315,7 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 					},
 				},
 			},
-			SignerCounter: c.incrementCtrs(),
+			SignerCounter: c.IncrementCtrs(),
 		}
 	}
 	tx, err := c.ByzCoin.CreateTransaction(instrs...)
@@ -395,14 +396,14 @@ func (c *Client) AddProjectDarc(name string) error {
 	c.AllDarcs[name] = darc.NewDarc(rules, []byte(name))
 	// Add _name to Darc rule so that we can name the instances using contract_name
 	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.AllDarcs[name].Rules.AddRule("_name:"+contractName, expr)
+	c.AllDarcs[name].Rules.AddRule("_name:"+ContractName, expr)
 	c.AllDarcs[name].Rules.AddRule("spawn:naming", expr)
 	darcBuf, err := c.AllDarcs[name].ToProto()
 	if err != nil {
 		return err
 	}
 	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(c.genDarc.GetBaseID()),
+		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
 			Args: byzcoin.Arguments{
@@ -413,12 +414,8 @@ func (c *Client) AddProjectDarc(name string) error {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
-	if err != nil {
-		return err
-	}
-	err = ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0])
 	if err != nil {
 		return err
 	}
@@ -670,7 +667,7 @@ func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 				},
 			},
 		},
-		SignerCounter: c.incrementCtrs(),
+		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
 		return err

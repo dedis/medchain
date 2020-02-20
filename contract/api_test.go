@@ -56,7 +56,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.AllDarcs["A"].Rules.AddRule("_name:"+ContractName, exprA)
 	c.AllDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
@@ -82,10 +82,9 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -199,7 +198,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.AllDarcs["B"].Rules.AddRule("_name:"+ContractName, exprB)
 	c.AllDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
@@ -225,10 +224,9 @@ func TestClient_MedchainReject(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -347,7 +345,7 @@ func TestClient_100Query(t *testing.T) {
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.AllDarcs["A"].Rules.AddRule("_name:"+ContractName, exprA)
 	c.AllDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
@@ -373,10 +371,9 @@ func TestClient_100Query(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -395,7 +392,7 @@ func TestClient_100Query(t *testing.T) {
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.AllDarcs["B"].Rules.AddRule("_name:"+ContractName, exprB)
 	c.AllDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
@@ -421,10 +418,9 @@ func TestClient_100Query(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -484,7 +480,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["A"].Rules.AddRule("_name:"+contractName, exprA)
+	c.AllDarcs["A"].Rules.AddRule("_name:"+ContractName, exprA)
 	c.AllDarcs["A"].Rules.AddRule("spawn:naming", exprA)
 
 	// Verify the darc is correct
@@ -510,10 +506,9 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -532,7 +527,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 	c.AllDarcs["B"], _ = c.CreateDarc("Project B darc", rulesB, actionsB, exprB)
 
 	// Add _name to Darc rule so that we can name the instances using contract_name
-	c.AllDarcs["B"].Rules.AddRule("_name:"+contractName, exprB)
+	c.AllDarcs["B"].Rules.AddRule("_name:"+ContractName, exprB)
 	c.AllDarcs["B"].Rules.AddRule("spawn:naming", exprB)
 
 	// Verify the darc is correct
@@ -558,10 +553,9 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 			},
 		},
 		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
-		SignerCounter:    c.incrementCtrs(),
+		SignerCounter:    c.IncrementCtrs(),
 	})
 	require.Nil(t, err)
-	require.Nil(t, ctx.Instructions[0].SignWith(ctx.Instructions.Hash(), c.Signers[0]))
 
 	err = ctx.FillSignersAndSignWith(c.Signers...)
 	require.Nil(t, err)
@@ -713,7 +707,7 @@ func newSer(t *testing.T) (*ser, *Client) {
 
 	var err error
 	s.req, err = byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, s.roster,
-		[]string{"spawn:" + contractName, "invoke:" + contractName + "." + "update", "invoke:" + contractName + "." + "verifystatus", "_name:" + contractName}, s.owner.Identity())
+		[]string{"spawn:" + ContractName, "invoke:" + ContractName + "." + "update", "invoke:" + ContractName + "." + "verifystatus", "_name:" + ContractName}, s.owner.Identity())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -733,7 +727,7 @@ func newSer(t *testing.T) (*ser, *Client) {
 	c := NewClient(ol)
 	c.DarcID = s.genDarc.GetBaseID()
 	c.Signers = []darc.Signer{s.owner}
-	c.genDarc = s.genDarc
+	c.GenDarc = s.genDarc
 	fmt.Println("[INFO] Created the services")
 	return s, c
 }

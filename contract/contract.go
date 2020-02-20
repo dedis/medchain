@@ -85,7 +85,7 @@ func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.In
 	}
 
 	if inst.Invoke.Command != "update" && inst.Invoke.Command != "verifystatus" && inst.Invoke.Command != "patient_list" && inst.Invoke.Command != "count_per_site" && inst.Invoke.Command != "count_per_site_obfuscated" && inst.Invoke.Command != "count_per_site_shuffled" && inst.Invoke.Command != "count_per_site_shuffled_obfuscated" && inst.Invoke.Command != "count_global" && inst.Invoke.Command != "count_global_obfuscated" {
-		return nil, nil, errors.New("This action is not supported by contract" + contractName)
+		return nil, nil, errors.New("This action is not supported by contract" + ContractName)
 	}
 
 	switch inst.Invoke.Command {
