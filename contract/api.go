@@ -252,7 +252,6 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 		// // Get the instance ID of the query instance using its name
 		// // For the sake of performance, one should try to avoidusing
 		// // ResolveInstance() to get the instance ID using its name.
-		// // TODO in later versions of MedChain
 		// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
 		// if err != nil {
 		// 	fmt.Println("debug6")

@@ -129,7 +129,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-cod query darc
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)
@@ -168,7 +168,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-code query darc
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)
@@ -271,7 +271,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
 	for _, query := range queries {
-		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], query.ID) //TODO: not hard-cod query darc
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], query.ID)
 		require.Nil(t, err)
 		_, err := c.GetQuery(instaID.Slice())
 		require.Nil(t, err)
@@ -310,7 +310,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID) //TODO: not hard-code query darc
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)

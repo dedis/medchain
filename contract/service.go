@@ -14,6 +14,7 @@ import (
 // from the `contracts` directory.
 
 // ServiceName is the service name for the medchain service.
+// It is used for registration on the onet.
 var ServiceName = "MedChainService"
 
 // ContractName is the name of the contract
