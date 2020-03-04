@@ -13,3 +13,4 @@ report/.DS_Store
 mc/build/
 .vscode/
 mc/mc
+simulation/simulation

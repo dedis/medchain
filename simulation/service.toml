@@ -1,10 +1,12 @@
-Simulation = "TemplateService"
-Servers = 8
-Bf = 4
-Rounds = 10
-CloseWait = 6000
+Simulation = "MedChainService"
+Servers = 3
+Bf = 2
+Rounds = 1
 Suite = "Ed25519"
+Bandwidth = 100
+Delay = 20
+RunWait = "2h"
 
-Depth
-1
-2
+
+HOSTS, BlockInterval 
+30, "5s"

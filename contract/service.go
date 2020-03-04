@@ -15,7 +15,7 @@ import (
 
 // ServiceName is the service name for the medchain service.
 // It is used for registration on the onet.
-var ServiceName = "MedChainService"
+var ServiceName = "MedChain"
 
 // ContractName is the name of the contract
 const ContractName = "medchain"

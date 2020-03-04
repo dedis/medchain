@@ -5,20 +5,19 @@ import (
 
 	"github.com/BurntSushi/toml"
 	medchain "github.com/medchain/contract"
-	"go.dedis.ch/cothority/byzcoin/contracts"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/simul/monitor"
-	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
 
 /*
  * Defines the simulation for the service-medchain
- */
+ TODO: remove from byzcoin simulation/coins
+*/
 
 func init() {
 	onet.SimulationRegister("MedChainService", NewSimulationService)
@@ -96,7 +95,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		return xerrors.Errorf("couldn't create genesis block: %v", err)
 	}
 	if err = c.UseNode(0); err != nil {
-		return err
+		return xerrors.Errorf("couldn't use the node: %v", err)
 	}
 
 	// Initialize MedChain client
@@ -105,13 +104,22 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	cl.DarcID = genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{signer}
 	cl.GenDarc = &genDarc
+	log.Lvl1("Starting simulation tests")
+
+	log.Lvl1("Bootstrapping the client")
+	err = cl.Create()
+	if err != nil {
+		return xerrors.Errorf("couldn't start the client: %v", err)
+	}
 
 	// ------------------------------------------------------------------------
-	// 1. Add Project A Darc
+	// 1.1 Add Project A Darc
 	// ------------------------------------------------------------------------
 
 	// Measure the time it takes to add the darc every project as well as all project darcs
 	addDarcA := monitor.NewTimeMeasure("addDarcA")
+	log.Lvl1("Adding Darc of project A")
+
 	addProjectDarcs := monitor.NewTimeMeasure("addProjectDarcs")
 	rulesA := darc.InitRules([]darc.Identity{signer.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
 	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
@@ -126,7 +134,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	// Verify the darc is correct
 	err = cl.AllDarcs["A"].Verify(true)
 	if err != nil {
-		return err
+		return xerrors.Errorf("could not verify the darc: %v", err)
 	}
 
 	aDarcBuf, err := cl.AllDarcs["A"].ToProto()
@@ -165,10 +173,11 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	addDarcA.Record()
 
 	// ------------------------------------------------------------------------
-	// 2. Add Project B Darc
+	// 1.2 Add Project B Darc
 	// ------------------------------------------------------------------------
 	// Measure the time it takes to add the darc every project as well as all project darcs
 	addDarcB := monitor.NewTimeMeasure("addDarcB")
+	log.Lvl1("Adding the Darc for project B")
 	// signer can only query certain things from the database
 	rulesB := darc.InitRules([]darc.Identity{signer.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
 	actionsB := "spawn:medchain,invoke:medchain.update,invoke:medchain.count_global,invoke:medchain.count_global_obfuscated"
@@ -221,164 +230,42 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	addDarcB.Record()
 	addProjectDarcs.Record()
 
-	// Measure the time it takes to authentcate a query
+	// ------------------------------------------------------------------------
+	// 2. Spwan query instances
+	// ------------------------------------------------------------------------
+
+	// Measure the time it takes to spawn a query and authorize a query
+	spawnQuery := monitor.NewTimeMeasure("spawnQuery")
 	authQuery := monitor.NewTimeMeasure("authQuery")
+	log.Lvl1("Spawning the query")
+
 	queries, ids, err := cl.SpawnQuery(medchain.NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
 	if err != nil {
 		return err
 	}
+	spawnQuery.Record()
+
+	// ------------------------------------------------------------------------
+	// 3. Check Authorizations
+	// ------------------------------------------------------------------------
+	log.Lvl1("Authorizing the query")
+
 	queries, ids, err = cl.WriteQueries(ids, queries...)
 	authQuery.Record()
-	// TODO: measure the time for ResolveInstanceID
 
-	// **************************Now sign all the instructions
-	if err = tx.FillSignersAndSignWith(signer); err != nil {
-		return xerrors.Errorf("signing of instruction failed: %v", err)
-	}
-	coinAddr1 := tx.Instructions[0].DeriveID("")
-	coinAddr2 := tx.Instructions[1].DeriveID("")
+	// // Measure the time for ResolveInstanceID
+	// resolveID := monitor.NewTimeMeasure("resolveID")
+	// _, err = cl.ByzCoin.ResolveInstanceID(cl.AllDarcIDs["B"], queries[0].ID)
+	// if err != nil {
+	// 	return err
+	// }
+	// resolveID.Record()
 
-	// Send the instructions.
-	_, err = c.AddTransactionAndWait(tx, 2)
-	if err != nil {
-		return xerrors.Errorf("couldn't initialize accounts: %v", err)
-	}
+	// This sleep is needed to wait for the propagation to finish
+	// on all the nodes. Otherwise the simulation manager
+	// (runsimul.go in onet) might close some nodes and cause
+	// skipblock propagation to fail.
+	time.Sleep(blockInterval)
 
-	// Because of issue #1379, we need to do this in a separate tx, once we know
-	// the spawn is done.
-	tx, err = c.CreateTransaction(byzcoin.Instruction{
-		InstanceID: coinAddr1,
-		Invoke: &byzcoin.Invoke{
-			ContractID: contracts.ContractCoinID,
-			Command:    "mint",
-			Args: byzcoin.Arguments{{
-				Name:  "coins",
-				Value: coins}},
-		},
-		SignerIdentities: []darc.Identity{signer.Identity()},
-		SignerCounter:    []uint64{3},
-	})
-	if err != nil {
-		return err
-	}
-	if err = tx.FillSignersAndSignWith(signer); err != nil {
-		return xerrors.Errorf("signing of instruction failed: %v", err)
-	}
-	_, err = c.AddTransactionAndWait(tx, 2)
-	if err != nil {
-		return xerrors.Errorf("couldn't mint coin: %v", err)
-	}
-
-	coinOne := make([]byte, 8)
-	coinOne[0] = byte(1)
-
-	var signatureCtr uint64 = 4 // we finished at 3, so start here at 4
-	for round := 0; round < s.Rounds; round++ {
-		log.Lvl1("Starting round", round)
-		roundM := monitor.NewTimeMeasure("round")
-
-		if s.Transactions < 3 {
-			log.Warn("The 'send_sum' measurement will be very skewed, as the last transaction")
-			log.Warn("is not measured.")
-		}
-
-		txs := s.Transactions / s.BatchSize
-		insts := s.BatchSize
-		log.Lvlf1("Sending %d transactions with %d instructions each", txs, insts)
-		tx := byzcoin.ClientTransaction{}
-		// Inverse the prepare/send loop, so that the last transaction is not sent,
-		// but can be sent in the 'confirm' phase using 'AddTransactionAndWait'.
-		for t := 0; t < txs; t++ {
-			if len(tx.Instructions) > 0 {
-				log.Lvlf1("Sending transaction %d", t)
-				send := monitor.NewTimeMeasure("send")
-				_, err = c.AddTransaction(tx)
-				if err != nil {
-					return xerrors.Errorf("couldn't add transfer transaction: %v", err)
-				}
-				send.Record()
-				tx.Instructions = byzcoin.Instructions{}
-			}
-
-			prepare := monitor.NewTimeMeasure("prepare")
-			for i := 0; i < insts; i++ {
-				instrs := append(tx.Instructions, byzcoin.Instruction{
-					InstanceID: coinAddr1,
-					Invoke: &byzcoin.Invoke{
-						ContractID: contracts.ContractCoinID,
-						Command:    "transfer",
-						Args: byzcoin.Arguments{
-							{
-								Name:  "coins",
-								Value: coinOne,
-							},
-							{
-								Name:  "destination",
-								Value: coinAddr2.Slice(),
-							}},
-					},
-					SignerIdentities: []darc.Identity{signer.Identity()},
-					SignerCounter:    []uint64{signatureCtr},
-				})
-				tx, err = c.CreateTransaction(instrs...)
-				if err != nil {
-					return err
-				}
-				signatureCtr++
-				err = tx.FillSignersAndSignWith(signer)
-				if err != nil {
-					return xerrors.Errorf("signature error: %v", err)
-				}
-
-			}
-			prepare.Record()
-		}
-
-		// Confirm the transaction by sending the last transaction using
-		// AddTransactionAndWait. There is a small error in measurement,
-		// as we're missing one of the AddTransaction call in the measurements.
-		confirm := monitor.NewTimeMeasure("confirm")
-		log.Lvl1("Sending last transaction and waiting")
-		_, err = c.AddTransactionAndWait(tx, 20)
-		if err != nil {
-			return xerrors.Errorf("while adding transaction and waiting: %v", err)
-		}
-
-		// The AddTransactionAndWait returns as soon as the transaction is included in the node, but
-		// it doesn't wait until the transaction is included in all nodes. Thus this wait for
-		// the new block to be propagated.
-		time.Sleep(time.Second)
-		proof, err := c.GetProof(coinAddr2.Slice())
-		if err != nil {
-			return xerrors.Errorf("couldn't get proof for transaction: %v", err)
-		}
-		_, v0, _, _, err := proof.Proof.KeyValue()
-		if err != nil {
-			return xerrors.Errorf("proof doesn't hold transaction: %v", err)
-		}
-		var account byzcoin.Coin
-		err = protobuf.Decode(v0, &account)
-		if err != nil {
-			return xerrors.Errorf("couldn't decode account: %v", err)
-		}
-		log.Lvlf1("Account has %d - total should be: %d", account.Value, s.Transactions*(round+1))
-		if account.Value != uint64(s.Transactions*(round+1)) {
-			return xerrors.New("account has wrong amount")
-		}
-		confirm.Record()
-		roundM.Record()
-
-		// This sleep is needed to wait for the propagation to finish
-		// on all the nodes. Otherwise the simulation manager
-		// (runsimul.go in onet) might close some nodes and cause
-		// skipblock propagation to fail.
-		time.Sleep(blockInterval)
-	}
-	// We wait a bit before closing because c.GetProof is sent to the
-	// leader, but at this point some of the children might still be doing
-	// updateCollection. If we stop the simulation immediately, then the
-	// database gets closed and updateCollection on the children fails to
-	// complete.
-	time.Sleep(time.Second)
 	return nil
 }

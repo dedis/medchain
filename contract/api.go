@@ -2,6 +2,7 @@ package contract
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,7 +36,7 @@ type Client struct {
 	// Map projects to their darcs
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
-	gMsg       *byzcoin.CreateGenesisBlock
+	GMsg       *byzcoin.CreateGenesisBlock
 	// Mapping of signer identities to projects and actions
 	rulesMap   map[string]map[string]string
 	c          *onet.Client
@@ -87,7 +88,7 @@ func (c *Client) Create() error {
 		fmt.Println("debug2")
 		return err
 	}
-	fmt.Println("[INFO] (Create) Contract_name instance was added to the ledger")
+	log.Lvl1("[INFO] (Create) Contract_name instance was added to the ledger")
 
 	return nil
 }
@@ -148,7 +149,110 @@ func (c *Client) CreateQueryAndWait(numInterval int, spawnedKeys []byzcoin.Insta
 		fmt.Println("debug8")
 		return qu, nil, err
 	}
-	fmt.Println("[INFO] (Invoke) Query was added to the ledger")
+	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
+
+	return qu, keys, nil
+}
+
+// prepareTx prepares a transaction that will be committed to the ledger.
+func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
+
+	ok := true
+	//var action string
+	var args byzcoin.Argument
+	keys := make([]byzcoin.InstanceID, len(queries))
+	instrs := make([]byzcoin.Instruction, len(queries))
+
+	for i, query := range queries {
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.AllDarcIDs[project]
+		action := c.GetActionFromOneQuery(query)
+
+		// Check if the query is authorized/rejected
+		authorizations, err := c.AuthorizeQuery(query, darcID, action)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, res := range authorizations {
+			if res == false {
+				ok = false //reject the query as at least one of the signers can't sign
+				args = byzcoin.Argument{
+					Name:  query.ID,
+					Value: []byte("Rejected"),
+				}
+				// This action will not be rejected by Darc and thus query rejection will be recorded
+				// in the ledger
+				action = "update"
+				log.Lvl1("[INFO] (Invoke) Query was REJECTED")
+			}
+		}
+		if ok {
+			args = byzcoin.Argument{
+				Name:  query.ID,
+				Value: []byte("Authorized"),
+			}
+			action = c.GetActionFromOneQuery(query)
+			log.Lvl1("[INFO] (Invoke) Query was AUTHORIZED")
+
+		}
+
+		// // Get the instance ID of the query instance using its name
+		// // For the sake of performance, one should try to avoidusing
+		// // ResolveInstance() to get the instance ID using its name.
+		// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
+		// if err != nil {
+		// 	fmt.Println("debug6")
+		// 	return nil, nil, err
+		// }
+
+		instrs[i] = byzcoin.Instruction{
+			InstanceID: spawnedKeys[i],
+			Invoke: &byzcoin.Invoke{
+				ContractID: ContractName,
+				Command:    action,
+				Args:       []byzcoin.Argument{args},
+			},
+			SignerCounter: c.IncrementCtrs(),
+		}
+
+	}
+
+	tx, err := c.ByzCoin.CreateTransaction(instrs...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := tx.FillSignersAndSignWith(c.Signers...); err != nil {
+		return nil, nil, err
+	}
+	for i := range tx.Instructions {
+		keys[i] = tx.Instructions[i].DeriveID("")
+	}
+	return &tx, keys, nil
+}
+
+// WriteDeferredQueries asks the service to write queries using deferred transactions to the ledger.
+func (c *Client) WriteDeferredQueries(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+	return c.CreateQueryAndWait(10, spawnedKeys, qu...)
+}
+
+// CreateQueryAndWaitDeferred sends a request to create a query as a deferred transaction and waits for N block intervals
+// that the queries are added to the ledger
+func (c *Client) CreateQueryAndWaitDeferred(numInterval int, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+	if c.signerCtrs == nil {
+		c.RefreshSignerCounters()
+	}
+
+	tx, keys, err := c.prepareDeferredTx(qu, spawnedKeys)
+	if err != nil {
+		fmt.Println("debug7")
+		return qu, nil, err
+	}
+	if _, err := c.ByzCoin.AddTransactionAndWait(*tx, numInterval); err != nil {
+		fmt.Println("debug8")
+		return qu, nil, err
+	}
+	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
 
 	return qu, keys, nil
 }
@@ -206,8 +310,8 @@ func (c *Client) AuthorizeQuery(query Query, darcID darc.ID, action string) ([]b
 	return authorizations, nil
 }
 
-// prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
+// prepareDeferredTx prepares a transaction and checks for authorazations of the transaction. The transaction wil then be committed to the ledger.
+func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
 
 	ok := true
 	//var action string
@@ -236,7 +340,7 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 				// This action will not be rejected by Darc and thus query rejection will be recorded
 				// in the ledger
 				action = "update"
-				fmt.Println("[INFO] (Invoke) Query was REJECTED")
+				log.Lvl1("[INFO] (Invoke) Query was REJECTED")
 			}
 		}
 		if ok {
@@ -245,7 +349,7 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 				Value: []byte("Authorized"),
 			}
 			action = c.GetActionFromOneQuery(query)
-			fmt.Println("[INFO] (Invoke) Query was AUTHORIZED")
+			log.Lvl1("[INFO] (Invoke) Query was AUTHORIZED")
 
 		}
 
@@ -334,7 +438,7 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 		fmt.Println("debug8-2")
 		return nil, nil, err
 	}
-	fmt.Println("[INFO] (SPAWN) Query was added to the ledger")
+	log.Lvl1("[INFO] (SPAWN) Query was added to the ledger")
 
 	for i, query := range queries {
 		// Get the project darc
@@ -348,9 +452,182 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 			fmt.Println("debug4")
 			return nil, nil, err
 		}
-		fmt.Println("[INFO] Query instance was named ")
+		log.Lvl1("[INFO] Query instance was named ")
 	}
 	return queries, keys, nil
+}
+
+//SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
+func (c *Client) SpawnDeferredQuery(qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+	return c.CreateDeferredInstance(10, qu...)
+}
+
+//CreateDeferredInstance spawns a query that
+func (c *Client) CreateDeferredInstance(numInterval int, queries ...Query) ([]Query, []byzcoin.InstanceID, error) {
+
+	keys := make([]byzcoin.InstanceID, len(queries))
+	proposedInstrs := make([]byzcoin.Instruction, len(queries))
+	var ctx byzcoin.ClientTransaction
+
+	for i, query := range queries {
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.AllDarcIDs[project]
+
+		// if the query has just been submitted, spawn a query instance;
+		//otherwise, inoke an update to change its status
+		// TODO: check proof instead of status to make this more stable and
+		// reliable (the latter may not be very efficient)
+		proposedInstrs[i] = byzcoin.Instruction{
+			InstanceID: byzcoin.NewInstanceID(darcID),
+			Spawn: &byzcoin.Spawn{
+				ContractID: ContractName,
+				Args: byzcoin.Arguments{
+					{
+						Name:  query.ID,
+						Value: []byte(query.Status),
+					},
+				},
+			},
+			//SignerCounter: c.IncrementCtrs(),
+		}
+		// Register the instance with deferred contract
+		proposedTransaction, err := c.ByzCoin.CreateTransaction(proposedInstrs[i])
+		expireBlockIndexInt := uint64(6000)
+		expireBlockIndexBuf := make([]byte, 8)
+		binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
+		proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		ctx, err = c.ByzCoin.CreateTransaction(
+			byzcoin.Instruction{
+				InstanceID: byzcoin.NewInstanceID(darcID),
+				Spawn: &byzcoin.Spawn{
+					ContractID: byzcoin.ContractDeferredID,
+					Args: []byzcoin.Argument{
+						{
+							Name:  "proposedTransaction",
+							Value: proposedTransactionBuf,
+						},
+						{
+							Name:  "expireBlockIndex",
+							Value: expireBlockIndexBuf,
+						},
+					},
+				},
+				SignerCounter: c.IncrementCtrs(),
+			},
+		)
+	}
+
+	if err := ctx.FillSignersAndSignWith(c.Signers...); err != nil {
+		return nil, nil, err
+	}
+
+	if _, err := c.ByzCoin.AddTransactionAndWait(ctx, numInterval); err != nil {
+		fmt.Println("debug8-2")
+		return nil, nil, err
+	}
+	log.Lvl1("[INFO] (SPAWN) Deferred Query was added to the ledger")
+
+	for i, query := range queries {
+		// Get the project darc
+		project := c.GetProjectFromOneQuery(query)
+		darcID := c.AllDarcIDs[project]
+		instID := ctx.Instructions[i].DeriveID("")
+		// name the instance of the query with as its key using contract_name to
+		// make retrievals easier
+		err := c.NameInstance(instID, darcID, query.ID)
+		if err != nil {
+			fmt.Println("debug4")
+			return nil, nil, err
+		}
+		log.Lvl1("[INFO] Deferred Query instance was named ")
+	}
+
+	return queries, keys, nil
+}
+
+// SignDeferredQuery allows MedChain user to sign a deferred query
+// by invoking an addProof action from the deferred contract on the deferred
+// query instance
+func (c *Client) SignDeferredQuery(queryID byzcoin.InstanceID, signer darc.Signer) error {
+	pr, err := c.ByzCoin.WaitProof(byzcoin.NewInstanceID(queryID.Slice()), 2*c.GMsg.BlockInterval, nil)
+	if err != nil {
+		return err
+	}
+	if pr.InclusionProof.Match(queryID.Slice()) != true {
+		return err
+	}
+	dataBuf, _, _, err := pr.Get(queryID.Slice())
+	if err != nil {
+		return err
+	}
+	result := byzcoin.DeferredData{}
+	err = protobuf.Decode(dataBuf, &result)
+	if err != nil {
+		return err
+	}
+
+	rootHash := result.InstructionHashes
+	identity := signer.Identity()
+	identityBuf, err := protobuf.Encode(&identity)
+	if err != nil {
+		return err
+	}
+	signature, err := signer.Sign(rootHash[0])
+	identityBuf, err = protobuf.Encode(&identity)
+	if err != nil {
+		return err
+	}
+	signature, err = signer.Sign(rootHash[0]) // == index
+	if err != nil {
+		return err
+	}
+	// This is the index of instruction wrt to the transaction
+	// because by we only allow signing of one query at a time this
+	// is always 0
+	index := uint32(0)
+	indexBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
+
+	ctx := byzcoin.ClientTransaction{
+		Instructions: []byzcoin.Instruction{{
+			InstanceID: queryID,
+			Invoke: &byzcoin.Invoke{
+				ContractID: byzcoin.ContractDeferredID,
+				Command:    "addProof",
+				Args: []byzcoin.Argument{
+					{
+						Name:  "identity",
+						Value: identityBuf,
+					},
+					{
+						Name:  "signature",
+						Value: signature,
+					},
+					{
+						Name:  "index",
+						Value: indexBuf,
+					},
+				},
+			},
+			SignerCounter: c.IncrementCtrs(),
+		}},
+	}
+	err = ctx.FillSignersAndSignWith(signer)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateNewSigner creates private and public key pairs
@@ -680,7 +957,7 @@ func (c *Client) NameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	if err != nil {
 		return err
 	}
-	fmt.Println("[INFO] (Naming Contract) Query was added to the ledger")
+	log.Lvl1("[INFO] (Naming Contract) Query was added to the ledger")
 
 	// // This sanity check heavily reduces the performance
 	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
