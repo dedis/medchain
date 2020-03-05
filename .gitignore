@@ -1,7 +1,8 @@
 .idea/
-conode/co*
 conode/log
 conode/tmp
+conode/conode/*
+conode/conode
 conode/conodes/log
 conode/*.db
 conode/running
