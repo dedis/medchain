@@ -18,6 +18,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/tools v0.0.0-20191126055441-b0650ceb63d9 // indirect
 	golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898
+	gopkg.in/urfave/cli.v1 v1.20.0
 //gopkg.in/urfave/cli.v1 v1.20.0
 
 )
