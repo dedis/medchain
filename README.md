@@ -12,12 +12,12 @@ please see [conode documentation](https://github.com/dedis/cothority/blob/master
 ## Client API
 
 MedChain supports 2 ways for clients to connect to MedChain service: Go API and CLI. 
-Before the client can use the API, a ByzCoin object should be created with a Darc that authorizes the client for "spawn:queryContract" and "invoke:queryContract.update". 
+Before the client can use the API, a ByzCoin object should be created with a Darc that authorizes the client for "spawn:medchain" and "invoke:medchain.update". 
 
 ### Go API
 
 The detailed API can be found in the directory 
-[./contract](https://github.com/ldsec/medchain/tree/dev/contract). Examples and demos can also be found in `./contract/api_test.go`.
+[./client](https://github.com/ldsec/medchain/tree/dev/client). Examples and demos can also be found in `./client/api_test.go`.
 
 
 ### CLI 
