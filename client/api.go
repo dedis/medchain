@@ -1,4 +1,6 @@
-package contract
+// Package medchain is the client side API for communicating with medchain
+// service.
+package medchain
 
 import (
 	"bytes"

@@ -1,33 +1,30 @@
-package contract
+package medchain
+
+/*
+This holds the messages used to communicate with the service over the network.
+*/
 
 import (
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/skipchain"
+	"go.dedis.ch/onet/v3"
+	"go.dedis.ch/onet/v3/network"
 )
 
-// Query is the struvutre of key-value pairs stored in the ledger
-// Value field of the query holds UserID + Query Definition
-//When should be set using the UnixNano() method
-// in package time.
-type Query struct {
-	ID     string //assumed to be like query_id:user_id:databaseX.<type of query, e.g. patient_list, count_per_site, etc. >
-	Status string
-	//When   int64 //TODO: to be able to search the queries by timestamp
+// We need to register all messages so the network knows how to handle them.
+func init() {
+	network.RegisterMessages(
+		Count{}, CountReply{},
+		Clock{}, ClockReply{},
+		&SearchRequest{}, &SearchResponse{},
+	)
+
 }
 
-// QueryData is the structure that will hold all key-value pairs.
-type QueryData struct {
-	Storage []Query
-}
-
-// NewQuery returns a new query with k and v as its ID and Status, respectivley.
-func NewQuery(k, v string) Query {
-	res := Query{
-		ID:     k,
-		Status: v,
-	}
-	return res
-}
+const (
+	// ErrorParse indicates an error while parsing the protobuf-file.
+	ErrorParse = iota + 4000
+)
 
 // SearchRequest includes all the search parameters (AND of all provided search
 // parameters). Status == "" means "any status". From == 0 means "from the first
@@ -51,4 +48,25 @@ type SearchResponse struct {
 	// a new SearchRequest to continue searching, for instance by setting
 	// From to the time of the last received event.
 	Truncated bool
+}
+
+// Clock will run the tepmlate-protocol on the roster and return
+// the time spent doing so.
+type Clock struct {
+	Roster *onet.Roster
+}
+
+// ClockReply returns the time spent for the protocol-run.
+type ClockReply struct {
+	Time     float64
+	Children int
+}
+
+// Count will return how many times the protocol has been run.
+type Count struct {
+}
+
+// CountReply returns the number of protocol-runs
+type CountReply struct {
+	Count int
 }

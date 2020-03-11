@@ -1,4 +1,4 @@
-package contract
+package medchain
 
 import (
 	"bytes"
@@ -240,7 +240,7 @@ func newBCTest(t *testing.T) (out *bcTest) {
 	// to create and update medchain contract key-value instance.
 	var err error
 	out.gMsg, err = byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, out.roster,
-		[]string{"spawn:"+ ContractName, "invoke:" + ContractName + ".update"}, out.signer.Identity())
+		[]string{"spawn:" + ContractName, "invoke:" + ContractName + ".update"}, out.signer.Identity())
 	require.Nil(t, err)
 	out.gDarc = &out.gMsg.GenesisDarc
 
