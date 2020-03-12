@@ -54,8 +54,8 @@ type storage struct {
 // CreateQuery creates a query for authorization
 func (s *Service) CreateQuery(req *medchain.CreateQueryRequest) (*medchain.CreateQueryReply, error) {
 	cl := medchain.NewClient()
-	owner = darc.NewSignerEd25519(nil, nil)
-	retur
+	owner := darc.NewSignerEd25519(nil, nil)
+	return ok, nil
 
 }
 
