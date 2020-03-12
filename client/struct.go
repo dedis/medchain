@@ -16,7 +16,12 @@ func init() {
 	network.RegisterMessages(
 		Count{}, CountReply{},
 		Clock{}, ClockReply{},
-		&SearchRequest{}, &SearchResponse{},
+		&SearchRequest{}, &SearchReply{},
+		CreateQueryRequest{}, CreateQueryReply{},
+		QueryRequest{}, QueryReply{},
+		VerifyStatusRequest{}, VerifyStatusReply{},
+		SignDeferredTxRequest{}, SignDeferredTxReply{},
+		//ExecuteDeferredTxRequest{}, ExecuteDeferredTxReply{},
 	)
 
 }
@@ -25,6 +30,51 @@ const (
 	// ErrorParse indicates an error while parsing the protobuf-file.
 	ErrorParse = iota + 4000
 )
+
+// CreateQueryRequest includes the query data that is to be authorized
+type CreateQueryRequest struct {
+	UserID    string
+	QueryInfo Query
+	QueryID   string
+}
+
+// CreateQueryReply is the reply to CreateQueryRequest
+// The reply is true if the query is authhorized and false otherwise
+type CreateQueryReply struct {
+	OK bool
+}
+
+// QueryRequest includes the ID and the status of the query on the skipchain
+type QueryRequest struct {
+	QueryID string
+}
+
+// QueryReply is the reply to QueryRequest
+type QueryReply struct {
+	OK bool
+}
+
+// VerifyStatusRequest includes the status of the query on the skipchain
+type VerifyStatusRequest struct {
+	QueryID string
+}
+
+// VerifyStatusReply is the reply to VerifyStatusRequest
+type VerifyStatusReply struct {
+	QueryStatus string
+	OK          bool
+}
+
+// SignDeferredTxRequest message includes the data of the query the client wants to sign
+type SignDeferredTxRequest struct {
+	// TODO: is the id of the user also needed?
+	QueryID string
+}
+
+// SignDeferredTxReply is the reply to SignDeferredTxRequest
+type SignDeferredTxReply struct {
+	OK bool
+}
 
 // SearchRequest includes all the search parameters (AND of all provided search
 // parameters). Status == "" means "any status". From == 0 means "from the first
@@ -41,8 +91,8 @@ type SearchRequest struct {
 	To int64
 }
 
-// SearchResponse is the reply to QueryRequest.
-type SearchResponse struct {
+// SearchReply is the reply to SearchRequest.
+type SearchReply struct {
 	Queries []Query
 	// Queries does not contain all the results. The caller should formulate
 	// a new SearchRequest to continue searching, for instance by setting

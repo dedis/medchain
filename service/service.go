@@ -6,34 +6,143 @@ runs on the node.
 */
 
 import (
+	"time"
+
+	"errors"
+	"sync"
+
+	template "github.com/dedis/cothority_template"
+	"github.com/dedis/cothority_template/protocol"
+	medchain "github.com/medchain/client"
+	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
 )
 
-// Clock chooses one server from the Roster at random. It
-// sends a Clock to it, which is then processed on the server side
-// via the code in the service package.
-//
-// Clock will return the time in seconds it took to run the protocol.
-func (c *Client) Clock(r *onet.Roster) (*ClockReply, error) {
-	dst := r.RandomServerIdentity()
-	log.Lvl4("Sending message to", dst)
-	reply := &ClockReply{}
-	err := c.SendProtobuf(dst, &Clock{r}, reply)
+// medchainServiceID is the onet identifier (service ID). This is used for tests
+// TODO:maybe this has to be also sid the same as one in client/service.go
+// if changed, remember to also change the one in init()
+var medchainServiceID onet.ServiceID
+
+func init() {
+	var err error
+	_, err = onet.RegisterNewService(medchain.ServiceName, newService)
+	log.ErrFatal(err)
+	network.RegisterMessage(&storage{})
+}
+
+// Service is our medchain-service
+type Service struct {
+	// We need to embed the ServiceProcessor, so that incoming messages
+	// are correctly handled.
+	*onet.ServiceProcessor
+
+	storage *storage
+}
+
+// storageID reflects the data we're storing - we could store more
+// than one structure.
+var storageID = []byte("main")
+
+// storage is used to save our data.
+type storage struct {
+	Count int
+	sync.Mutex
+}
+
+// CreateQuery creates a query for authorization
+func (s *Service) CreateQuery(req *medchain.CreateQueryRequest) (*medchain.CreateQueryReply, error) {
+	cl := medchain.NewClient()
+	owner = darc.NewSignerEd25519(nil, nil)
+	retur
+
+}
+
+// Clock starts a medchain-protocol and returns the run-time.
+func (s *Service) Clock(req *medchain.Clock) (*medchain.ClockReply, error) {
+	s.storage.Lock()
+	s.storage.Count++
+	s.storage.Unlock()
+	s.save()
+	tree := req.Roster.GenerateNaryTreeWithRoot(2, s.ServerIdentity())
+	if tree == nil {
+		return nil, errors.New("couldn't create tree")
+	}
+	pi, err := s.CreateProtocol(protocol.Name, tree)
 	if err != nil {
 		return nil, err
 	}
-	return reply, nil
+	start := time.Now()
+	pi.Start()
+	resp := &medchain.ClockReply{
+		Children: <-pi.(*protocol.TemplateProtocol).ChildCount,
+	}
+	resp.Time = time.Now().Sub(start).Seconds()
+	return resp, nil
 }
 
-// Count will return the number of times `Clock` has been called on this
-// service-node.
-func (c *Client) Count(si *network.ServerIdentity) (int, error) {
-	reply := &CountReply{}
-	err := c.SendProtobuf(si, &Count{}, reply)
+// Count returns the number of instantiations of the protocol.
+func (s *Service) Count(req *template.Count) (*template.CountReply, error) {
+	s.storage.Lock()
+	defer s.storage.Unlock()
+	return &template.CountReply{Count: s.storage.Count}, nil
+}
+
+// NewProtocol is called on all nodes of a Tree (except the root, since it is
+// the one starting the protocol) so it's the Service that will be called to
+// generate the PI on all others node.
+// If you use CreateProtocolOnet, this will not be called, as the Onet will
+// instantiate the protocol on its own. If you need more control at the
+// instantiation of the protocol, use CreateProtocolService, and you can
+// give some extra-configuration to your protocol in here.
+func (s *Service) NewProtocol(tn *onet.TreeNodeInstance, conf *onet.GenericConfig) (onet.ProtocolInstance, error) {
+	log.Lvl3("Not templated yet")
+	return nil, nil
+}
+
+// saves all data.
+func (s *Service) save() {
+	s.storage.Lock()
+	defer s.storage.Unlock()
+	err := s.Save(storageID, s.storage)
 	if err != nil {
-		return -1, err
+		log.Error("Couldn't save data:", err)
 	}
-	return reply.Count, nil
+}
+
+// Tries to load the configuration and updates the data in the service
+// if it finds a valid config-file.
+func (s *Service) tryLoad() error {
+	s.storage = &storage{}
+	msg, err := s.Load(storageID)
+	if err != nil {
+		return err
+	}
+	if msg == nil {
+		return nil
+	}
+	var ok bool
+	s.storage, ok = msg.(*storage)
+	if !ok {
+		return errors.New("Data of wrong type")
+	}
+	return nil
+}
+
+// newService receives the context that holds information about the node it's
+// running on. Saving and loading can be done using the context. The data will
+// be stored in memory for tests and simulations, and on disk for real deployments.
+func newService(c *onet.Context) (onet.Service, error) {
+	s := &Service{
+		ServiceProcessor: onet.NewServiceProcessor(c),
+	}
+	if err := s.RegisterHandlers(s.Clock, s.Count); err != nil {
+		return nil, errors.New("Couldn't register messages")
+	}
+	if err := s.tryLoad(); err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	return s, nil
 }
