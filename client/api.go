@@ -712,6 +712,51 @@ func (c *Client) AddProjectDarc(name string) error {
 	return nil
 }
 
+// AddAdminDarc is used to create admin darcs by the super admin (darc) only
+func (c *Client) AddAdminDarc(name string) error {
+
+	rules := darc.InitRules([]darc.Identity{c.Signers[0].Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	c.AllDarcs[name] = darc.NewDarc(rules, []byte(name))
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.AllDarcs[name].Rules.AddRule("_name:"+ContractName, expr)
+	c.AllDarcs[name].Rules.AddRule("spawn:naming", expr)
+	darcBuf, err := c.AllDarcs[name].ToProto()
+	if err != nil {
+		return err
+	}
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: darcBuf,
+				},
+			},
+		},
+		SignerIdentities: []darc.Identity{c.Signers[0].Identity()},
+		SignerCounter:    c.IncrementCtrs(),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = ctx.FillSignersAndSignWith(c.Signers...)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return err
+	}
+	c.AllDarcIDs[name] = c.AllDarcs[name].GetBaseID()
+
+	return nil
+}
+
 // StreamHandler is the signature of the handler used when streaming queries.
 type StreamHandler func(query Query, blockID []byte, err error)
 
