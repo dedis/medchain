@@ -25,7 +25,7 @@ import (
 // via GetQuery.
 var QueryKey []byzcoin.InstanceID
 
-// Client is a structure to communicate with Medchain service
+// Client is a structure to communicate with MedChain service
 type Client struct {
 	ByzCoin *byzcoin.Client
 	// The DarcID with "invoke:medchain.update" & "invoke:medchain.verifystatus "permission on it.
@@ -83,11 +83,9 @@ func (c *Client) Create() error {
 	}
 
 	if err := spawnNamingTx.FillSignersAndSignWith(c.Signers...); err != nil {
-		fmt.Println("debug1")
 		return err
 	}
 	if _, err := c.ByzCoin.AddTransactionAndWait(spawnNamingTx, 15); err != nil {
-		fmt.Println("debug2")
 		return err
 	}
 	log.Lvl1("[INFO] (Create) Contract_name instance was added to the ledger")
@@ -130,8 +128,8 @@ func (c *Client) nextCtrs() []uint64 {
 	return out
 }
 
-// WriteQueries asks the service to write queries to the ledger.
-func (c *Client) WriteQueries(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+// AddQuery asks the service to write queries to the ledger.
+func (c *Client) AddQuery(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
 	return c.CreateQueryAndWait(10, spawnedKeys, qu...)
 }
 
@@ -144,11 +142,9 @@ func (c *Client) CreateQueryAndWait(numInterval int, spawnedKeys []byzcoin.Insta
 
 	tx, keys, err := c.prepareTx(qu, spawnedKeys)
 	if err != nil {
-		fmt.Println("debug7")
 		return qu, nil, err
 	}
 	if _, err := c.ByzCoin.AddTransactionAndWait(*tx, numInterval); err != nil {
-		fmt.Println("debug8")
 		return qu, nil, err
 	}
 	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
@@ -233,8 +229,8 @@ func (c *Client) prepareTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*
 	return &tx, keys, nil
 }
 
-// WriteDeferredQueries asks the service to write queries using deferred transactions to the ledger.
-func (c *Client) WriteDeferredQueries(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
+// AddDeferredQuery asks the service to write queries using deferred transactions to the ledger.
+func (c *Client) AddDeferredQuery(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
 	return c.CreateQueryAndWait(10, spawnedKeys, qu...)
 }
 
@@ -247,11 +243,11 @@ func (c *Client) CreateQueryAndWaitDeferred(numInterval int, spawnedKeys []byzco
 
 	tx, keys, err := c.prepareDeferredTx(qu, spawnedKeys)
 	if err != nil {
-		fmt.Println("debug7")
+		fmt.Println("debug1")
 		return qu, nil, err
 	}
 	if _, err := c.ByzCoin.AddTransactionAndWait(*tx, numInterval); err != nil {
-		fmt.Println("debug8")
+		fmt.Println("debug2")
 		return qu, nil, err
 	}
 	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
@@ -437,7 +433,6 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 	}
 
 	if _, err := c.ByzCoin.AddTransactionAndWait(tx, numInterval); err != nil {
-		fmt.Println("debug8-2")
 		return nil, nil, err
 	}
 	log.Lvl1("[INFO] (SPAWN) Query was added to the ledger")
@@ -451,7 +446,6 @@ func (c *Client) CreateInstance(numInterval int, queries ...Query) ([]Query, []b
 		// make retrievals easier
 		err = c.NameInstance(instID, darcID, query.ID)
 		if err != nil {
-			fmt.Println("debug4")
 			return nil, nil, err
 		}
 		log.Lvl1("[INFO] Query instance was named ")
@@ -470,7 +464,7 @@ func (c *Client) CreateDeferredInstance(numInterval int, queries ...Query) ([]Qu
 	keys := make([]byzcoin.InstanceID, len(queries))
 	proposedInstrs := make([]byzcoin.Instruction, len(queries))
 	var ctx byzcoin.ClientTransaction
-
+	// var proposedTransaction byzcoin.ClientTransaction
 	for i, query := range queries {
 		// Get the project darc
 		project := c.GetProjectFromOneQuery(query)
@@ -527,11 +521,26 @@ func (c *Client) CreateDeferredInstance(numInterval int, queries ...Query) ([]Qu
 	if err := ctx.FillSignersAndSignWith(c.Signers...); err != nil {
 		return nil, nil, err
 	}
+	for i := range ctx.Instructions {
+		keys[i] = ctx.Instructions[i].DeriveID("")
+		//fmt.Println(tx.Instructions[i].GetIdentityStrings())
+	}
 
-	if _, err := c.ByzCoin.AddTransactionAndWait(ctx, numInterval); err != nil {
-		fmt.Println("debug8-2")
+	atr, err := c.ByzCoin.AddTransactionAndWait(ctx, numInterval)
+
+	if err != nil {
+		fmt.Println("debug3")
 		return nil, nil, err
 	}
+	result, err := c.ByzCoin.GetDeferredDataAfter(ctx.Instructions[0].DeriveID(""), &atr.Proof.Latest)
+	fmt.Println("result1", result)
+	fmt.Println("id1", ctx.Instructions[0].DeriveID(""))
+	if err != nil {
+		fmt.Println("debug3-2")
+		return nil, nil, nil
+	}
+	fmt.Println("result", result)
+
 	log.Lvl1("[INFO] (SPAWN) Deferred Query was added to the ledger")
 
 	for i, query := range queries {
@@ -558,18 +567,28 @@ func (c *Client) CreateDeferredInstance(numInterval int, queries ...Query) ([]Qu
 func (c *Client) SignDeferredQuery(queryID byzcoin.InstanceID, signer darc.Signer) error {
 	pr, err := c.ByzCoin.WaitProof(byzcoin.NewInstanceID(queryID.Slice()), 2*c.GMsg.BlockInterval, nil)
 	if err != nil {
+		fmt.Println("debug5")
 		return err
 	}
 	if pr.InclusionProof.Match(queryID.Slice()) != true {
+		fmt.Println("debug6")
 		return err
 	}
 	dataBuf, _, _, err := pr.Get(queryID.Slice())
 	if err != nil {
+		fmt.Println("debug7")
 		return err
 	}
-	result := byzcoin.DeferredData{}
+
+	//result, err := c.ByzCoin.GetDeferredData(queryID)
+	var result byzcoin.DeferredData
 	err = protobuf.Decode(dataBuf, &result)
+	fmt.Println("result2", result)
+	fmt.Println("id2", queryID)
+
 	if err != nil {
+		fmt.Println("debug8")
+		fmt.Println(err)
 		return err
 	}
 
@@ -577,15 +596,18 @@ func (c *Client) SignDeferredQuery(queryID byzcoin.InstanceID, signer darc.Signe
 	identity := signer.Identity()
 	identityBuf, err := protobuf.Encode(&identity)
 	if err != nil {
+		fmt.Println("debug9")
 		return err
 	}
 	signature, err := signer.Sign(rootHash[0])
 	identityBuf, err = protobuf.Encode(&identity)
 	if err != nil {
+		fmt.Println("debug10")
 		return err
 	}
 	signature, err = signer.Sign(rootHash[0]) // == index
 	if err != nil {
+		fmt.Println("debug11")
 		return err
 	}
 	// This is the index of instruction wrt to the transaction
@@ -621,11 +643,13 @@ func (c *Client) SignDeferredQuery(queryID byzcoin.InstanceID, signer darc.Signe
 	}
 	err = ctx.FillSignersAndSignWith(signer)
 	if err != nil {
+		fmt.Println("debug12")
 		return err
 	}
 
 	_, err = c.ByzCoin.AddTransactionAndWait(ctx, 10)
 	if err != nil {
+		fmt.Println("debug13")
 		return err
 	}
 

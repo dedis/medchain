@@ -32,7 +32,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	err = byzcoin.RegisterGlobalContract(ContractName, contractMedchainFromBytes)
+	err = byzcoin.RegisterGlobalContract(ContractName, ContractMedchainFromBytes)
 	if err != nil {
 		log.ErrFatal(err)
 	}

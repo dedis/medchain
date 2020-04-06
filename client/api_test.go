@@ -15,6 +15,7 @@ import (
 	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/protobuf"
 )
 
 var tSuite = suites.MustFind("Ed25519")
@@ -104,73 +105,73 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata := QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, queries[0].ID, s.ID)
-	// 	require.Equal(t, queries[0].Status, (s.Status))
-	// }
+	//Fetch the index, and check it.
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, queries[0].Status, (s.Status))
+	}
 
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
-	// 	require.Nil(t, err)
-	// 	_, err := c.GetQuery(instaID.Slice())
-	// 	require.Nil(t, err)
-	// }
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], query.ID)
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 
 	// ------------------------------------------------------------------------
 	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Query Authorization ")
-	queries, ids, err = c.WriteQueries(ids, queries...)
+	queries, ids, err = c.AddQuery(ids, queries...)
 
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata = QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, queries[0].ID, s.ID)
-	// 	require.Equal(t, "Authorized", s.Status)
-	// }
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, "Authorized", s.Status)
+	}
 
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
-	// 	require.Nil(t, err)
-	// 	_, err := c.GetQuery(instaID.Slice())
-	// 	require.Nil(t, err)
-	// }
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], query.ID)
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 }
 
 func TestClient_MedchainReject(t *testing.T) {
@@ -246,77 +247,77 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata := QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, queries[0].ID, s.ID)
-	// 	require.Equal(t, queries[0].Status, (s.Status))
-	// }
+	//Fetch the index, and check it.
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, queries[0].Status, (s.Status))
+	}
 
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], query.ID)
-	// 	require.Nil(t, err)
-	// 	_, err := c.GetQuery(instaID.Slice())
-	// 	require.Nil(t, err)
-	// }
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], query.ID)
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 
 	// ------------------------------------------------------------------------
 	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Query Authorization ")
-	queries, ids, err = c.WriteQueries(ids, queries...)
+	queries, ids, err = c.AddQuery(ids, queries...)
 
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata = QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, queries[0].ID, s.ID)
-	// 	require.Equal(t, "Rejected", s.Status)
-	// }
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, "Rejected", s.Status)
+	}
 
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
-	// 	require.Nil(t, err)
-	// 	_, err := c.GetQuery(instaID.Slice())
-	// 	require.Nil(t, err)
-	// }
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["B"], query.ID)
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 
 }
 
-func TestClient_MedchainAuthorizeDeferredTx(t *testing.T) {
+func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
@@ -337,7 +338,7 @@ func TestClient_MedchainAuthorizeDeferredTx(t *testing.T) {
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{c.Signers[0].Identity()})
 	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
-		"invoke:v.count_global_obfuscated,spawn:deferred, invoke:deferred.addProof,invoke:deferred.execProposedTx,_name:deferred"
+		"invoke:v.count_global_obfuscated,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,_name:deferred"
 	exprA := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs["A"], _ = c.CreateDarc("Project A darc", rulesA, actionsA, exprA)
 
@@ -392,21 +393,21 @@ func TestClient_MedchainAuthorizeDeferredTx(t *testing.T) {
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err := c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata := QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
+	//Fetch the index, and check it.
+	idx := checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata := QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
 	// for _, s := range qdata.Storage {
 	// 	require.Equal(t, queries[0].ID, s.ID)
 	// 	require.Equal(t, queries[0].Status, (s.Status))
@@ -415,7 +416,7 @@ func TestClient_MedchainAuthorizeDeferredTx(t *testing.T) {
 	// // Use the client API to get the query back
 	// // Resolve instance takes much time to run
 	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
+	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], query.ID)
 	// 	require.Nil(t, err)
 	// 	_, err := c.GetQuery(instaID.Slice())
 	// 	require.Nil(t, err)
@@ -432,40 +433,40 @@ func TestClient_MedchainAuthorizeDeferredTx(t *testing.T) {
 	// 4. Check Authorizations
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Query Authorization ")
-	queries, ids, err = c.WriteQueries(ids, queries...)
+	queries, ids, err = c.AddQuery(ids, queries...)
 
 	require.Nil(t, err)
 	require.Equal(t, 1, len(ids))
 	require.Equal(t, 32, len(ids[0]))
 
-	// // Loop while we wait for the next block to be created.
-	// instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
-	// require.Nil(t, err)
-	// waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
+	// Loop while we wait for the next block to be created.
+	instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], queries[0].ID)
+	require.Nil(t, err)
+	waitForKey(t, leader.omni, c.ByzCoin.ID, instaID.Slice(), testBlockInterval)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
 		leader.waitForBlock(c.ByzCoin.ID)
 	}
 
-	// //Fetch the index, and check it.
-	// idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
-	// qdata = QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, queries[0].ID, s.ID)
-	// 	require.Equal(t, "Authorized", s.Status)
-	// }
+	//Fetch the index, and check it.
+	idx = checkProof(t, c, leader.omni, instaID.Slice(), c.ByzCoin.ID)
+	qdata = QueryData{}
+	err = protobuf.Decode(idx, &qdata)
+	require.Nil(t, err)
+	for _, s := range qdata.Storage {
+		require.Equal(t, queries[0].ID, s.ID)
+		require.Equal(t, "Authorized", s.Status)
+	}
 
-	// // Use the client API to get the query back
-	// // Resolve instance takes much time to run
-	// for _, query := range queries {
-	// 	instaID, err = c.ByzCoin.ResolveInstanceID(c.bDarcID, query.ID)
-	// 	require.Nil(t, err)
-	// 	_, err := c.GetQuery(instaID.Slice())
-	// 	require.Nil(t, err)
-	// }
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	for _, query := range queries {
+		instaID, err = c.ByzCoin.ResolveInstanceID(c.AllDarcIDs["A"], query.ID)
+		require.Nil(t, err)
+		_, err := c.GetQuery(instaID.Slice())
+		require.Nil(t, err)
+	}
 }
 
 // Do not use this test - as adding queries to ledger takes much time and thus fails
@@ -597,7 +598,7 @@ func TestClient_100Query(t *testing.T) {
 			// ------------------------------------------------------------------------
 			// 4. Check Authorizations
 			// ------------------------------------------------------------------------
-			_, _, err = c.WriteQueries(ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
+			_, _, err = c.AddQuery(ids, NewQuery(randomString(10, "")+":"+randomString(1, "AB")+":"+randomAction(), "Submitted"))
 		}
 
 		s.waitNextBlock(t, current)
@@ -733,7 +734,7 @@ func TestClient_100QueryInOneQuery(t *testing.T) {
 		// ------------------------------------------------------------------------
 		// 4. Check Authorizations
 		// ------------------------------------------------------------------------
-		_, _, err = c.WriteQueries(ids, qs...)
+		_, _, err = c.AddQuery(ids, qs...)
 		require.Nil(t, err)
 
 		s.waitNextBlock(t, current)

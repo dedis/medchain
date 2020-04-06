@@ -22,8 +22,8 @@ type medchainContract struct {
 	QueryData
 }
 
-// contractMedchainFromBytes defines the contract
-func contractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
+// ContractMedchainFromBytes defines the contract
+func ContractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
 	cv := &medchainContract{}
 	err := protobuf.Decode(in, &cv.QueryData)
 	if err != nil {

@@ -17,10 +17,11 @@ func init() {
 		Count{}, CountReply{},
 		Clock{}, ClockReply{},
 		&SearchRequest{}, &SearchReply{},
-		CreateQueryRequest{}, CreateQueryReply{},
+		AddQuery{}, AddQueryReply{},
+		AddDeferredQuery{}, AddDeferredQueryReply{},
 		QueryRequest{}, QueryReply{},
-		VerifyStatusRequest{}, VerifyStatusReply{},
-		SignDeferredTxRequest{}, SignDeferredTxReply{},
+		VerifyStatus{}, VerifyStatusReply{},
+		SignDeferredTx{}, SignDeferredTxReply{},
 		//ExecuteDeferredTxRequest{}, ExecuteDeferredTxReply{},
 	)
 
@@ -31,16 +32,29 @@ const (
 	ErrorParse = iota + 4000
 )
 
-// CreateQueryRequest includes the query data that is to be authorized
-type CreateQueryRequest struct {
+// AddQuery includes the query data that is to be authorized
+type AddQuery struct {
 	UserID    string
 	QueryInfo Query
 	QueryID   string
 }
 
-// CreateQueryReply is the reply to CreateQueryRequest
-// The reply is true if the query is authhorized and false otherwise
-type CreateQueryReply struct {
+// AddQueryReply is the reply to CreateQueryRequest
+// The reply is true if the query is authorized and false otherwise
+type AddQueryReply struct {
+	OK bool
+}
+
+// AddDeferredQuery includes the query data that is to be authorized
+type AddDeferredQuery struct {
+	UserID    string
+	QueryInfo Query
+	QueryID   string
+}
+
+// AddDeferredQueryReply is the reply to CreateQueryRequest
+// The reply is true if the query is authorized and false otherwise
+type AddDeferredQueryReply struct {
 	OK bool
 }
 
@@ -54,8 +68,8 @@ type QueryReply struct {
 	OK bool
 }
 
-// VerifyStatusRequest includes the status of the query on the skipchain
-type VerifyStatusRequest struct {
+// VerifyStatus includes the status of the query on the skipchain
+type VerifyStatus struct {
 	QueryID string
 }
 
@@ -65,8 +79,8 @@ type VerifyStatusReply struct {
 	OK          bool
 }
 
-// SignDeferredTxRequest message includes the data of the query the client wants to sign
-type SignDeferredTxRequest struct {
+// SignDeferredTx message includes the data of the query the client wants to sign
+type SignDeferredTx struct {
 	// TODO: is the id of the user also needed?
 	QueryID string
 }
