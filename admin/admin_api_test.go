@@ -328,3 +328,63 @@ func TestUpdateAdminKeys(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 }
+
+func TestProjectDarc(t *testing.T) {
+	// ------------------------------------------------------------------------
+	// 0. Set up
+	// ------------------------------------------------------------------------
+	log.Lvl1("[INFO] Create admin darc")
+	local := onet.NewTCPTest(cothority.Suite)
+	defer local.CloseAll()
+
+	superAdmin := darc.NewSignerEd25519(nil, nil)
+	_, roster, _ := local.GenTree(5, true)
+
+	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
+		[]string{}, superAdmin.Identity())
+	require.NoError(t, err)
+	gDarc := &genesisMsg.GenesisDarc
+
+	genesisMsg.BlockInterval = time.Second / 5
+	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
+	require.NoError(t, err)
+	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractNamingID,
+		},
+		SignerCounter: []uint64{1},
+	})
+	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
+	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
+	require.NoError(t, err)
+	log.Lvl1("[INFO] Create admin client")
+
+	admcl, err := NewClientWithAuth(bcl, &superAdmin)
+	admcl.incrementSignerCounter() // TODO manage the creation of the genesis block (the naming contract should be created in the genesis block like above)
+	require.NoError(t, err)
+	require.Equal(t, superAdmin, admcl.AuthKey())
+
+	// ------------------------------------------------------------------------
+	// 1. Spawn admin darc
+	// ------------------------------------------------------------------------
+
+	log.Lvl1("[INFO] Spawn admin darc")
+	adminDarc, err := admcl.SpawnNewAdminDarc()
+	require.NoError(t, err)
+	admcl.bcl.WaitPropagation(1)
+	_, err = lib.GetDarcByID(admcl.bcl, gDarc.GetID())
+	require.NoError(t, err)
+
+	// ------------------------------------------------------------------------
+	// 2. Create a new project named project A
+	// ------------------------------------------------------------------------
+
+	pdarc, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
+	require.NoError(t, err)
+	_, err = lib.GetDarcByID(admcl.bcl, pdarc.GetBaseID())
+	require.NoError(t, err)
+
+	_, err = admcl.bcl.ResolveInstanceID(pdarc.GetBaseID(), "AR") // check that the access right value contract is correctly named
+	require.NoError(t, err)
+}
