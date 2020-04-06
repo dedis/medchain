@@ -300,8 +300,69 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 	return ctx.Instructions[0].DeriveID(""), err
 }
 
-func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, newAdmin darc.Identity) {
+func IndexOf(rule string, rules []string) int {
+	for k, v := range rules {
+		if rule == v {
+			return k
+		}
+	}
+	return -1
+}
 
+func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, adminId darc.Identity) (byzcoin.InstanceID, error) {
+	adminDarc, err := lib.GetDarcByID(cl.bcl, adid)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Getting the admin darc from chain: %w", err)
+	}
+	exp := adminDarc.Rules.GetEvolutionExpr()
+	slc := strings.Split(string(exp), "&")
+	for i := range slc {
+		slc[i] = strings.TrimSpace(slc[i])
+	}
+	idx := IndexOf(adminId.String(), slc)
+	if idx == -1 {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("The adminID doesn't exist in the admin darc")
+	}
+	slc = append(slc[:idx], slc[idx+1:]...)
+	evolvedAdminDarc := adminDarc.Copy()
+	newAdminAndExpr := expression.InitAndExpr(slc...)
+	newAdminOrExpr := expression.InitOrExpr(slc...)
+	err = cl.UpdateAdminRules(evolvedAdminDarc, newAdminAndExpr, newAdminOrExpr)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating admin rules: %w", err)
+	}
+	err = evolvedAdminDarc.EvolveFrom(adminDarc)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
+	}
+	_, evolvedAdminDarc2Buf, err := evolvedAdminDarc.MakeEvolveRequest(cl.AuthKey())
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the evolution request: %w", err)
+	}
+
+	proposedTransaction, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(adminDarc.GetBaseID()),
+		Invoke: &byzcoin.Invoke{
+			ContractID: byzcoin.ContractDarcID,
+			Command:    "evolve",
+			Args: []byzcoin.Argument{{
+				Name:  "darc",
+				Value: evolvedAdminDarc2Buf,
+			}},
+		},
+	})
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the transaction: %w", err)
+	}
+	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Marshalling the transaction: %w", err)
+	}
+	ctxID, err := cl.spawnDeferredInstance(proposedTransactionBuf, adid)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
+	}
+	return ctxID, nil
 }
 
 func (cl *Client) ModifyAdminKeysFromAdminDarc() {
