@@ -110,25 +110,9 @@ func (cl *Client) AddAdminToAdminDarc(adid darc.ID, newAdmin darc.Identity) (byz
 	evolvedAdminDarc := adminDarc.Copy()
 	newAdminAndExpr := expression.InitAndExpr(slc...)
 	newAdminOrExpr := expression.InitOrExpr(slc...)
-	err = evolvedAdminDarc.Rules.UpdateEvolution(newAdminAndExpr)
+	err = cl.UpdateAdminRules(evolvedAdminDarc, newAdminAndExpr, newAdminOrExpr)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating the _evolve expression in admin darc: %w", err)
-	}
-	err = evolvedAdminDarc.Rules.UpdateSign(newAdminOrExpr)
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating the _sign expression in admin darc: %w", err)
-	}
-	err = evolvedAdminDarc.Rules.UpdateRule("invoke:deferred.addProof", newAdminOrExpr)
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating the invoke:deferred.addProof expression in admin darc: %w", err)
-	}
-	err = evolvedAdminDarc.Rules.UpdateRule("invoke:deferred.execProposedTx", newAdminOrExpr)
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating the invoke:deferred.execProposedTx expression in admin darc: %w", err)
-	}
-	err = evolvedAdminDarc.Rules.UpdateRule("invoke:darc.evolve", newAdminAndExpr)
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating the invoke:darc.evolve expression in admin darc: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Updating admin rules: %w", err)
 	}
 	err = evolvedAdminDarc.EvolveFrom(adminDarc)
 	if err != nil {
@@ -153,44 +137,38 @@ func (cl *Client) AddAdminToAdminDarc(adid darc.ID, newAdmin darc.Identity) (byz
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the transaction: %w", err)
 	}
-
-	expireBlockIndexInt := uint64(6000)
-	expireBlockIndexBuf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
 	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Encoding the proposed transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Marshalling the transaction: %w", err)
 	}
-	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(adid),
-		Spawn: &byzcoin.Spawn{
-			ContractID: byzcoin.ContractDeferredID,
-			Args: []byzcoin.Argument{
-				{
-					Name:  "proposedTransaction",
-					Value: proposedTransactionBuf,
-				},
-				{
-					Name:  "expireBlockIndex",
-					Value: expireBlockIndexBuf,
-				},
-			},
-		},
-		SignerCounter: []uint64{cl.signerCounter},
-	})
+	ctxID, err := cl.spawnDeferredInstance(proposedTransactionBuf, adid)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
 	}
-	err = ctx.FillSignersAndSignWith(cl.adminkeys)
+	return ctxID, nil
+}
+func (cl *Client) UpdateAdminRules(evolvedAdminDarc *darc.Darc, newAdminAndExpr, newAdminOrExpr expression.Expr) error {
+	err := evolvedAdminDarc.Rules.UpdateEvolution(newAdminAndExpr)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Signing: %w", err)
+		return xerrors.Errorf("Updating the _evolve expression in admin darc: %w", err)
 	}
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	err = evolvedAdminDarc.Rules.UpdateSign(newAdminOrExpr)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Spawning the deffered transaction: %w", err)
+		return xerrors.Errorf("Updating the _sign expression in admin darc: %w", err)
 	}
-	cl.incrementSignerCounter() // Need to check for errors before incrementing the signer counter
-	return ctx.Instructions[0].DeriveID(""), err
+	err = evolvedAdminDarc.Rules.UpdateRule("invoke:deferred.addProof", newAdminOrExpr)
+	if err != nil {
+		return xerrors.Errorf("Updating the invoke:deferred.addProof expression in admin darc: %w", err)
+	}
+	err = evolvedAdminDarc.Rules.UpdateRule("invoke:deferred.execProposedTx", newAdminOrExpr)
+	if err != nil {
+		return xerrors.Errorf("Updating the invoke:deferred.execProposedTx expression in admin darc: %w", err)
+	}
+	err = evolvedAdminDarc.Rules.UpdateRule("invoke:darc.evolve", newAdminAndExpr)
+	if err != nil {
+		return xerrors.Errorf("Updating the invoke:darc.evolve expression in admin darc: %w", err)
+	}
+	return nil
 }
 
 func (cl *Client) AddSignatureToDefferedTx(myID byzcoin.InstanceID) error {
@@ -285,11 +263,44 @@ func (cl *Client) updateSignerCounter(sc uint64) {
 	cl.signerCounter = sc
 }
 
-func (cl *Client) spawnDeferredInstance() {
+func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc.ID) (byzcoin.InstanceID, error) {
+	expireBlockIndexInt := uint64(6000)
+	expireBlockIndexBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
 
+	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(adid),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDeferredID,
+			Args: []byzcoin.Argument{
+				{
+					Name:  "proposedTransaction",
+					Value: proposedTransactionBuf,
+				},
+				{
+					Name:  "expireBlockIndex",
+					Value: expireBlockIndexBuf,
+				},
+			},
+		},
+		SignerCounter: []uint64{cl.signerCounter},
+	})
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
+	}
+	err = ctx.FillSignersAndSignWith(cl.adminkeys)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Signing: %w", err)
+	}
+	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Spawning the deffered transaction: %w", err)
+	}
+	cl.incrementSignerCounter() // Need to check for errors before incrementing the signer counter
+	return ctx.Instructions[0].DeriveID(""), err
 }
 
-func (cl *Client) RemoveAdminFromAdminDarc() {
+func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, newAdmin darc.Identity) {
 
 }
 
