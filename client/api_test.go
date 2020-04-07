@@ -324,6 +324,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	log.Lvl1("[INFO] Starting the service")
 	t.Log("[INFO] Starting the service")
 	s, c := newSer(t)
+	require.Equal(t, s.owner, c.Signers[0])
 	leader := s.services[0]
 	defer s.close()
 
@@ -425,9 +426,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 3. Sign (i.e, add proof to) the deferred query instance
 	// ------------------------------------------------------------------------
-	var signer darc.Signer
-	signer = c.Signers[0]
-	err = c.SignDeferredQuery(ids[0], signer)
+	err = c.SignDeferredQuery(ids[0], c.Signers[0])
 	require.Nil(t, err)
 	// ------------------------------------------------------------------------
 	// 4. Check Authorizations
