@@ -9,6 +9,7 @@ RUN cd /go/src/go.dedis.ch/cothority && git checkout $BUILD_TAG && GO111MODULE=o
 FROM ${FROM}
 
 COPY --from=builder /go/bin/conode .
-COPY --from=builder /go/bin/bcadmin /go/bin/el /go/bin/scmgr /usr/local/bin/
+COPY --from=builder /go/bin/bcadmin /go/bin/el /go/bin/mc /go/bin/scmgr /usr/local/bin/
 
-CMD ["/root/conode", "-d", "2", "server"]
+
+CMD ["/root/medchain", "-d", "2", "server"]

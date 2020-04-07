@@ -1,0 +1,18 @@
+version: '2.4'
+
+services:
+  medchain:
+    image: dedis/conode
+    build:  
+      dockerfile: ../docker-files/Dockerfile
+
+    environment: 
+      DEBUG_TIME=false
+      DEBUG_COLOR=false
+    ports:
+      - "7770"
+      - "7771"
+    volumes:
+      - ../configuration-profiles/dev-local-3nodes:/medchain-configuration
+    
+  
