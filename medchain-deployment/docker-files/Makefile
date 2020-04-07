@@ -1,5 +1,5 @@
-CONTAINER = conode_template
-IMAGE_NAME = dedis/$(CONTAINER)
+CONTAINER = medchain
+IMAGE_NAME = ldsec/$(CONTAINER)
 DATA_DIR = $(shell pwd)/conode_data
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 TAG = dev-$(shell date +%y%m%d)

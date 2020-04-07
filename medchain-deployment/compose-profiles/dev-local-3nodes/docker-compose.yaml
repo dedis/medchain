@@ -11,7 +11,7 @@ networks:
 services:
   medchain-svr0:
     extends:
-      file: ../docker-compose-definitions.yml
+      file: ../docker-compose-definitions.yaml
       service: medchain
     container_name: medchain-svr0
     environment: 
@@ -25,7 +25,7 @@ services:
 
   medchain-svr1:
     extends:
-      file: ../docker-compose-definitions.yml
+      file: ../docker-compose-definitions.yaml
       service: medchain
     container_name: medchain-svr1
     environment: 
@@ -39,7 +39,7 @@ services:
 
   medchain-svr2:
     extends:
-      file: ../docker-compose-definitions.yml
+      file: ../docker-compose-definitions.yaml
       service: medchain
     container_name: medchain-svr2
     environment: 

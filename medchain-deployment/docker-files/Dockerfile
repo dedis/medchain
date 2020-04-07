@@ -5,11 +5,13 @@ ARG BUILD_TAG=none
 ARG ldflags="-s -w -X main.gitTag=unknown"
 RUN go get go.dedis.ch/cothority
 RUN cd /go/src/go.dedis.ch/cothority && git checkout $BUILD_TAG && GO111MODULE=on go install -ldflags="$ldflags" ./conode ./byzcoin/bcadmin ./eventlog/el ./scmgr 
+RUN mkdir -p /go/src/github.com/medchain
+RUN cd /go/src/github.com/medchain && install -ldflags="$ldflags" ./mc
 
 FROM ${FROM}
 
 COPY --from=builder /go/bin/conode .
-COPY --from=builder /go/bin/bcadmin /go/bin/el /go/bin/mc /go/bin/scmgr /usr/local/bin/
+COPY --from=builder /go/bin/bcadmin /go/bin/el /go/bin/scmgr /go/bin/mc /usr/local/bin/ 
 
 
 CMD ["/root/medchain", "-d", "2", "server"]

@@ -2,7 +2,7 @@ version: '2.4'
 
 services:
   medchain:
-    image: dedis/conode
+    image: ldsec/medchain
     build:  
       dockerfile: ../docker-files/Dockerfile
 
