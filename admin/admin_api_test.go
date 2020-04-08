@@ -11,6 +11,7 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/protobuf"
 )
 
 func TestAddAdminsToDarc(t *testing.T) {
@@ -380,11 +381,52 @@ func TestProjectDarc(t *testing.T) {
 	// 2. Create a new project named project A
 	// ------------------------------------------------------------------------
 
-	pdarc, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
+	log.Lvl1("[INFO] Spawn a new project darc")
+	pdarcID, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
 	require.NoError(t, err)
-	_, err = lib.GetDarcByID(admcl.bcl, pdarc.GetBaseID())
+	_, err = lib.GetDarcByID(admcl.bcl, pdarcID)
 	require.NoError(t, err)
+	log.Lvl1("[INFO] Check if he access right value contract instance is set")
+	arid, err := admcl.bcl.ResolveInstanceID(pdarcID, "AR") // check that the access right value contract is correctly named
+	require.NoError(t, err)
+	log.Lvl1("[INFO] The access right value contract is set")
 
-	_, err = admcl.bcl.ResolveInstanceID(pdarc.GetBaseID(), "AR") // check that the access right value contract is correctly named
-	require.NoError(t, err)
+	log.Lvl1("[INFO] Get the value of the access right contract")
+	pr, err := admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	require.Nil(t, err)
+	v0, _, _, err := pr.Get(arid.Slice())
+	require.Nil(t, err)
+	ar := AccessRight{}
+	err = protobuf.Decode(v0, &ar)
+	require.Nil(t, err)
+	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 should not be set")
+	_, ok := ar.AccessRightsMap["q1:h1"]
+	require.Equal(t, ok, false)
+	log.Lvl1("[INFO] Setting the access rights for querier with id : q1:h1")
+	err = admcl.AddQuerierToProject(pdarcID, "q1:h1", "count_per_site")
+	require.Nil(t, err)
+	pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	require.Nil(t, err)
+	v1, _, _, err := pr.Get(arid.Slice())
+	require.Nil(t, err)
+	ar = AccessRight{}
+	err = protobuf.Decode(v1, &ar)
+	require.Nil(t, err)
+	v, ok := ar.AccessRightsMap["q1:h1"]
+	require.Equal(t, ok, true)
+	require.Equal(t, v, "count_per_site")
+	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 are set as expected")
+	log.Lvl1("[INFO] Remove the access rights for querier with id : q1:h1")
+	err = admcl.RemoveQuerierFromProject(pdarcID, "q1:h1")
+	require.Nil(t, err)
+	pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	require.Nil(t, err)
+	v1, _, _, err = pr.Get(arid.Slice())
+	require.Nil(t, err)
+	ar = AccessRight{}
+	err = protobuf.Decode(v1, &ar)
+	require.Nil(t, err)
+	v, ok = ar.AccessRightsMap["q1:h1"]
+	require.Equal(t, ok, false)
+	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 have been removed")
 }
