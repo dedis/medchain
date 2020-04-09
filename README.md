@@ -17,7 +17,7 @@ Before the client can use the API, a ByzCoin object should be created with a Dar
 ### Go API
 
 The detailed API can be found in the directory 
-[./client](https://github.com/ldsec/medchain/tree/dev/client). Examples and demos can also be found in `./client/api_test.go`.
+[./server](https://github.com/ldsec/medchain/tree/dev/server). Examples and demos can also be found in `./server/api_test.go`.
 
 
 ### CLI 

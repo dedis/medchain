@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	medchain "github.com/medchain/client"
+	medchain "github.com/medchain/server"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
@@ -250,7 +250,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	// ------------------------------------------------------------------------
 	log.Lvl1("Authorizing the query")
 
-	queries, ids, err = cl.WriteQueries(ids, queries...)
+	queries, ids, err = cl.AddQuery(ids, queries...)
 	authQuery.Record()
 
 	// // Measure the time for ResolveInstanceID
