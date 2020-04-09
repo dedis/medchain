@@ -618,33 +618,35 @@ func (c *Client) SignDeferredQuery(queryID byzcoin.InstanceID, signer darc.Signe
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
-	ctx := byzcoin.ClientTransaction{
-		Instructions: []byzcoin.Instruction{{
-			InstanceID: queryID,
-			Invoke: &byzcoin.Invoke{
-				ContractID: byzcoin.ContractDeferredID,
-				Command:    "addProof",
-				Args: []byzcoin.Argument{
-					{
-						Name:  "identity",
-						Value: identityBuf,
-					},
-					{
-						Name:  "signature",
-						Value: signature,
-					},
-					{
-						Name:  "index",
-						Value: indexBuf,
-					},
+	ctx, err := c.ByzCoin.CreateTransaction(byzcoin.Instruction{
+		InstanceID: queryID,
+		Invoke: &byzcoin.Invoke{
+			ContractID: byzcoin.ContractDeferredID,
+			Command:    "addProof",
+			Args: []byzcoin.Argument{
+				{
+					Name:  "identity",
+					Value: identityBuf,
+				},
+				{
+					Name:  "signature",
+					Value: signature,
+				},
+				{
+					Name:  "index",
+					Value: indexBuf,
 				},
 			},
-			SignerCounter: c.IncrementCtrs(),
-		}},
+		},
+		SignerCounter: c.IncrementCtrs(),
+	})
+	if err != nil {
+		fmt.Println("debug12-1")
+		return err
 	}
 	err = ctx.FillSignersAndSignWith(signer)
 	if err != nil {
-		fmt.Println("debug12")
+		fmt.Println("debug12-2")
 		return err
 	}
 	fmt.Println("id3", ctx.Instructions[0].DeriveID(""))
