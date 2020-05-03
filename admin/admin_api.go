@@ -382,8 +382,7 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (darc.ID, error)
 }
 
 func (cl *Client) createAccessRight(adid, pdarc darc.ID) error {
-	emptyAccess := AccessRight{make(map[string]string)}
-	emptyAccess.AccessRightsMap["init"] = "init" //TODO find another way to initialize the access right with a default value
+	emptyAccess := AccessRight{[]string{}, []string{}}
 	buf, err := protobuf.Encode(&emptyAccess)
 	if err != nil {
 		return xerrors.Errorf("Encoding the access right struct: %w", err)
@@ -478,59 +477,59 @@ func (cl *Client) GetAccessRightFromProjectDarcID(pdid darc.ID) (*AccessRight, b
 }
 
 func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
-	ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	if err != nil {
-		return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	}
-	if _, ok := ar.AccessRightsMap[qid]; ok {
-		return xerrors.Errorf("The querier already exist in the access rights : %w", err)
-	}
-	ar.AccessRightsMap[qid] = access
-	buf, err := protobuf.Encode(ar)
-	if err != nil {
-		return xerrors.Errorf("Encoding the access right struct: %w", err)
-	}
-	err = cl.updateValue(buf, arid)
-	if err != nil {
-		return xerrors.Errorf("Updating the access right: %w", err)
-	}
+	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
+	// }
+	// if _, ok := ar.AccessRightsMap[qid]; ok {
+	// 	return xerrors.Errorf("The querier already exist in the access rights : %w", err)
+	// }
+	// ar.AccessRightsMap[qid] = access
+	// buf, err := protobuf.Encode(ar)
+	// if err != nil {
+	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
+	// }
+	// err = cl.updateValue(buf, arid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Updating the access right: %w", err)
+	// }
 	return nil
 }
 
 func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
-	ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	if err != nil {
-		return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	}
-	delete(ar.AccessRightsMap, qid)
-	buf, err := protobuf.Encode(ar)
-	if err != nil {
-		return xerrors.Errorf("Encoding the access right struct: %w", err)
-	}
-	err = cl.updateValue(buf, arid)
-	if err != nil {
-		return xerrors.Errorf("Updating the access right: %w", err)
-	}
+	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
+	// }
+	// delete(ar.AccessRightsMap, qid)
+	// buf, err := protobuf.Encode(ar)
+	// if err != nil {
+	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
+	// }
+	// err = cl.updateValue(buf, arid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Updating the access right: %w", err)
+	// }
 	return nil
 }
 
 func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access string) error {
-	ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	if err != nil {
-		return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	}
-	if _, ok := ar.AccessRightsMap[qid]; !ok {
-		return xerrors.Errorf("The querier doesn't exist in the access rights  : %w", err)
-	}
-	ar.AccessRightsMap[qid] = access
-	buf, err := protobuf.Encode(&ar)
-	if err != nil {
-		return xerrors.Errorf("Encoding the access right struct: %w", err)
-	}
-	err = cl.updateValue(buf, arid)
-	if err != nil {
-		return xerrors.Errorf("Updating the access right: %w", err)
-	}
+	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
+	// }
+	// if _, ok := ar.AccessRightsMap[qid]; !ok {
+	// 	return xerrors.Errorf("The querier doesn't exist in the access rights  : %w", err)
+	// }
+	// ar.AccessRightsMap[qid] = access
+	// buf, err := protobuf.Encode(&ar)
+	// if err != nil {
+	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
+	// }
+	// err = cl.updateValue(buf, arid)
+	// if err != nil {
+	// 	return xerrors.Errorf("Updating the access right: %w", err)
+	// }
 	return nil
 }
 
