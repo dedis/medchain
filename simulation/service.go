@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	medchain "github.com/medchain/server"
+	medchain "github.com/medchain/services"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
