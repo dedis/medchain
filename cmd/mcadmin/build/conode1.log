@@ -1,0 +1,42 @@
+1 : server.go:217 (onet.(*Server).Start)     - Starting server at 2020-03-05 14:24:55 on address tls://localhost:2002
+2 : websocket.go:186 (onet.(*WebSocket).start) - Starting to listen on 0.0.0.0:2003
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63516: ByzCoin/CreateGenesisBlock
+2 : service.go:2240 (byzcoin.(*Service).processOneTx) - StateChange Create for id 0000000000000000000000000000000000000000000000000000000000000000 - contract: config
+2 : service.go:2240 (byzcoin.(*Service).processOneTx) - StateChange Create for id 77c79cc6df33cab41abf2bb0866be396dcba329036e2077bc6147d495031b3ee - contract: darc
+2 : skipchain.go:212 (skipchain.(*Service).StoreSkipBlockInternal) - Creating new skipchain with roster [tls://localhost:2002 tls://localhost:2004 tls://localhost:2006]
+2 : struct.go:798 (skipchain.(*SkipBlockDB).StoreBlocks.func1) - Storing skipblock 0 / 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3
+2 : service.go:1582 (byzcoin.(*Service).updateTrieCallback) - tls://localhost:2002 Updating 1 transactions for 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 on index 0
+2 : service.go:2240 (byzcoin.(*Service).processOneTx) - StateChange Create for id 0000000000000000000000000000000000000000000000000000000000000000 - contract: config
+2 : service.go:2240 (byzcoin.(*Service).processOneTx) - StateChange Create for id 77c79cc6df33cab41abf2bb0866be396dcba329036e2077bc6147d495031b3ee - contract: darc
+2 : service.go:1634 (byzcoin.(*Service).updateTrieCallback) - tls://localhost:2002 new leader started polling for 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3
+2 : service.go:1659 (byzcoin.(*Service).updateTrieCallback) - tls://localhost:2002 starting heartbeat monitor for 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 with window 5s
+2 : service.go:1677 (byzcoin.(*Service).updateTrieCallback) - tls://localhost:2002 started viewchangeMonitor for 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3
+2 : service.go:1698 (byzcoin.(*Service).updateTrieCallback) - tls://localhost:2002 updated trie for 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 with root ce638d375986615c022a3d39ae48ae60c735c42a066a30416b268644a535079f
+2 : tls.go:428 (network.NewTLSConn)          - NewTLSConn to: tls://localhost:2004
+2 : tls.go:428 (network.NewTLSConn)          - NewTLSConn to: tls://localhost:2006
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63516 n 1 rx 2345 tx 4124
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63519: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 0000000000000000000000000000000000000000000000000000000000000000 from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63519 n 1 rx 72 tx 7086
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63530: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 77c79cc6df33cab41abf2bb0866be396dcba329036e2077bc6147d495031b3ee from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63530 n 1 rx 72 tx 6699
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63532: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 0000000000000000000000000000000000000000000000000000000000000000 from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63532 n 1 rx 72 tx 7086
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63533: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 77c79cc6df33cab41abf2bb0866be396dcba329036e2077bc6147d495031b3ee from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63533 n 1 rx 72 tx 6699
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63539: Skipchain/GetSingleBlock
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63539 n 1 rx 34 tx 4119
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63542: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 0000000000000000000000000000000000000000000000000000000000000000 from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63542 n 1 rx 72 tx 7086
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63543: ByzCoin/GetSignerCounters
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63543 n 1 rx 108 tx 5
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63550: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 0000000000000000000000000000000000000000000000000000000000000000 from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63550 n 1 rx 72 tx 7086
+2 : websocket.go:280 (onet.wsHandler.ServeHTTP) - ws request from [::1]:63552: ByzCoin/GetProof
+2 : service.go:526 (byzcoin.(*Service).GetProof) - tls://localhost:2002: Returning proof for 77c79cc6df33cab41abf2bb0866be396dcba329036e2077bc6147d495031b3ee from chain 7810e7fb4eb91592f169441b3364a75827e2da9c687fa311ea77060b344e7ff3 at index 0
+2 : websocket.go:245 (onet.wsHandler.ServeHTTP.func1) - ws close [::1]:63552 n 1 rx 72 tx 6699
