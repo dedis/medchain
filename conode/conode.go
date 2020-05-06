@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"time"
 
-	_ "github.com/medchain/server"
+	_ "github.com/medchain/services"
 
 	"go.dedis.ch/cothority/v3"
 	status "go.dedis.ch/cothority/v3/status/service"
