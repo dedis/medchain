@@ -90,17 +90,20 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	}
 	req.BlockInterval = blockInterval
 
-	c, _, err := byzcoin.NewLedger(req, s.Keep)
+	bcl, _, err := byzcoin.NewLedger(req, s.Keep)
 	if err != nil {
 		return xerrors.Errorf("couldn't create genesis block: %v", err)
 	}
-	if err = c.UseNode(0); err != nil {
+	if err = bcl.UseNode(0); err != nil {
 		return xerrors.Errorf("couldn't use the node: %v", err)
 	}
 
 	// Initialize MedChain client
 	genDarc := req.GenesisDarc
-	cl := medchain.NewClient(c)
+	cl, err := medchain.NewClient(bcl)
+	if err != nil {
+		return xerrors.Errorf("couldn't start the client: %v", err)
+	}
 	cl.DarcID = genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{signer}
 	cl.GenDarc = &genDarc
@@ -142,7 +145,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		return err
 	}
 
-	ctx, err := cl.ByzCoin.CreateTransaction(byzcoin.Instruction{
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(cl.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -165,7 +168,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		return err
 	}
 
-	_, err = cl.ByzCoin.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
 		return err
 	}
@@ -199,7 +202,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		return err
 	}
 
-	ctx, err = cl.ByzCoin.CreateTransaction(byzcoin.Instruction{
+	ctx, err = cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(cl.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -222,7 +225,7 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		return err
 	}
 
-	_, err = cl.ByzCoin.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
 		return err
 	}
@@ -239,7 +242,8 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	authQuery := monitor.NewTimeMeasure("authQuery")
 	log.Lvl1("Spawning the query")
 
-	queries, ids, err := cl.SpawnQuery(medchain.NewQuery("wsdf65k80h:A:patient_list", "Submitted"))
+	query := medchain.NewQuery("wsdf65k80h:A:patient_list", "Submitted")
+	id1, err := cl.SpawnQuery(query)
 	if err != nil {
 		return err
 	}
@@ -250,7 +254,10 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	// ------------------------------------------------------------------------
 	log.Lvl1("Authorizing the query")
 
-	queries, ids, err = cl.AddQuery(ids, queries...)
+	_, err = cl.AuthorizeQuery(query, id1)
+	if err != nil {
+		return err
+	}
 	authQuery.Record()
 
 	// // Measure the time for ResolveInstanceID

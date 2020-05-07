@@ -413,7 +413,7 @@ func create(c *cli.Context) error {
 
 	e := c.String("darc")
 	if e == "" {
-		genDarc, err := cl.ByzCoin.GetGenDarc()
+		genDarc, err := cl.Bcl.GetGenDarc()
 		if err != nil {
 			return err
 		}
@@ -432,7 +432,7 @@ func create(c *cli.Context) error {
 	}
 	// TODO: MC is not required
 	log.Infof("export MC=%x", cl.NamingInstance.Slice())
-	return bcadminlib.WaitPropagation(c, cl.ByzCoin)
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
 func createQuery(c *cli.Context) error {
@@ -482,7 +482,7 @@ func createQuery(c *cli.Context) error {
 		}
 	}
 
-	return bcadminlib.WaitPropagation(c, cl.ByzCoin)
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
 var none = time.Unix(0, 0)

@@ -28,7 +28,7 @@ var QueryKey []byzcoin.InstanceID
 
 // Client is a structure to communicate with MedChain service
 type Client struct {
-	bcl *byzcoin.Client
+	Bcl *byzcoin.Client
 	// The DarcID with "invoke:medchain.update" & "invoke:medchain.verifystatus "permission on it.
 	DarcID darc.ID
 	// Signers are the Darc signers that will sign transactions sent with this client.
@@ -54,7 +54,7 @@ func NewClient(bcl *byzcoin.Client) (*Client, error) {
 		return nil, errors.New("Byzcoin client is required")
 	}
 	return &Client{
-		bcl:        bcl,
+		Bcl:        bcl,
 		onetcl:     onet.NewClient(cothority.Suite, ServiceName),
 		sc:         skipchain.NewClient(),
 		signerCtrs: nil,
@@ -70,7 +70,7 @@ func (c *Client) Create() error {
 	c.AllDarcs = make(map[string]*darc.Darc)
 	c.AllDarcIDs = make(map[string]darc.ID)
 	// Spawn an instance of naming contract
-	namingTx, err := c.bcl.CreateTransaction(
+	namingTx, err := c.Bcl.CreateTransaction(
 		byzcoin.Instruction{
 			InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 			Spawn: &byzcoin.Spawn{
@@ -105,19 +105,19 @@ func (c *Client) createQueryAndWait(qu Query, instID byzcoin.InstanceID) (byzcoi
 		c.RefreshSignerCounters()
 	}
 
-	tx, err := c.prepareTx(qu, instID)
+	ctx, err := c.prepareTx(qu, instID)
 	if err != nil {
-		return *new(byzcoin.InstanceID), err
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not create transaction: %w", err)
 	}
-	err = c.spawnTx(tx)
+	err = c.spawnTx(ctx)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not add transaction to ledger: %w", err)
 	}
 
-	newInstID := tx.Instructions[0].DeriveID("")
+	// newInstID := ctx.Instructions[0].DeriveID("")
 	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
 
-	return newInstID, nil
+	return instID, nil
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
@@ -179,12 +179,12 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 		SignerCounter: c.IncrementCtrs(),
 	}
 
-	tx, err := c.bcl.CreateTransaction(instr)
+	ctx, err := c.Bcl.CreateTransaction(instr)
 	if err != nil {
 		return *new(byzcoin.ClientTransaction), err
 	}
 
-	return tx, nil
+	return ctx, nil
 }
 
 // AuthorizeDeferredQuery asks the service to write queries using deferred transactions to the ledger.
@@ -204,7 +204,7 @@ func (c *Client) CreateQueryAndWaitDeferred(numInterval int, spawnedKeys []byzco
 		fmt.Println("debug1")
 		return qu, nil, err
 	}
-	if _, err := c.bcl.AddTransactionAndWait(*tx, numInterval); err != nil {
+	if _, err := c.Bcl.AddTransactionAndWait(*tx, numInterval); err != nil {
 		fmt.Println("debug2")
 		return qu, nil, err
 	}
@@ -226,7 +226,7 @@ func (c *Client) checkAuth(query Query, darcID darc.ID, action string) ([]bool, 
 
 	// Check signers' authorizations for a specific action
 	for i, signer := range c.Signers {
-		a, err := c.bcl.CheckAuthorization(darcID, signer.Identity())
+		a, err := c.Bcl.CheckAuthorization(darcID, signer.Identity())
 		if err != nil {
 			return authorizations, err
 		}
@@ -296,7 +296,7 @@ func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.Instan
 		}
 
 	}
-	ctx, err := c.bcl.CreateTransaction(instrs...)
+	ctx, err := c.Bcl.CreateTransaction(instrs...)
 	if err != nil {
 		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("Could not create transaction: %w", err)
 	}
@@ -343,7 +343,7 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 		},
 		SignerCounter: c.IncrementCtrs(),
 	}
-	tx, err := c.bcl.CreateTransaction(instr)
+	tx, err := c.Bcl.CreateTransaction(instr)
 	if err != nil {
 		return *new(byzcoin.InstanceID), err
 	}
@@ -399,7 +399,7 @@ func (c *Client) createDeferredInstance(query Query) (byzcoin.InstanceID, error)
 	}
 
 	// create deferred instance
-	proposedTransaction, err := c.bcl.CreateTransaction(proposedInstr)
+	proposedTransaction, err := c.Bcl.CreateTransaction(proposedInstr)
 	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
 	if err != nil {
 		return *new(byzcoin.InstanceID), err
@@ -416,7 +416,7 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 	expireBlockIndexBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
 
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(darcID),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDeferredID,
@@ -458,7 +458,7 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // by invoking an addProof action from the deferred contract on the deferred
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer darc.Signer) error {
-	result, err := c.bcl.GetDeferredData(instID)
+	result, err := c.Bcl.GetDeferredData(instID)
 	if err != nil {
 		return xerrors.Errorf("Getting the deffered instance from chain: %w", err)
 	}
@@ -477,7 +477,7 @@ func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer d
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractDeferredID,
@@ -507,7 +507,7 @@ func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer d
 
 // ExecDefferedQuery executes the query that has received enough signatures
 func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractDeferredID,
@@ -569,7 +569,7 @@ func (c *Client) AddProjectDarc(name string) error {
 	if err != nil {
 		return err
 	}
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -592,7 +592,7 @@ func (c *Client) AddProjectDarc(name string) error {
 		return err
 	}
 
-	_, err = c.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = c.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
 		return err
 	}
@@ -614,7 +614,7 @@ func (c *Client) AddAdminDarc(name string) error {
 	if err != nil {
 		return err
 	}
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -642,7 +642,7 @@ func (c *Client) AddAdminDarc(name string) error {
 
 // GetQuery asks the service to retrieve a query from the ledger by its key.
 func (c *Client) GetQuery(key []byte) (*Query, error) {
-	reply, err := c.bcl.GetProof(key)
+	reply, err := c.Bcl.GetProof(key)
 	if err != nil {
 		return nil, err
 	}
@@ -666,7 +666,7 @@ func (c *Client) GetQuery(key []byte) (*Query, error) {
 
 // Close closes all the websocket connections.
 func (c *Client) Close() error {
-	err := c.bcl.Close()
+	err := c.Bcl.Close()
 	if err2 := c.sc.Close(); err2 != nil {
 		err = err2
 	}
@@ -691,7 +691,7 @@ func (c *Client) StreamQueries(handler StreamHandler) error {
 		_ = handleBlocks(handler, resp.Block)
 	}
 	// the following blocks
-	return c.bcl.StreamTransactions(h)
+	return c.Bcl.StreamTransactions(h)
 }
 
 // StreamQueriesFrom is a blocking call where it calls the handler on even new
@@ -702,14 +702,14 @@ func (c *Client) StreamQueriesFrom(handler StreamHandler, id []byte) error {
 	blockChan := make(chan blockOrErr, 100)
 	streamDone := make(chan error)
 	go func() {
-		err := c.bcl.StreamTransactions(func(resp byzcoin.StreamingResponse, err error) {
+		err := c.Bcl.StreamTransactions(func(resp byzcoin.StreamingResponse, err error) {
 			blockChan <- blockOrErr{resp.Block, err}
 		})
 		streamDone <- err
 	}()
 
 	// 2. use GetUpdateChain to find the missing events and call handler
-	blocks, err := c.sc.GetUpdateChainLevel(&c.bcl.Roster, id, 0, -1)
+	blocks, err := c.sc.GetUpdateChainLevel(&c.Bcl.Roster, id, 0, -1)
 	if err != nil {
 		return err
 	}
@@ -832,7 +832,7 @@ func (c *Client) getActionFromOneQuery(query Query) string {
 //NameInstance uses contract_name to name a contract instance
 func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name string) error {
 
-	ctx, err := c.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractNamingID,
@@ -875,7 +875,7 @@ func (c *Client) spawnTx(ctx byzcoin.ClientTransaction) error {
 	if err != nil {
 		return xerrors.Errorf("Signing: %w", err)
 	}
-	_, err = c.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = c.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
 		return xerrors.Errorf("Adding transaction to the ledger: %w", err)
 	}
@@ -895,7 +895,7 @@ func (c *Client) RefreshSignerCounters() {
 	for i := range c.Signers {
 		signerIDs[i] = c.Signers[i].Identity().String()
 	}
-	signerCtrs, err := c.bcl.GetSignerCounters(signerIDs...)
+	signerCtrs, err := c.Bcl.GetSignerCounters(signerIDs...)
 	if err != nil {
 		log.Error(err)
 		return

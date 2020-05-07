@@ -68,7 +68,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cl.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -87,7 +87,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	err = ctx.FillSignersAndSignWith(cl.Signers...)
 	require.Nil(t, err)
 
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
 	cl.AllDarcIDs["A"] = cl.AllDarcs["A"].GetBaseID()
 
@@ -99,50 +99,56 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	query := NewQuery("wsdf65k80h:A:patient_list", "Submitted")
 	id1, err := cl.SpawnQuery(query)
 	require.Nil(t, err)
-
-	// Loop while we wait for the next block to be created.
-	instaID, err := cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, instaID.Slice(), testBlockInterval)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
 
 	//Fetch the index, and check it.
-	idx := checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx := checkProof(t, cl, leader.omni, id1.Slice(), cl.Bcl.ID)
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
 	for _, s := range qdata.Storage {
 		require.Equal(t, query.ID, s.ID)
 		require.Equal(t, query.Status, (s.Status))
+		require.Equal(t, "Submitted", (s.Status))
 	}
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
+	instID1, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
 	require.Nil(t, err)
-	_, err = cl.GetQuery(instaID.Slice())
+	_, err = cl.GetQuery(instID1.Slice())
 	require.Nil(t, err)
+	require.Equal(t, id1, instID1)
 
 	// ------------------------------------------------------------------------
 	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Query Authorization ")
 	id2, err := cl.AuthorizeQuery(query, id1)
-
 	require.Nil(t, err)
-	require.NotEqual(t, id1, id2)
+	require.Equal(t, id1, id2)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
 
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	instID2, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
+	require.Nil(t, err)
+	_, err = cl.GetQuery(instID2.Slice())
+	require.Nil(t, err)
+	require.Equal(t, id2, instID2)
+
 	//Fetch the index, and check it.
-	idx = checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx = checkProof(t, cl, leader.omni, id2.Slice(), cl.Bcl.ID)
 	qdata = QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
@@ -150,13 +156,6 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 		require.Equal(t, query.ID, s.ID)
 		require.Equal(t, "Authorized", s.Status)
 	}
-
-	// Use the client API to get the query back
-	// Resolve instance takes much time to run
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
-	require.Nil(t, err)
-	_, err = cl.GetQuery(instaID.Slice())
-	require.Nil(t, err)
 
 }
 
@@ -195,7 +194,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cl.AllDarcs["B"].Equal(bDarcCopy))
 
-	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -214,7 +213,7 @@ func TestClient_MedchainReject(t *testing.T) {
 	err = ctx.FillSignersAndSignWith(cl.Signers...)
 	require.Nil(t, err)
 
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
 	cl.AllDarcIDs["B"] = cl.AllDarcs["B"].GetBaseID()
 
@@ -227,54 +226,54 @@ func TestClient_MedchainReject(t *testing.T) {
 	query := NewQuery("wsdf65k80h:B:patient_list", "Submitted")
 	id1, err := cl.SpawnQuery(query)
 	require.Nil(t, err)
-
-	// Loop while we wait for the next block to be created.
-	instaID, err := cl.bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, instaID.Slice(), testBlockInterval)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
 
 	//Fetch the index, and check it.
-	idx := checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx := checkProof(t, cl, leader.omni, id1.Slice(), cl.Bcl.ID)
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
 	for _, s := range qdata.Storage {
 		require.Equal(t, query.ID, s.ID)
 		require.Equal(t, query.Status, (s.Status))
+		require.Equal(t, "Submitted", s.Status)
 	}
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
+	instID1, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
 	require.Nil(t, err)
-	_, err = cl.GetQuery(instaID.Slice())
+	_, err = cl.GetQuery(instID1.Slice())
 	require.Nil(t, err)
+	require.Equal(t, id1, instID1)
 
 	// ------------------------------------------------------------------------
 	// 3. Check Authorizations
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Query Authorization ")
 	id2, err := cl.AuthorizeQuery(query, id1)
-
 	require.Nil(t, err)
-	require.NotEqual(t, id1, id2)
-
-	// Loop while we wait for the next block to be created.
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, instaID.Slice(), testBlockInterval)
+	require.Equal(t, id1, id2)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
+	// Use the client API to get the query back; takes much time to run
+	instID2, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
+	require.Nil(t, err)
+	_, err = cl.GetQuery(instID2.Slice())
+	require.Nil(t, err)
+	require.Equal(t, id2, instID2)
+
 	//Fetch the index, and check it.
-	idx = checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx = checkProof(t, cl, leader.omni, id2.Slice(), cl.Bcl.ID)
 	qdata = QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
@@ -282,11 +281,7 @@ func TestClient_MedchainReject(t *testing.T) {
 		require.Equal(t, query.ID, s.ID)
 		require.Equal(t, "Rejected", s.Status)
 	}
-	// Use the client API to get the query back; takes much time to run
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID)
-	require.Nil(t, err)
-	_, err = cl.GetQuery(instaID.Slice())
-	require.Nil(t, err)
+
 }
 
 func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
@@ -330,7 +325,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cl.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -349,7 +344,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	err = ctx.FillSignersAndSignWith(cl.Signers...)
 	require.Nil(t, err)
 
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
 	cl.AllDarcIDs["A"] = cl.AllDarcs["A"].GetBaseID()
 
@@ -362,25 +357,20 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	query := NewQuery("wsdf65k80h:A:patient_list", "Submitted")
 	id1, err := cl.SpawnDeferredQuery(query)
 	require.Nil(t, err)
-
-	// Loop while we wait for the next block to be created.
-	instaID, err := cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, instaID.Slice(), testBlockInterval)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
 
 	//Fetch the index, and check it.
-	idx := checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx := checkProof(t, cl, leader.omni, id1.Slice(), cl.Bcl.ID)
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
 
-	cl.bcl.WaitPropagation(1)
-	_, err = cl.bcl.GetDeferredData(id1)
+	_, err = cl.Bcl.GetDeferredData(id1)
 	require.NoError(t, err)
 
 	// ------------------------------------------------------------------------
@@ -402,19 +392,15 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, 32, len(id2))
 	require.NotEqual(t, id1, id2)
-
-	// Loop while we wait for the next block to be created.
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
-	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, instaID.Slice(), testBlockInterval)
+	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
 	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.bcl.ID)
+		leader.waitForBlock(cl.Bcl.ID)
 	}
 
 	//Fetch the index, and check it.
-	idx = checkProof(t, cl, leader.omni, instaID.Slice(), cl.bcl.ID)
+	idx = checkProof(t, cl, leader.omni, id2.Slice(), cl.Bcl.ID)
 	qdata = QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
@@ -425,7 +411,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err = cl.bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
+	instaID, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
@@ -444,7 +430,7 @@ func TestClient_100Query(t *testing.T) {
 
 	err := cl.Create()
 	require.Nil(t, err)
-	waitForKey(t, leader.omni, cl.bcl.ID, cl.NamingInstance.Slice(), time.Second)
+	waitForKey(t, leader.omni, cl.Bcl.ID, cl.NamingInstance.Slice(), time.Second)
 
 	// ------------------------------------------------------------------------
 	// 1. Add Project A Darc
@@ -470,7 +456,7 @@ func TestClient_100Query(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cl.AllDarcs["A"].Equal(aDarcCopy))
 
-	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -489,7 +475,7 @@ func TestClient_100Query(t *testing.T) {
 	err = ctx.FillSignersAndSignWith(cl.Signers...)
 	require.Nil(t, err)
 
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
 	cl.AllDarcIDs["A"] = cl.AllDarcs["A"].GetBaseID()
 
@@ -515,7 +501,7 @@ func TestClient_100Query(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, cl.AllDarcs["B"].Equal(bDarcCopy))
 
-	ctx, err = cl.bcl.CreateTransaction(byzcoin.Instruction{
+	ctx, err = cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
@@ -534,7 +520,7 @@ func TestClient_100Query(t *testing.T) {
 	err = ctx.FillSignersAndSignWith(cl.Signers...)
 	require.Nil(t, err)
 
-	_, err = cl.bcl.AddTransactionAndWait(ctx, 10)
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
 	require.Nil(t, err)
 	cl.AllDarcIDs["B"] = cl.AllDarcs["B"].GetBaseID()
 
