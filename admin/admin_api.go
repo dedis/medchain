@@ -454,7 +454,7 @@ func IndexOf(rule string, rules []string) int {
 }
 
 func (cl *Client) GetAccessRightFromProjectDarcID(pdid darc.ID) (*AccessRight, byzcoin.InstanceID, error) {
-	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
 		return &AccessRight{}, byzcoin.InstanceID{}, xerrors.Errorf("Resolving the instance id of access right instance: %w", err)
 	}
@@ -475,7 +475,7 @@ func (cl *Client) GetAccessRightFromProjectDarcID(pdid darc.ID) (*AccessRight, b
 }
 
 func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
-	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
 		return xerrors.Errorf("Reolving access right instance: %w", err)
 	}
@@ -502,7 +502,7 @@ func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
 }
 
 func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
-	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
 		return xerrors.Errorf("Reolving access right instance: %w", err)
 	}
@@ -526,7 +526,7 @@ func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
 }
 
 func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access string) error {
-	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
 		return xerrors.Errorf("Reolving access right instance: %w", err)
 	}
@@ -550,6 +550,32 @@ func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access 
 		return xerrors.Errorf("Creating the transaction: %w", err)
 	}
 	return cl.spawnTransaction(ctx)
+}
+
+func (cl *Client) VerifyAccessRights(qid, access string, pdid darc.ID) (bool, error) {
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
+	if err != nil {
+		return false, xerrors.Errorf("Reolving access right instance: %w", err)
+	}
+	pr, err := cl.bcl.GetProof(arid.Slice())
+	if err != nil {
+		return false, xerrors.Errorf("Getting the proof of the accessright contract instance: %w", err)
+	}
+	vv, _, _, err := pr.Proof.Get(arid.Slice())
+	if err != nil {
+		return false, xerrors.Errorf("Getting the value: %w", err)
+	}
+	received := AccessRight{}
+	err = protobuf.Decode(vv, &received)
+	if err != nil {
+		return false, xerrors.Errorf("Unmarshalling: %w", err)
+	}
+	idx, _ := Find(received.Ids, qid)
+	if idx == -1 {
+		return false, xerrors.Errorf("There is no such querier registered in the accessright contract")
+	}
+
+	return strings.Contains(received.Access[idx], access), nil
 }
 
 func (cl *Client) spawnTransaction(ctx byzcoin.ClientTransaction) error {

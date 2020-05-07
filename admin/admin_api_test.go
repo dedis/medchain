@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -400,6 +399,7 @@ func TestProjectDarc(t *testing.T) {
 	ar := AccessRight{}
 	err = protobuf.Decode(v0, &ar)
 	require.Nil(t, err)
+	log.Lvl1("[INFO] Add the querier 1:1 to the project")
 	err = admcl.AddQuerierToProject(pdarcID, "1:1", "count_per_site_shuffled:count_global")
 	require.NoError(t, err)
 	err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, "1:1", "count_per_site_shuffled")
@@ -411,35 +411,14 @@ func TestProjectDarc(t *testing.T) {
 	require.Nil(t, err)
 	ar = AccessRight{}
 	err = protobuf.Decode(v0, &ar)
-	fmt.Println(ar)
-	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 should not be set")
-	// _, ok := ar.AccessRightsMap["q1:h1"]
-	// require.Equal(t, ok, false)
-	// log.Lvl1("[INFO] Setting the access rights for querier with id : q1:h1")
-	// err = admcl.AddQuerierToProject(pdarcID, "q1:h1", "count_per_site")
-	// require.Nil(t, err)
-	// pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
-	// require.Nil(t, err)
-	// v1, _, _, err := pr.Get(arid.Slice())
-	// require.Nil(t, err)
-	// ar = AccessRight{}
-	// err = protobuf.Decode(v1, &ar)
-	// require.Nil(t, err)
-	// v, ok := ar.AccessRightsMap["q1:h1"]
-	// require.Equal(t, ok, true)
-	// require.Equal(t, v, "count_per_site")
-	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 are set as expected")
-	// log.Lvl1("[INFO] Remove the access rights for querier with id : q1:h1")
-	// err = admcl.RemoveQuerierFromProject(pdarcID, "q1:h1")
-	// require.Nil(t, err)
-	// pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
-	// require.Nil(t, err)
-	// v1, _, _, err = pr.Get(arid.Slice())
-	// require.Nil(t, err)
-	// ar = AccessRight{}
-	// err = protobuf.Decode(v1, &ar)
-	// require.Nil(t, err)
-	// v, ok = ar.AccessRightsMap["q1:h1"]
-	// require.Equal(t, ok, false)
-	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 have been removed")
+	// fmt.Println(ar)
+	log.Lvl1("[INFO] Verify access right of querier 1:1 for action : count_per_site_shuffled")
+	authorization, err := admcl.VerifyAccessRights("1:1", "count_per_site_shuffled", pdarcID)
+	require.NoError(t, err)
+	require.True(t, authorization)
+	log.Lvl1("[INFO] Verify access right of querier 2:1 (not registered) for action :count_per_site_shuffled (Expected to fail)")
+	authorization, err = admcl.VerifyAccessRights("2:1", "count_per_site_shuffled", pdarcID)
+	require.Error(t, err)
+	require.False(t, authorization)
+
 }
