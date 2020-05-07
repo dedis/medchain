@@ -346,7 +346,7 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (darc.ID, error)
 	pdarcDescription := pname
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	pdarc := darc.NewDarc(rules, []byte(pdarcDescription))
-	pdarcActions := "_name:value,spawn:value,invoke:value.update" //TODO arg ?
+	pdarcActions := "_name:accessright,spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete" //TODO arg ?
 	pdarcExpr := createMultisigRuleExpression([]string{cl.adminkeys.Identity().String()})
 	err := AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
 
@@ -390,13 +390,11 @@ func (cl *Client) createAccessRight(adid, pdarc darc.ID) error {
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(pdarc),
 		Spawn: &byzcoin.Spawn{
-			ContractID: "value",
-			Args: byzcoin.Arguments{
-				byzcoin.Argument{
-					Name:  "value",
-					Value: buf,
-				},
-			},
+			ContractID: ContractAccessRightID,
+			Args: []byzcoin.Argument{{
+				Name:  "ar",
+				Value: buf,
+			}},
 		},
 		SignerCounter: []uint64{cl.signerCounter},
 	})
@@ -477,72 +475,74 @@ func (cl *Client) GetAccessRightFromProjectDarcID(pdid darc.ID) (*AccessRight, b
 }
 
 func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
-	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	// }
-	// if _, ok := ar.AccessRightsMap[qid]; ok {
-	// 	return xerrors.Errorf("The querier already exist in the access rights : %w", err)
-	// }
-	// ar.AccessRightsMap[qid] = access
-	// buf, err := protobuf.Encode(ar)
-	// if err != nil {
-	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
-	// }
-	// err = cl.updateValue(buf, arid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Updating the access right: %w", err)
-	// }
-	return nil
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	if err != nil {
+		return xerrors.Errorf("Reolving access right instance: %w", err)
+	}
+	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: arid,
+		Invoke: &byzcoin.Invoke{
+			ContractID: ContractAccessRightID,
+			Command:    "add",
+			Args: []byzcoin.Argument{{
+				Name:  "id",
+				Value: []byte(qid),
+			},
+				{
+					Name:  "ar",
+					Value: []byte(access),
+				}},
+		},
+		SignerCounter: []uint64{cl.signerCounter},
+	})
+	if err != nil {
+		return xerrors.Errorf("Creating the transaction: %w", err)
+	}
+	return cl.spawnTransaction(ctx)
 }
 
 func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
-	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	// }
-	// delete(ar.AccessRightsMap, qid)
-	// buf, err := protobuf.Encode(ar)
-	// if err != nil {
-	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
-	// }
-	// err = cl.updateValue(buf, arid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Updating the access right: %w", err)
-	// }
-	return nil
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	if err != nil {
+		return xerrors.Errorf("Reolving access right instance: %w", err)
+	}
+	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: arid,
+		Invoke: &byzcoin.Invoke{
+			ContractID: ContractAccessRightID,
+			Command:    "delete",
+			Args: []byzcoin.Argument{{
+				Name:  "id",
+				Value: []byte(qid),
+			},
+			},
+		},
+		SignerCounter: []uint64{cl.signerCounter},
+	})
+	if err != nil {
+		return xerrors.Errorf("Creating the transaction: %w", err)
+	}
+	return cl.spawnTransaction(ctx)
 }
 
 func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access string) error {
-	// ar, arid, err := cl.GetAccessRightFromProjectDarcID(pdid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Getting the access rights from project darc: %w", err)
-	// }
-	// if _, ok := ar.AccessRightsMap[qid]; !ok {
-	// 	return xerrors.Errorf("The querier doesn't exist in the access rights  : %w", err)
-	// }
-	// ar.AccessRightsMap[qid] = access
-	// buf, err := protobuf.Encode(&ar)
-	// if err != nil {
-	// 	return xerrors.Errorf("Encoding the access right struct: %w", err)
-	// }
-	// err = cl.updateValue(buf, arid)
-	// if err != nil {
-	// 	return xerrors.Errorf("Updating the access right: %w", err)
-	// }
-	return nil
-}
-
-func (cl *Client) updateValue(v []byte, vcid byzcoin.InstanceID) error {
+	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR") // check that the access right value contract is correctly named
+	if err != nil {
+		return xerrors.Errorf("Reolving access right instance: %w", err)
+	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: vcid,
+		InstanceID: arid,
 		Invoke: &byzcoin.Invoke{
-			ContractID: ContractValueID,
+			ContractID: ContractAccessRightID,
 			Command:    "update",
 			Args: []byzcoin.Argument{{
-				Name:  "value",
-				Value: v,
-			}},
+				Name:  "id",
+				Value: []byte(qid),
+			},
+				{
+					Name:  "ar",
+					Value: []byte(access),
+				}},
 		},
 		SignerCounter: []uint64{cl.signerCounter},
 	})

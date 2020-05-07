@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/protobuf"
 )
 
 func TestAddAdminsToDarc(t *testing.T) {
@@ -329,103 +331,115 @@ func TestUpdateAdminKeys(t *testing.T) {
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 }
 
-// func TestProjectDarc(t *testing.T) {
-// 	// ------------------------------------------------------------------------
-// 	// 0. Set up
-// 	// ------------------------------------------------------------------------
-// 	log.Lvl1("[INFO] Create admin darc")
-// 	local := onet.NewTCPTest(cothority.Suite)
-// 	defer local.CloseAll()
+func TestProjectDarc(t *testing.T) {
+	// ------------------------------------------------------------------------
+	// 0. Set up
+	// ------------------------------------------------------------------------
+	log.Lvl1("[INFO] Create admin darc")
+	local := onet.NewTCPTest(cothority.Suite)
+	defer local.CloseAll()
 
-// 	superAdmin := darc.NewSignerEd25519(nil, nil)
-// 	_, roster, _ := local.GenTree(5, true)
+	superAdmin := darc.NewSignerEd25519(nil, nil)
+	_, roster, _ := local.GenTree(5, true)
 
-// 	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
-// 		[]string{}, superAdmin.Identity())
-// 	require.NoError(t, err)
-// 	gDarc := &genesisMsg.GenesisDarc
+	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
+		[]string{}, superAdmin.Identity())
+	require.NoError(t, err)
+	gDarc := &genesisMsg.GenesisDarc
 
-// 	genesisMsg.BlockInterval = time.Second / 5
-// 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
-// 	require.NoError(t, err)
-// 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
-// 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
-// 		Spawn: &byzcoin.Spawn{
-// 			ContractID: byzcoin.ContractNamingID,
-// 		},
-// 		SignerCounter: []uint64{1},
-// 	})
-// 	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
-// 	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
-// 	require.NoError(t, err)
-// 	log.Lvl1("[INFO] Create admin client")
+	genesisMsg.BlockInterval = time.Second / 5
+	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
+	require.NoError(t, err)
+	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractNamingID,
+		},
+		SignerCounter: []uint64{1},
+	})
+	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
+	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
+	require.NoError(t, err)
+	log.Lvl1("[INFO] Create admin client")
 
-// 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
-// 	admcl.incrementSignerCounter() // TODO manage the creation of the genesis block (the naming contract should be created in the genesis block like above)
-// 	require.NoError(t, err)
-// 	require.Equal(t, superAdmin, admcl.AuthKey())
+	admcl, err := NewClientWithAuth(bcl, &superAdmin)
+	admcl.incrementSignerCounter() // TODO manage the creation of the genesis block (the naming contract should be created in the genesis block like above)
+	require.NoError(t, err)
+	require.Equal(t, superAdmin, admcl.AuthKey())
 
-// 	// ------------------------------------------------------------------------
-// 	// 1. Spawn admin darc
-// 	// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	// 1. Spawn admin darc
+	// ------------------------------------------------------------------------
 
-// 	log.Lvl1("[INFO] Spawn admin darc")
-// 	adminDarc, err := admcl.SpawnNewAdminDarc()
-// 	require.NoError(t, err)
-// 	admcl.bcl.WaitPropagation(1)
-// 	_, err = lib.GetDarcByID(admcl.bcl, gDarc.GetID())
-// 	require.NoError(t, err)
+	log.Lvl1("[INFO] Spawn admin darc")
+	adminDarc, err := admcl.SpawnNewAdminDarc()
+	require.NoError(t, err)
+	admcl.bcl.WaitPropagation(1)
+	_, err = lib.GetDarcByID(admcl.bcl, gDarc.GetID())
+	require.NoError(t, err)
 
-// 	// ------------------------------------------------------------------------
-// 	// 2. Create a new project named project A
-// 	// ------------------------------------------------------------------------
+	// ------------------------------------------------------------------------
+	// 2. Create a new project named project A
+	// ------------------------------------------------------------------------
 
-// 	log.Lvl1("[INFO] Spawn a new project darc")
-// 	pdarcID, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
-// 	require.NoError(t, err)
-// 	_, err = lib.GetDarcByID(admcl.bcl, pdarcID)
-// 	require.NoError(t, err)
-// 	log.Lvl1("[INFO] Check if he access right value contract instance is set")
-// 	arid, err := admcl.bcl.ResolveInstanceID(pdarcID, "AR") // check that the access right value contract is correctly named
-// 	require.NoError(t, err)
-// 	log.Lvl1("[INFO] The access right value contract is set")
+	log.Lvl1("[INFO] Spawn a new project darc")
+	pdarcID, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
+	require.NoError(t, err)
+	_, err = lib.GetDarcByID(admcl.bcl, pdarcID)
+	require.NoError(t, err)
+	log.Lvl1("[INFO] Check if he access right value contract instance is set")
+	arid, err := admcl.bcl.ResolveInstanceID(pdarcID, "AR") // check that the access right value contract is correctly named
+	require.NoError(t, err)
+	log.Lvl1("[INFO] The access right value contract is set")
 
-// 	log.Lvl1("[INFO] Get the value of the access right contract")
-// 	pr, err := admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
-// 	require.Nil(t, err)
-// 	v0, _, _, err := pr.Get(arid.Slice())
-// 	require.Nil(t, err)
-// 	ar := AccessRight{}
-// 	err = protobuf.Decode(v0, &ar)
-// 	require.Nil(t, err)
-// 	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 should not be set")
-// 	_, ok := ar.AccessRightsMap["q1:h1"]
-// 	require.Equal(t, ok, false)
-// 	log.Lvl1("[INFO] Setting the access rights for querier with id : q1:h1")
-// 	err = admcl.AddQuerierToProject(pdarcID, "q1:h1", "count_per_site")
-// 	require.Nil(t, err)
-// 	pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
-// 	require.Nil(t, err)
-// 	v1, _, _, err := pr.Get(arid.Slice())
-// 	require.Nil(t, err)
-// 	ar = AccessRight{}
-// 	err = protobuf.Decode(v1, &ar)
-// 	require.Nil(t, err)
-// 	v, ok := ar.AccessRightsMap["q1:h1"]
-// 	require.Equal(t, ok, true)
-// 	require.Equal(t, v, "count_per_site")
-// 	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 are set as expected")
-// 	log.Lvl1("[INFO] Remove the access rights for querier with id : q1:h1")
-// 	err = admcl.RemoveQuerierFromProject(pdarcID, "q1:h1")
-// 	require.Nil(t, err)
-// 	pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
-// 	require.Nil(t, err)
-// 	v1, _, _, err = pr.Get(arid.Slice())
-// 	require.Nil(t, err)
-// 	ar = AccessRight{}
-// 	err = protobuf.Decode(v1, &ar)
-// 	require.Nil(t, err)
-// 	v, ok = ar.AccessRightsMap["q1:h1"]
-// 	require.Equal(t, ok, false)
-// 	log.Lvl1("[INFO] Access rights for querier with id : q1:h1 have been removed")
-// }
+	log.Lvl1("[INFO] Get the value of the access right contract")
+	pr, err := admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	require.Nil(t, err)
+	v0, _, _, err := pr.Get(arid.Slice())
+	require.Nil(t, err)
+	ar := AccessRight{}
+	err = protobuf.Decode(v0, &ar)
+	require.Nil(t, err)
+	err = admcl.AddQuerierToProject(pdarcID, "1:1", "count_per_site_shuffled:count_global")
+	require.NoError(t, err)
+	err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, "1:1", "count_per_site_shuffled")
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+	pr2, err := admcl.bcl.GetProof(arid.Slice())
+	v0, _, _, err = pr2.Proof.Get(arid.Slice())
+	require.Nil(t, err)
+	ar = AccessRight{}
+	err = protobuf.Decode(v0, &ar)
+	fmt.Println(ar)
+	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 should not be set")
+	// _, ok := ar.AccessRightsMap["q1:h1"]
+	// require.Equal(t, ok, false)
+	// log.Lvl1("[INFO] Setting the access rights for querier with id : q1:h1")
+	// err = admcl.AddQuerierToProject(pdarcID, "q1:h1", "count_per_site")
+	// require.Nil(t, err)
+	// pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	// require.Nil(t, err)
+	// v1, _, _, err := pr.Get(arid.Slice())
+	// require.Nil(t, err)
+	// ar = AccessRight{}
+	// err = protobuf.Decode(v1, &ar)
+	// require.Nil(t, err)
+	// v, ok := ar.AccessRightsMap["q1:h1"]
+	// require.Equal(t, ok, true)
+	// require.Equal(t, v, "count_per_site")
+	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 are set as expected")
+	// log.Lvl1("[INFO] Remove the access rights for querier with id : q1:h1")
+	// err = admcl.RemoveQuerierFromProject(pdarcID, "q1:h1")
+	// require.Nil(t, err)
+	// pr, err = admcl.bcl.WaitProof(byzcoin.NewInstanceID(arid.Slice()), 2*genesisMsg.BlockInterval, nil)
+	// require.Nil(t, err)
+	// v1, _, _, err = pr.Get(arid.Slice())
+	// require.Nil(t, err)
+	// ar = AccessRight{}
+	// err = protobuf.Decode(v1, &ar)
+	// require.Nil(t, err)
+	// v, ok = ar.AccessRightsMap["q1:h1"]
+	// require.Equal(t, ok, false)
+	// log.Lvl1("[INFO] Access rights for querier with id : q1:h1 have been removed")
+}
