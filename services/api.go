@@ -95,6 +95,7 @@ func (c *Client) Create() error {
 
 // AuthorizeQuery asks the service to write queries to the ledger.
 func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
+	log.Lvl1("[INFO] Deferred Query Authorization ")
 	return c.createQueryAndWait(qu, instID)
 }
 
@@ -368,6 +369,7 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 
 //SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
 func (c *Client) SpawnDeferredQuery(qu Query) (byzcoin.InstanceID, error) {
+	log.Lvl1("[INFO] Spawning the deferred query ")
 	return c.createDeferredInstance(qu)
 }
 
@@ -378,7 +380,6 @@ func (c *Client) createDeferredInstance(query Query) (byzcoin.InstanceID, error)
 	// Get the project darc
 	project := c.getProjectFromOneQuery(query)
 	darcID := c.AllDarcIDs[project]
-	fmt.Println("darcID1", darcID)
 
 	// If the query has just been submitted, spawn a query instance;
 	// otherwise, invoke an update to change its status
@@ -458,6 +459,7 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // by invoking an addProof action from the deferred contract on the deferred
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer darc.Signer) error {
+	log.Lvl1("[INFO] Add signature to the query transaction")
 	result, err := c.Bcl.GetDeferredData(instID)
 	if err != nil {
 		return xerrors.Errorf("Getting the deffered instance from chain: %w", err)
@@ -507,6 +509,7 @@ func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer d
 
 // ExecDefferedQuery executes the query that has received enough signatures
 func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
+	log.Lvl1("[INFO] Execute the query transaction")
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
 		Invoke: &byzcoin.Invoke{

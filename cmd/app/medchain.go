@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/urfave/cli"
+	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/onet/v3/app"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
 )
 
 const (
-	// BinaryName is the name of the binary
+	// BinaryName represents the name of the binary
 	BinaryName = "mc"
 
 	// Version of the binary
@@ -25,9 +27,6 @@ const (
 
 	optionGroupFile      = "file"
 	optionGroupFileShort = "f"
-
-	optionDecryptKey      = "key"
-	optionDecryptKeyShort = "k"
 
 	// setup options
 	optionServerBinding      = "serverBinding"
@@ -51,13 +50,16 @@ const (
 
 	optionNodeIndex      = "nodeIndex"
 	optionNodeIndexShort = "i"
+
+	// RequestTimeOut defines when the client stops waiting for MedChain to reply
+	RequestTimeOut = time.Second * 10
 )
 
 /*
 Return system error codes signification
 0: success
 1: failed to init client
-2: error in the XML query parsing or during query
+2: error in the query
 */
 func main() {
 	// increase maximum in onet.tcp.go to allow for big packets (for now is the max value for uint32)
@@ -76,32 +78,11 @@ func main() {
 		},
 	}
 
-	encryptFlags := []cli.Flag{
+	clientFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:  optionGroupFile + ", " + optionGroupFileShort,
 			Value: DefaultGroupFile,
 			Usage: "MedChain group definition file",
-		},
-	}
-
-	decryptFlags := []cli.Flag{
-		cli.StringFlag{
-			Name:  optionDecryptKey + ", " + optionDecryptKeyShort,
-			Usage: "Base64-encoded key to decrypt a value",
-		},
-	}
-
-	mappingTableGenFlags := []cli.Flag{
-		cli.StringFlag{
-			Name:     "outputFile",
-			Usage:    "Path to the file that will be generated.",
-			Required: true,
-		},
-		cli.StringFlag{
-			Name:     "outputFormat",
-			Usage:    "Format of the output file. Value: go|typescript. Default: typescript.",
-			Required: false,
-			Value:    "typescript",
 		},
 	}
 
@@ -139,22 +120,6 @@ func main() {
 		},
 	}
 
-	getAggregateKeyFlags := []cli.Flag{
-		cli.StringFlag{
-			Name:  optionGroupFile + ", " + optionGroupFileShort,
-			Value: DefaultGroupFile,
-			Usage: "MedChain group definition file",
-		},
-		cli.StringFlag{
-			Name:  optionProvidedSecrets + ", " + optionProvidedSecretsShort,
-			Usage: "Provided secrets (optional). Repeat the option to put several.",
-		},
-		cli.IntFlag{
-			Name:  optionNodeIndex + ", " + optionNodeIndexShort,
-			Usage: "Node index of the server for which the secrets are generated",
-		},
-	}
-
 	cliApp.Commands = []cli.Command{
 		// BEGIN CLIENT: SUBMIT DEFERRED QUERY ----------
 		{
@@ -162,43 +127,56 @@ func main() {
 			Aliases: []string{"s"},
 			Usage:   "Submit a query for authorization",
 			Action:  submitQuery,
-			Flags:   submissionFlags,
+			Flags:   clientFlags,
 		},
 		// CLIENT END: SUBMIT DEFERRED QUERY ------------
 
-		// BEGIN CLIENT: DATA DECRYPTION ----------
+		// BEGIN CLIENT:  SIGN PROPOSED QUERY ----------
 		{
-			Name:    "decrypt",
+			Name:    "addsignature",
 			Aliases: []string{"d"},
-			Usage:   "Decrypt an integer with the provided private key",
-			Action:  decryptIntFromApp,
-			Flags:   decryptFlags,
+			Usage:   "Add signature to a proposed query",
+			Action:  addSignatureToDeferredQuery,
+			Flags:   clientFlags,
 		},
-		// CLIENT END: DATA DECRYPTION ------------
+		// CLIENT END: SIGN PROPOSED QUERY ------------
 
 		// BEGIN CLIENT: VERIFY QUERY STATUS ----------
 		{
 			Name:    "verify",
 			Aliases: []string{"v"},
-			Usage:   "Generate a pair of public/private keys.",
-			Action:  keyGenerationFromApp,
+			Usage:   "Verify the status of a query",
+			Action:  verifyStatus,
+			Flags:   clientFlags,
 		},
 		// CLIENT END: VERIFY QUERY STATUS ------------
 
-		// BEGIN CLIENT: MAPPING TABLE GENERATION ----------
+		// BEGIN CLIENT:  EXECUTE PROPOSED QUERY ----------
 		{
-			Name:    "mappingtablegen",
-			Aliases: []string{"m"},
-			Usage:   "Generate a point-integer mapping table.",
-			Action:  mappingTableGenFromApp,
-			Flags:   mappingTableGenFlags,
+			Name:    "exec",
+			Aliases: []string{"d"},
+			Usage:   "Execute a proposed query",
+			Action:  execDefferedQuery,
+			Flags:   clientFlags,
 		},
-		// CLIENT END: MAPPING TABLE GENERATION ------------
+
+		{
+			Name:    "check",
+			Aliases: []string{"c"},
+			Usage:   "Check if the servers in the group definition are up and running",
+			Action:  checkConfig,
+			Flags: append(clientFlags,
+				cli.BoolFlag{
+					Name:  "detail, l",
+					Usage: "Show details of all servers",
+				}),
+		},
+		// CLIENT END: SIGN PROPOSED QUERY ------------
 
 		// BEGIN SERVER --------
 		{
 			Name:  "server",
-			Usage: "Start UnLynx MedCo server",
+			Usage: "Start MedChain server",
 			Action: func(c *cli.Context) error {
 				if err := runServer(c); err != nil {
 					return err
@@ -218,7 +196,7 @@ func main() {
 						if c.GlobalIsSet("debug") {
 							return fmt.Errorf("[-] Debug option cannot be used for the 'setup' command")
 						}
-						app.InteractiveConfig(libunlynx.SuiTe, BinaryName)
+						app.InteractiveConfig(cothority.Suite, BinaryName)
 						return nil
 					},
 				},
@@ -234,14 +212,7 @@ func main() {
 					Aliases: []string{"gak"},
 					Usage:   "Get AggregateTarget Key from group.toml",
 					Action:  getAggregateKey,
-					Flags:   getAggregateKeyFlags,
-				},
-				{
-					Name:    "generateTaggingSecrets",
-					Aliases: []string{"gs"},
-					Usage:   "Generate DDT Secrets for the participating nodes",
-					Action:  generateTaggingSecrets,
-					Flags:   getAggregateKeyFlags,
+					Flags:   clientFlags,
 				},
 			},
 		},

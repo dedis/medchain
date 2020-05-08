@@ -376,6 +376,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
+	log.Lvl1("[INFO] Add signature to the query transaction")
 	err = cl.AddSignatureToDeferredQuery(id1, cl.Signers[0])
 	require.Nil(t, err)
 
