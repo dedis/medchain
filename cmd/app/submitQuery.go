@@ -73,7 +73,14 @@ func submitQuery(c *cli.Context) error {
 		return xerrors.Errorf("failed to spawn query instance: %v", err)
 	}
 	client.Bcl.WaitPropagation(1)
+	// ---
+	// 3.
+	// ---
 	//TODO: write instID to file
+
+	// ---
+	// 4.
+	// ---
 
 	return nil
 }
