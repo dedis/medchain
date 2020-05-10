@@ -1,12 +1,14 @@
 package medchain
 
 import (
+	"fmt"
 	"time"
 
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/protobuf"
+	"golang.org/x/xerrors"
 )
 
 // This service is only used because we need to register our contracts to
@@ -58,6 +60,7 @@ func NewService(c *onet.Context) (onet.Service, error) {
 
 	return s, nil
 }
+
 func getQueryByID(view byzcoin.ReadOnlyStateTrie, eid []byte) (*Query, error) {
 	v0, _, _, _, err := view.GetValues(eid)
 	if err != nil {
@@ -68,4 +71,36 @@ func getQueryByID(view byzcoin.ReadOnlyStateTrie, eid []byte) (*Query, error) {
 		return nil, err
 	}
 	return &q, nil
+}
+
+// HandleSpawnDeferredQuery handles requests to submit (= spawn or add) a query
+func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	// sanitize params
+	if err := emptyInstID(req.QueryInstID); err != nil {
+		return nil, xerrors.Errorf("%+v", err)
+	}
+	if err := checkStatus(req.QueryStatus); err != nil {
+		return nil, xerrors.Errorf("%+v", err)
+	}
+
+	// if this server is the one receiving the request from the client
+	log.Lvl2(s.ServerIdentity().String(), " received a n AddDeferredQueryRequest for query:", req.QueryID)
+
+}
+
+func emptyInstID(id byzcoin.InstanceID) error {
+	if id.String() == "" {
+		return fmt.Errorf("instance id is empty")
+	}
+	return nil
+}
+
+func checkStatus(status string) error {
+	if len(status) == 0 {
+		return fmt.Errorf("empty query status")
+	}
+	if status != "Submitted" {
+		return fmt.Errorf("wrong query status")
+	}
+	return nil
 }

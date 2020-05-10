@@ -12,13 +12,10 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
-	"go.dedis.ch/kyber/v3/suites"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/protobuf"
 )
-
-var tSuite = suites.MustFind("Ed25519")
 
 // Use this block interval for logic tests. Stress test often use a different
 // block interval.
@@ -353,10 +350,15 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	log.Lvl1("[INFO] Spawning the deferred query ")
-
+	req1 := &AddDeferredQueryRequest{}
 	query := NewQuery("wsdf65k80h:A:patient_list", "Submitted")
-	id1, err := cl.SpawnDeferredQuery(query)
-	require.Nil(t, err)
+	req1.QueryID = query.ID
+	req1.ClientID = "1"
+	resp, err := cl.SpawnDeferredQuery(req1)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.OK)
+
 	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
@@ -365,23 +367,23 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	}
 
 	//Fetch the index, and check it.
-	idx := checkProof(t, cl, leader.omni, id1.Slice(), cl.Bcl.ID)
+	idx := checkProof(t, cl, leader.omni, req1.QueryInstID.Slice(), cl.Bcl.ID)
 	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
 
-	_, err = cl.Bcl.GetDeferredData(id1)
+	_, err = cl.Bcl.GetDeferredData(req1.QueryInstID)
 	require.NoError(t, err)
 
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
 	log.Lvl1("[INFO] Add signature to the query transaction")
-	err = cl.AddSignatureToDeferredQuery(id1, cl.Signers[0])
+	err = cl.AddSignatureToDeferredQuery(req1.QueryInstID, cl.Signers[0])
 	require.Nil(t, err)
 
 	log.Lvl1("[INFO] Execute the query transaction")
-	err = cl.ExecDefferedQuery(id1)
+	err = cl.ExecDefferedQuery(req1.QueryInstID)
 	require.NoError(t, err)
 
 	// ------------------------------------------------------------------------
@@ -389,10 +391,10 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	log.Lvl1("[INFO] Deferred Query Authorization ")
-	id2, err := cl.AuthorizeQuery(query, id1)
+	id2, err := cl.AuthorizeQuery(query, req1.QueryInstID)
 	require.Nil(t, err)
 	require.Equal(t, 32, len(id2))
-	require.NotEqual(t, id1, id2)
+	require.NotEqual(t, req1.QueryInstID, id2)
 	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
@@ -777,11 +779,11 @@ func (s *ser) close() {
 
 func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	s := &ser{
-		local: onet.NewTCPTest(tSuite),
+		local: onet.NewTCPTest(TSuite),
 		owner: darc.NewSignerEd25519(nil, nil),
 	}
 	s.hosts, s.roster, _ = s.local.GenTree(3, true)
-
+	serverID := s.roster.RandomServerIdentity()
 	for _, sv := range s.local.GetServices(s.hosts, sid) {
 		service := sv.(*Service)
 		s.services = append(s.services, service)
@@ -807,8 +809,9 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 
 	bcl := byzcoin.NewClient(s.id, *s.roster)
 
-	cl, err := NewClient(bcl)
+	cl, err := NewClient(bcl, serverID, "1")
 	require.NoError(t, err)
+
 	cl.GMsg = s.req
 	cl.DarcID = s.genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{s.owner}

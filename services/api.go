@@ -15,6 +15,7 @@ import (
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/util/key"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
@@ -28,7 +29,13 @@ var QueryKey []byzcoin.InstanceID
 
 // Client is a structure to communicate with MedChain service
 type Client struct {
-	Bcl *byzcoin.Client
+	onetcl     *onet.Client
+	sccl       *skipchain.Client
+	Bcl        *byzcoin.Client
+	ClientID   string
+	entryPoint *network.ServerIdentity
+	public     kyber.Point
+	private    kyber.Scalar
 	// The DarcID with "invoke:medchain.update" & "invoke:medchain.verifystatus "permission on it.
 	DarcID darc.ID
 	// Signers are the Darc signers that will sign transactions sent with this client.
@@ -40,23 +47,25 @@ type Client struct {
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
 	GMsg       *byzcoin.CreateGenesisBlock
-	// Mapping of signer identities to projects and actions
-	rulesMap   map[string]map[string]string
-	onetcl     *onet.Client
-	sc         *skipchain.Client
 	signerCtrs []uint64
 }
 
 // NewClient creates a new client to talk to the medchain service.
 // Fields DarcID, Instance, and Signers must be filled in before use.
-func NewClient(bcl *byzcoin.Client) (*Client, error) {
+func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID string) (*Client, error) {
+	keys := key.NewKeyPair(TSuite)
+
 	if bcl == nil {
 		return nil, errors.New("Byzcoin client is required")
 	}
 	return &Client{
 		Bcl:        bcl,
 		onetcl:     onet.NewClient(cothority.Suite, ServiceName),
-		sc:         skipchain.NewClient(),
+		sccl:       skipchain.NewClient(),
+		ClientID:   clientID,
+		entryPoint: entryPoint,
+		public:     keys.Public,
+		private:    keys.Private,
 		signerCtrs: nil,
 	}, nil
 }
@@ -349,11 +358,11 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 		return *new(byzcoin.InstanceID), err
 	}
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not create transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %w", err)
 	}
 	err = c.spawnTx(tx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not add transaction to ledger: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %w", err)
 	}
 	instID := tx.Instructions[0].DeriveID("")
 
@@ -361,23 +370,35 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 	// make retrievals easier
 	err = c.nameInstance(instID, darcID, query.ID)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not name the instance: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not name the instance: %w", err)
 	}
 
 	return instID, nil
 }
 
 //SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
-func (c *Client) SpawnDeferredQuery(qu Query) (byzcoin.InstanceID, error) {
+func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	if len(req.QueryID) == 0 {
+		return nil, errors.New("query ID required")
+	}
+
+	if len(req.ClientID) == 0 {
+		return nil, errors.New("Client ID required")
+	}
+
+	req.QueryStatus = "Submitted"
 	log.Lvl1("[INFO] Spawning the deferred query ")
-	return c.createDeferredInstance(qu)
+	return c.createDeferredInstance(req)
 }
 
 //createDeferredInstance spawns a query that
-func (c *Client) createDeferredInstance(query Query) (byzcoin.InstanceID, error) {
+func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
 
 	// var proposedTransaction byzcoin.ClientTransaction
 	// Get the project darc
+	query := Query{}
+	query.ID = req.QueryID
+	query.Status = req.QueryStatus
 	project := c.getProjectFromOneQuery(query)
 	darcID := c.AllDarcIDs[project]
 
@@ -403,10 +424,20 @@ func (c *Client) createDeferredInstance(query Query) (byzcoin.InstanceID, error)
 	proposedTransaction, err := c.Bcl.CreateTransaction(proposedInstr)
 	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
 	if err != nil {
-		return *new(byzcoin.InstanceID), err
+		return nil, err
 	}
 
-	return c.spawnDeferredInstance(query, proposedTransactionBuf, darcID)
+	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, darcID)
+	if err != nil {
+		return nil, xerrors.Errorf("could not spawn instance: %w", err)
+	}
+
+	reply := &AddDeferredQueryReply{}
+	err = c.onetcl.SendProtobuf(c.entryPoint, &req, reply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get reply from service: %w", err)
+	}
+	return reply, nil
 }
 
 // SpawnDeferredInstance spwans a deferred instance
@@ -670,7 +701,7 @@ func (c *Client) GetQuery(key []byte) (*Query, error) {
 // Close closes all the websocket connections.
 func (c *Client) Close() error {
 	err := c.Bcl.Close()
-	if err2 := c.sc.Close(); err2 != nil {
+	if err2 := c.sccl.Close(); err2 != nil {
 		err = err2
 	}
 	if err2 := c.onetcl.Close(); err2 != nil {
@@ -712,7 +743,7 @@ func (c *Client) StreamQueriesFrom(handler StreamHandler, id []byte) error {
 	}()
 
 	// 2. use GetUpdateChain to find the missing events and call handler
-	blocks, err := c.sc.GetUpdateChainLevel(&c.Bcl.Roster, id, 0, -1)
+	blocks, err := c.sccl.GetUpdateChainLevel(&c.Bcl.Roster, id, 0, -1)
 	if err != nil {
 		return err
 	}
