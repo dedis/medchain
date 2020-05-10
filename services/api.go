@@ -401,7 +401,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	query.Status = req.QueryStatus
 	project := c.getProjectFromOneQuery(query)
 	darcID := c.AllDarcIDs[project]
-
+	req.DarcID = darcID
 	// If the query has just been submitted, spawn a query instance;
 	// otherwise, invoke an update to change its status
 	// TODO: check proof instead of status to make this more stable and
@@ -431,7 +431,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	if err != nil {
 		return nil, xerrors.Errorf("could not spawn instance: %w", err)
 	}
-
+	req.BlockID = c.Bcl.ID
 	reply := &AddDeferredQueryReply{}
 	err = c.onetcl.SendProtobuf(c.entryPoint, &req, reply)
 	if err != nil {

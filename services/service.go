@@ -86,6 +86,22 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	// if this server is the one receiving the request from the client
 	log.Lvl2(s.ServerIdentity().String(), " received a n AddDeferredQueryRequest for query:", req.QueryID)
 
+	stateTrie, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = stateTrie.GetProof([]byte(req.QueryID))
+	if err != nil {
+		return nil, err
+	}
+
+	//TODO: add more checks
+
+	reply := &AddDeferredQueryReply{}
+	reply.OK = true
+
+	return reply, nil
 }
 
 func emptyInstID(id byzcoin.InstanceID) error {

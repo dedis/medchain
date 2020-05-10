@@ -6,6 +6,7 @@ This holds the messages used to communicate with the service over the network.
 
 import (
 	"go.dedis.ch/cothority/v3/byzcoin"
+	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/network"
@@ -38,6 +39,7 @@ type AddQueryRequest struct {
 	QueryID     string
 	QueryStatus string
 	QueryInstID byzcoin.InstanceID
+	BlockID     skipchain.SkipBlockID
 }
 
 // AddQueryReply is the reply to CreateQueryRequest
@@ -52,6 +54,8 @@ type AddDeferredQueryRequest struct {
 	QueryID     string
 	QueryStatus string
 	QueryInstID byzcoin.InstanceID
+	BlockID     skipchain.SkipBlockID
+	DarcID      darc.ID
 }
 
 // AddDeferredQueryReply is the reply to CreateQueryRequest
