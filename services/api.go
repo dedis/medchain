@@ -104,7 +104,7 @@ func (c *Client) Create() error {
 
 // AuthorizeQuery asks the service to write queries to the ledger.
 func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
-	log.Lvl1("[INFO] Deferred Query Authorization ")
+	log.Lvl1("[INFO] Authorization of query ")
 	return c.createQueryAndWait(qu, instID)
 }
 
@@ -378,12 +378,14 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 
 //SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
 func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	log.Lvl1("[INFO] Spawning the deferred query ")
+
 	if len(req.QueryID) == 0 {
 		return nil, errors.New("query ID required")
 	}
 
 	if len(req.ClientID) == 0 {
-		return nil, errors.New("Client ID required")
+		return nil, errors.New("ClientID required")
 	}
 
 	req.QueryStatus = "Submitted"
@@ -433,7 +435,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	}
 	req.BlockID = c.Bcl.ID
 	reply := &AddDeferredQueryReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, &req, reply)
+	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get reply from service: %w", err)
 	}

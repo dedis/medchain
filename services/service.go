@@ -1,6 +1,7 @@
 package medchain
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -58,6 +59,10 @@ func NewService(c *onet.Context) (onet.Service, error) {
 		omni:             c.Service(byzcoin.ServiceName).(*byzcoin.Service),
 	}
 
+	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery); err != nil {
+		return nil, errors.New("Couldn't register messages")
+	}
+
 	return s, nil
 }
 
@@ -84,7 +89,7 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	}
 
 	// if this server is the one receiving the request from the client
-	log.Lvl2(s.ServerIdentity().String(), " received a n AddDeferredQueryRequest for query:", req.QueryID)
+	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), " received an AddDeferredQueryRequest for query:", req.QueryID)
 
 	stateTrie, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
 	if err != nil {

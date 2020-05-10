@@ -349,11 +349,10 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// 2. Spwan query instances of MedChain contract
 	// ------------------------------------------------------------------------
 
-	log.Lvl1("[INFO] Spawning the deferred query ")
 	req1 := &AddDeferredQueryRequest{}
-	query := NewQuery("wsdf65k80h:A:patient_list", "Submitted")
+	query := NewQuery("wsdf65k80h:A:patient_list", "")
 	req1.QueryID = query.ID
-	req1.ClientID = "1"
+	req1.ClientID = cl.ClientID
 	resp, err := cl.SpawnDeferredQuery(req1)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -378,11 +377,9 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
-	log.Lvl1("[INFO] Add signature to the query transaction")
 	err = cl.AddSignatureToDeferredQuery(req1.QueryInstID, cl.Signers[0])
 	require.Nil(t, err)
 
-	log.Lvl1("[INFO] Execute the query transaction")
 	err = cl.ExecDefferedQuery(req1.QueryInstID)
 	require.NoError(t, err)
 
@@ -390,7 +387,6 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// 4. Check Authorizations
 	// ------------------------------------------------------------------------
 
-	log.Lvl1("[INFO] Deferred Query Authorization ")
 	id2, err := cl.AuthorizeQuery(query, req1.QueryInstID)
 	require.Nil(t, err)
 	require.Equal(t, 32, len(id2))
