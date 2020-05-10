@@ -28,6 +28,9 @@ const (
 	optionGroupFile      = "file"
 	optionGroupFileShort = "f"
 
+	optionClientID      = "clientid"
+	optionClientIDShort = "cid"
+
 	// setup options
 	optionServerBinding      = "serverBinding"
 	optionServerBindingShort = "sb"
@@ -83,6 +86,10 @@ func main() {
 			Name:  optionGroupFile + ", " + optionGroupFileShort,
 			Value: DefaultGroupFile,
 			Usage: "MedChain group definition file",
+		},
+		cli.StringFlag{
+			Name:  optionClientID + ", " + optionClientIDShort,
+			Usage: "Client ID",
 		},
 	}
 
