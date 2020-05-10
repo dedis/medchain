@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 
 	"go.dedis.ch/cothority/v3/byzcoin"
@@ -18,6 +19,7 @@ type Client struct {
 	adminkeys     darc.Signer
 	genDarc       darc.Darc
 	signerCounter uint64
+	slc           []string
 }
 
 var adminActions = map[darc.Action]uint{
@@ -130,6 +132,7 @@ func (cl *Client) AddAdminToAdminDarc(adid darc.ID, newAdmin darc.Identity) (byz
 		slc[i] = strings.TrimSpace(slc[i])
 	}
 	slc = append(slc, newAdmin.String())
+	cl.slc = slc
 	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
@@ -153,6 +156,7 @@ func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, adminId darc.Identity) 
 		return *new(byzcoin.InstanceID), xerrors.Errorf("The adminID doesn't exist in the admin darc")
 	}
 	slc = append(slc[:idx], slc[idx+1:]...)
+	cl.slc = slc
 	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
@@ -267,7 +271,7 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 	return ctx.Instructions[0].DeriveID(""), err
 }
 
-func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID) error {
+func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx uint64) error {
 	result, err := cl.bcl.GetDeferredData(instID)
 	if err != nil {
 		return xerrors.Errorf("Getting the deffered instance from chain: %w", err)
@@ -283,7 +287,7 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID) error {
 		return xerrors.Errorf("Signing the deffered transaction: %w", err)
 	}
 	// TODO: Implement multi instructions transactions.
-	index := uint32(0) // The index of the instruction to sign in the transaction
+	index := uint32(instIdx) // The index of the instruction to sign in the transaction
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
@@ -330,32 +334,43 @@ func (cl *Client) ExecDefferedTx(instID byzcoin.InstanceID) error {
 	return cl.spawnTransaction(ctx)
 }
 
-func (cl *Client) CreateNewProject(adid darc.ID, pname string) (darc.ID, error) {
-	pdarcID, err := cl.createProjectDarc(pname, adid)
+func (cl *Client) CreateNewProject(adid darc.ID, pname string) (byzcoin.InstanceID, darc.ID, error) {
+	proposedTransaction, pdarcID, err := cl.createProjectDarc(pname, adid)
 	if err != nil {
-		return nil, xerrors.Errorf("Creating the project darc: %w", err)
+		return byzcoin.InstanceID{}, darc.ID{}, xerrors.Errorf("Crafting the project darc spawn transaction: %w", err)
 	}
-	err = cl.createAccessRight(adid, pdarcID)
+	id, err := cl.addDeferredTransaction(proposedTransaction, adid)
 	if err != nil {
-		return nil, xerrors.Errorf("Creating the access right: %w", err)
+		return byzcoin.InstanceID{}, darc.ID{}, xerrors.Errorf("Spawning the deffered transaction: %w", err)
 	}
-	return pdarcID, err
+	// err = cl.createAccessRight(adid, pdarcID)
+	// if err != nil {
+	// 	return nil, xerrors.Errorf("Creating the access right: %w", err)
+	// }
+	return id, pdarcID, err
 }
 
-func (cl *Client) createProjectDarc(pname string, adid darc.ID) (darc.ID, error) {
+func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientTransaction, darc.ID, error) {
 	pdarcDescription := pname
+	adminDarc, err := lib.GetDarcByID(cl.bcl, adid)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, darc.ID{}, xerrors.Errorf("Getting the admin darc from chain: %w", err)
+	}
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	pdarc := darc.NewDarc(rules, []byte(pdarcDescription))
 	pdarcActions := "_name:accessright,spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete" //TODO arg ?
-	pdarcExpr := createMultisigRuleExpression([]string{cl.adminkeys.Identity().String()})
-	err := AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
-
+	pdarcExpr := createMultisigRuleExpression([]string{adminDarc.GetIdentityString()})
+	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
+	pdarcActions = "spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx," //TODO arg ?
+	pdarcExpr = expression.InitOrExpr(cl.slc...)
+	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
+	fmt.Println("NEW PDARC : ======= ", pdarc)
 	if err != nil {
-		return darc.ID{}, xerrors.Errorf("Adding rules to darc: %w", err)
+		return byzcoin.ClientTransaction{}, darc.ID{}, xerrors.Errorf("Adding rules to darc: %w", err)
 	}
 	pdarcProto, err := pdarc.ToProto()
 	if err != nil {
-		return darc.ID{}, xerrors.Errorf("Marshalling: %w", err)
+		return byzcoin.ClientTransaction{}, darc.ID{}, xerrors.Errorf("Marshalling: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(adid),
@@ -368,24 +383,16 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (darc.ID, error)
 				},
 			},
 		},
-		// SignerIdentities: []darc.Identity{superAdmin.Identity()},
-		SignerCounter: []uint64{cl.signerCounter},
 	})
-	if err != nil {
-		return darc.ID{}, xerrors.Errorf("Creating the transaction: %w", err)
-	}
-	err = cl.spawnTransaction(ctx)
-	if err != nil {
-		return darc.ID{}, xerrors.Errorf("Adding transaction to the ledger: %w", err)
-	}
-	return pdarc.GetBaseID(), nil
+
+	return ctx, pdarc.GetID(), nil
 }
 
-func (cl *Client) createAccessRight(adid, pdarc darc.ID) error {
+func (cl *Client) CreateAccessRight(adid, pdarc darc.ID) (byzcoin.InstanceID, byzcoin.InstanceID, error) {
 	emptyAccess := AccessRight{[]string{}, []string{}}
 	buf, err := protobuf.Encode(&emptyAccess)
 	if err != nil {
-		return xerrors.Errorf("Encoding the access right struct: %w", err)
+		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Encoding the access right struct: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(pdarc),
@@ -398,16 +405,18 @@ func (cl *Client) createAccessRight(adid, pdarc darc.ID) error {
 		},
 		SignerCounter: []uint64{cl.signerCounter},
 	})
+	if err != nil {
+		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
+	}
+	id, err := cl.addDeferredTransaction(ctx, pdarc)
+	if err != nil {
+		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+	}
+	return id, ctx.Instructions[0].DeriveID(""), nil
+}
 
-	if err != nil {
-		return xerrors.Errorf("Creating the transaction: %w", err)
-	}
-	err = cl.spawnTransaction(ctx)
-	if err != nil {
-		return xerrors.Errorf("Adding transaction to the ledger: %w", err)
-	}
-	instID := ctx.Instructions[0].DeriveID("")
-	ctx, err = cl.bcl.CreateTransaction(byzcoin.Instruction{
+func (cl *Client) AttachAccessRightToProject(arID byzcoin.InstanceID) error {
+	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractNamingID,
@@ -415,7 +424,7 @@ func (cl *Client) createAccessRight(adid, pdarc darc.ID) error {
 			Args: byzcoin.Arguments{
 				{
 					Name:  "instanceID",
-					Value: instID.Slice(),
+					Value: arID.Slice(),
 				},
 				{
 					Name:  "name",
