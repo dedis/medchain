@@ -15,14 +15,14 @@ import (
 // We need to register all messages so the network knows how to handle them.
 func init() {
 	network.RegisterMessages(
-		Count{}, CountReply{},
-		Clock{}, ClockReply{},
+		&Count{}, &CountReply{},
+		&Clock{}, &ClockReply{},
 		&SearchRequest{}, &SearchReply{},
-		AddQueryRequest{}, AddQueryReply{},
-		AddDeferredQueryRequest{}, AddDeferredQueryReply{},
-		QueryRequest{}, QueryReply{},
-		VerifyStatusRequest{}, VerifyStatusReply{},
-		SignDeferredTxRequest{}, SignDeferredTxReply{},
+		&AddQueryRequest{}, &AddQueryReply{},
+		&AddDeferredQueryRequest{}, &AddDeferredQueryReply{},
+		&QueryRequest{}, &QueryReply{},
+		&VerifyStatusRequest{}, &VerifyStatusReply{},
+		&SignDeferredTxRequest{}, &SignDeferredTxReply{},
 		//ExecuteDeferredTxRequest{}, ExecuteDeferredTxReply{},
 	)
 

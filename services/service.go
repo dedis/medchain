@@ -80,12 +80,14 @@ func getQueryByID(view byzcoin.ReadOnlyStateTrie, eid []byte) (*Query, error) {
 
 // HandleSpawnDeferredQuery handles requests to submit (= spawn or add) a query
 func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	reply := &AddDeferredQueryReply{}
+	reply.OK = false
 	// sanitize params
 	if err := emptyInstID(req.QueryInstID); err != nil {
-		return nil, xerrors.Errorf("%+v", err)
+		return reply, xerrors.Errorf("%+v", err)
 	}
 	if err := checkStatus(req.QueryStatus); err != nil {
-		return nil, xerrors.Errorf("%+v", err)
+		return reply, xerrors.Errorf("%+v", err)
 	}
 
 	// if this server is the one receiving the request from the client
@@ -93,7 +95,7 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 
 	stateTrie, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
 	if err != nil {
-		return nil, err
+		return reply, err
 	}
 
 	_, err = stateTrie.GetProof([]byte(req.QueryID))
@@ -102,8 +104,6 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	}
 
 	//TODO: add more checks
-
-	reply := &AddDeferredQueryReply{}
 	reply.OK = true
 
 	return reply, nil
