@@ -3,7 +3,6 @@ package admin
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"strings"
 
 	"go.dedis.ch/cothority/v3/byzcoin"
@@ -56,6 +55,10 @@ func NewClientWithAuth(bcl *byzcoin.Client, keys *darc.Signer) (*Client, error) 
 	return cl, err
 }
 
+// TODO for now admin different ids are saved locally
+func (cl *Client) SyncDarc(slc []string) {
+	cl.slc = slc
+}
 func (cl *Client) AuthKey() darc.Signer {
 	return cl.adminkeys
 }
@@ -358,13 +361,12 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 	}
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	pdarc := darc.NewDarc(rules, []byte(pdarcDescription))
-	pdarcActions := "_name:accessright,spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete" //TODO arg ?
+	pdarcActions := "spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete" //TODO arg ?
 	pdarcExpr := createMultisigRuleExpression([]string{adminDarc.GetIdentityString()})
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
-	pdarcActions = "spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx," //TODO arg ?
+	pdarcActions = "_name:accessright" //TODO arg ?
 	pdarcExpr = expression.InitOrExpr(cl.slc...)
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
-	fmt.Println("NEW PDARC : ======= ", pdarc)
 	if err != nil {
 		return byzcoin.ClientTransaction{}, darc.ID{}, xerrors.Errorf("Adding rules to darc: %w", err)
 	}
@@ -388,11 +390,11 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 	return ctx, pdarc.GetID(), nil
 }
 
-func (cl *Client) CreateAccessRight(adid, pdarc darc.ID) (byzcoin.InstanceID, byzcoin.InstanceID, error) {
+func (cl *Client) CreateAccessRight(pdarc, adid darc.ID) (byzcoin.InstanceID, error) {
 	emptyAccess := AccessRight{[]string{}, []string{}}
 	buf, err := protobuf.Encode(&emptyAccess)
 	if err != nil {
-		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Encoding the access right struct: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Encoding the access right struct: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(pdarc),
@@ -403,18 +405,18 @@ func (cl *Client) CreateAccessRight(adid, pdarc darc.ID) (byzcoin.InstanceID, by
 				Value: buf,
 			}},
 		},
-		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
-		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
-	id, err := cl.addDeferredTransaction(ctx, pdarc)
+	id, err := cl.addDeferredTransaction(ctx, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
 	}
-	return id, ctx.Instructions[0].DeriveID(""), nil
+	return id, nil
 }
 
+//TODO the _name contract doesn't implement VerifyDeferredData -> PR ?
 func (cl *Client) AttachAccessRightToProject(arID byzcoin.InstanceID) error {
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
@@ -483,10 +485,10 @@ func (cl *Client) GetAccessRightFromProjectDarcID(pdid darc.ID) (*AccessRight, b
 	return &ar, arid, nil
 }
 
-func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
+func (cl *Client) AddQuerierToProject(pdid, adid darc.ID, qid, access string) (byzcoin.InstanceID, error) {
 	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
-		return xerrors.Errorf("Reolving access right instance: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Reolving access right instance: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: arid,
@@ -505,15 +507,19 @@ func (cl *Client) AddQuerierToProject(pdid darc.ID, qid, access string) error {
 		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
-		return xerrors.Errorf("Creating the transaction: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
-	return cl.spawnTransaction(ctx)
+	id, err := cl.addDeferredTransaction(ctx, adid)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+	}
+	return id, nil
 }
 
-func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
+func (cl *Client) RemoveQuerierFromProject(pdid, adid darc.ID, qid string) (byzcoin.InstanceID, error) {
 	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
-		return xerrors.Errorf("Reolving access right instance: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Reolving access right instance: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: arid,
@@ -529,15 +535,19 @@ func (cl *Client) RemoveQuerierFromProject(pdid darc.ID, qid string) error {
 		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
-		return xerrors.Errorf("Creating the transaction: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
-	return cl.spawnTransaction(ctx)
+	id, err := cl.addDeferredTransaction(ctx, adid)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+	}
+	return id, nil
 }
 
-func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access string) error {
+func (cl *Client) ModifyQuerierAccessRightsForProject(pdid, adid darc.ID, qid, access string) (byzcoin.InstanceID, error) {
 	arid, err := cl.bcl.ResolveInstanceID(pdid, "AR")
 	if err != nil {
-		return xerrors.Errorf("Reolving access right instance: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Reolving access right instance: %w", err)
 	}
 	ctx, err := cl.bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: arid,
@@ -556,9 +566,13 @@ func (cl *Client) ModifyQuerierAccessRightsForProject(pdid darc.ID, qid, access 
 		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
-		return xerrors.Errorf("Creating the transaction: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
-	return cl.spawnTransaction(ctx)
+	id, err := cl.addDeferredTransaction(ctx, adid)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+	}
+	return id, nil
 }
 
 func (cl *Client) VerifyAccessRights(qid, access string, pdid darc.ID) (bool, error) {
