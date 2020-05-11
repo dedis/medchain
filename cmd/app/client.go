@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,7 +28,7 @@ func submitQuery(c *cli.Context) error {
 	// 1. Parse the stdin in order to get the proposed query
 	// ---
 	log.Lvl1("[INFO] Starting query submission")
-	log.Lvl1("[INFO] Reading query from stdin") //TODO: Read the  query from other sources
+	log.Lvl1("[INFO] Reading query from stdin") //TODO: Read the  query from other sources?
 
 	proposedQueryBuf, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
@@ -54,7 +55,7 @@ func submitQuery(c *cli.Context) error {
 		return err
 	}
 
-	dstr := c.String("darc")
+	dstr := c.String("darc") //TODO: or read darc from file? admin?
 	if dstr == "" {
 		dstr = cfg.AdminDarc.GetIdentityString()
 	}
@@ -63,7 +64,7 @@ func submitQuery(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	clientID := c.String("clientid") //TODO: Read ClientID from other sources
+	clientID := c.String("clientid") //TODO: Read ClientID from other sources?
 	if clientID == "" {
 		err := fmt.Errorf("arguments not OK")
 		log.Error(err)
@@ -94,7 +95,7 @@ func submitQuery(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Lvl1("[INFO] Sending query to", roster.RandomServerIdentity())
+	log.Lvl1("[INFO] Sending request to", roster.RandomServerIdentity()) //TODO: exect server address
 	name := projectDarc.Description
 	client, err := s.NewClient(bcl, roster.RandomServerIdentity(), clientID)
 	if err != nil {
@@ -116,18 +117,25 @@ func submitQuery(c *cli.Context) error {
 	}
 
 	// ---
-	// 3. Gets the response back from MedChain service
+	// 3. Get the response back from MedChain service
 	// ---
 	if reply.OK != true {
-		return xerrors.Errorf("failed to spawn query instance from service: %v", err)
+		return xerrors.Errorf("service failed to spawn query instance: %v", err)
 	}
 	client.Bcl.WaitPropagation(1)
 
 	// ---
 	// 4.  Write query instance ID to file
 	// ---
-	dir, _ := path.Split(groupTomlPath)
-	pathToWrite := dir + "instanceIDs.txt"
+	instIDfilePath := c.String("idfile")
+	if instIDfilePath == "" {
+		err := fmt.Errorf("arguments not OK")
+		log.Error(err)
+		return cli.NewExitError(err, 3)
+	}
+	// TODO: write query ID and Instance ID  
+	dir, _ := path.Split(instIDfilePath)
+	pathToWrite := dir + instIDfilePath
 	fWrite, err := os.Create(pathToWrite)
 	if err != nil {
 		return err
@@ -138,6 +146,122 @@ func submitQuery(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func addSignatureToDeferredQuery(c *cli.Context) error {
+	// Here is what this function does:
+	//   1. Reads instanceID from file
+	//   2. Fires a spawn instruction for the deferred contract
+	//	 3. Gets the response back from MedChain service
+	//   4. Write query instanceID to file
+
+	// ---
+	// 1. Read instanceID of query to be signed from file
+	// ---
+	log.Lvl1("[INFO] Starting adding signature to deferred query")
+	log.Lvl1("[INFO] Reading query instance ID from file")
+
+	fileName := c.String("ïdfile")
+	b, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return errors.New("couldn't open file: " + err.Error())
+	}
+	// Read the JSON Instance ID file
+	log.Lvl1("[INFO] Reading instace ID")
+
+	if fileName == "" {
+		log.Info("[+] Reading instance ID from standard input ...")
+		b, err = ioutil.ReadAll(os.Stdin)
+	} else {
+		b, err = ioutil.ReadFile(fileName)
+	}
+	if err != nil {
+		return err
+	}
+
+	bcArg := c.String("bc")
+	if bcArg == "" {
+		err := fmt.Errorf("arguments not OK")
+		return cli.NewExitError(err, 3)
+	}
+
+	cfg, bcl, err := lib.LoadConfig(bcArg)
+	if err != nil {
+		return err
+	}
+
+	dstr := c.String("darc") //TODO: Read darc from file? admin?
+	if dstr == "" {
+		dstr = cfg.AdminDarc.GetIdentityString()
+	}
+
+	projectDarc, err := lib.GetDarcByString(bcl, dstr)
+	if err != nil {
+		return err
+	}
+	clientID := c.String("clientid") //TODO: Read ClientID from other sources?
+	if clientID == "" {
+		err := fmt.Errorf("arguments not OK")
+		log.Error(err)
+		return cli.NewExitError(err, 3)
+	}
+
+	log.Lvl1("[INFO] Reading medchain group definition")
+
+	groupTomlPath := c.String("file")
+	if groupTomlPath == "" {
+		err := fmt.Errorf("arguments not OK")
+		log.Error(err)
+		return cli.NewExitError(err, 3)
+	}
+
+	group := readGroup(groupTomlPath)
+	if err != nil {
+		return err
+	}
+	if group == nil {
+		return xerrors.Errorf("error while reading group definition file: %v", groupTomlPath)
+	}
+	roster := group.Roster
+	if len(roster.List) <= 0 {
+		return xerrors.Errorf("empty or invalid medchain group file: %v", groupTomlPath)
+	}
+	b, err = group.Roster.Aggregate.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	log.Lvl1("[INFO] Sending request to", roster.RandomServerIdentity()) //TODO: exect server address
+	name := projectDarc.Description
+	client, err := s.NewClient(bcl, roster.RandomServerIdentity(), clientID)
+	if err != nil {
+		return xerrors.Errorf("failed to init client: %v", err)
+	}
+
+	err = client.Create()
+	if err != nil {
+		return xerrors.Errorf("failed to create client: %v", err)
+	}
+
+	client.AllDarcIDs[string(name)] = projectDarc.GetBaseID()
+	client.DarcID = projectDarc.GetBaseID()
+	
+	req := &s.SignDeferredTxRequest{}
+	req.ClientID = clientID
+	req.QueryID = 
+	reply, err := client.AddSignatureToDeferredQuery(req)
+	if err != nil {
+		return xerrors.Errorf("failed to spawn query instance: %v", err)
+	}
+
+	// ---
+	// 3. Get the response back from MedChain service
+	// ---
+	if reply.OK != true {
+		return xerrors.Errorf("failed to spawn query instance from service: %v", err)
+	}
+	client.Bcl.WaitPropagation(1)
 
 	return nil
 }

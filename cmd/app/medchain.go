@@ -28,6 +28,11 @@ const (
 	optionGroupFile      = "file"
 	optionGroupFileShort = "f"
 
+	// DefaultGroupInstanceIDFile is the name of the default file to lookup for submitted query instances
+	DefaultGroupInstanceIDFile     = "instanceIDs.txt"
+	optionGroupInstanceIDFile      = "idfile"
+	optionGroupInstanceIDFileShort = "idf"
+
 	optionClientID      = "clientid"
 	optionClientIDShort = "cid"
 
