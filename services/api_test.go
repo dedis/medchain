@@ -22,10 +22,6 @@ import (
 var testBlockInterval = 500 * time.Millisecond
 var actionsList = "patient_list,count_per_site,count_per_site_obfuscated,count_per_site_shuffled,count_per_site_shuffled_obfuscated,count_global,count_global_obfuscated"
 
-func TestMain(m *testing.M) {
-	log.MainTest(m)
-}
-
 func TestClient_MedchainAuthorize(t *testing.T) {
 
 	// ------------------------------------------------------------------------
@@ -350,13 +346,15 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	req1 := &AddDeferredQueryRequest{}
-	query := NewQuery("wsdf65k80h:A:patient_list", "")
+	query := NewQuery("wsdf65k80h:A:patient_list", "l")
 	req1.QueryID = query.ID
 	req1.ClientID = cl.ClientID
-	resp, err := cl.SpawnDeferredQuery(req1)
+	resp1, err := cl.SpawnDeferredQuery(req1)
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.True(t, resp.OK)
+	require.NotNil(t, resp1)
+	require.NotNil(t, req1.QueryInstID)
+	require.True(t, resp1.OK)
+	require.Equal(t, "Submitted", req1.QueryStatus)
 
 	cl.Bcl.WaitPropagation(1)
 
@@ -367,18 +365,25 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 
 	//Fetch the index, and check it.
 	idx := checkProof(t, cl, leader.omni, req1.QueryInstID.Slice(), cl.Bcl.ID)
-	qdata := QueryData{}
-	err = protobuf.Decode(idx, &qdata)
-	require.Nil(t, err)
-
-	_, err = cl.Bcl.GetDeferredData(req1.QueryInstID)
+	qu := QueryData{}
+	err = protobuf.Decode(idx, &qu)
 	require.NoError(t, err)
+
+	dd, err := cl.Bcl.GetDeferredData(req1.QueryInstID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), dd.MaxNumExecution)
 
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
-	err = cl.AddSignatureToDeferredQuery(req1.QueryInstID, cl.Signers[0])
-	require.Nil(t, err)
+	req2 := &SignDeferredTxRequest{}
+	req2.ClientID = cl.ClientID
+	req2.QueryID = query.ID
+	req2.QueryInstID = req1.QueryInstID
+	resp2, err := cl.AddSignatureToDeferredQuery(req2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2)
+	require.True(t, resp2.OK)
 
 	err = cl.ExecDefferedQuery(req1.QueryInstID)
 	require.NoError(t, err)
@@ -400,7 +405,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 
 	//Fetch the index, and check it.
 	idx = checkProof(t, cl, leader.omni, id2.Slice(), cl.Bcl.ID)
-	qdata = QueryData{}
+	qdata := QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
 	for _, s := range qdata.Storage {

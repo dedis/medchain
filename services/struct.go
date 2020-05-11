@@ -45,7 +45,8 @@ type AddQueryRequest struct {
 // AddQueryReply is the reply to CreateQueryRequest
 // The reply is true if the query is authorized and false otherwise
 type AddQueryReply struct {
-	OK bool
+	QueryInstID byzcoin.InstanceID
+	OK          bool
 }
 
 // AddDeferredQueryRequest includes the query data that is to be authorized
@@ -61,7 +62,8 @@ type AddDeferredQueryRequest struct {
 // AddDeferredQueryReply is the reply to CreateQueryRequest
 // The reply is true if the query is authorized and false otherwise
 type AddDeferredQueryReply struct {
-	OK bool
+	QueryInstID byzcoin.InstanceID
+	OK          bool
 }
 
 // QueryRequest includes the ID and the status of the query on the skipchain
@@ -76,12 +78,14 @@ type QueryReply struct {
 
 // VerifyStatusRequest includes the status of the query on the skipchain
 type VerifyStatusRequest struct {
+	ClientID    string
 	QueryID     string
-	QueryInstID string
+	QueryInstID byzcoin.InstanceID
 }
 
 // VerifyStatusReply is the reply to VerifyStatusRequest
 type VerifyStatusReply struct {
+	ClientID    string
 	QueryStatus string
 	OK          bool
 }
@@ -89,12 +93,17 @@ type VerifyStatusReply struct {
 // SignDeferredTxRequest message includes the data of the query the client wants to sign
 type SignDeferredTxRequest struct {
 	// TODO: is the id of the user also needed?
-	QueryID string
+	ClientID    string
+	QueryID     string
+	QueryStatus string
+	QueryInstID byzcoin.InstanceID
 }
 
 // SignDeferredTxReply is the reply to SignDeferredTxRequest
 type SignDeferredTxReply struct {
-	OK bool
+	QueryStatus string
+	QueryInstID byzcoin.InstanceID
+	OK          bool
 }
 
 // SearchRequest includes all the search parameters (AND of all provided search

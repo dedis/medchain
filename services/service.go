@@ -59,7 +59,7 @@ func NewService(c *onet.Context) (onet.Service, error) {
 		omni:             c.Service(byzcoin.ServiceName).(*byzcoin.Service),
 	}
 
-	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery); err != nil {
+	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery, s.HandleSignDeferredTx); err != nil {
 		return nil, errors.New("Couldn't register messages")
 	}
 
@@ -105,6 +105,28 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 
 	//TODO: add more checks
 	reply.OK = true
+	reply.QueryInstID = req.QueryInstID
+
+	return reply, nil
+}
+
+// HandleSignDeferredTx handles requests to add signature to a deferred query
+func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
+	reply := &SignDeferredTxReply{}
+	reply.OK = false
+	// sanitize params
+	if err := emptyInstID(req.QueryInstID); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+
+	// if this server is the one receiving the request from the client
+	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query:", req.QueryID)
+
+	//TODO: 1. add more checks to see if enough number of signatures are received. If that is the case, exec the query here
+	// 2. retrieve status here from skipchain to get more reliable results
+	reply.OK = true
+	reply.QueryInstID = req.QueryInstID
+	reply.QueryStatus = req.QueryStatus
 
 	return reply, nil
 }

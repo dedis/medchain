@@ -414,8 +414,8 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 			ContractID: ContractName,
 			Args: byzcoin.Arguments{
 				{
-					Name:  query.ID,
-					Value: []byte(query.Status),
+					Name:  req.QueryID,
+					Value: []byte(req.QueryStatus),
 				},
 			},
 		},
@@ -450,6 +450,10 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 	expireBlockIndexBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
 
+	numExecutionInt := uint64(3)
+	numExecutionBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(numExecutionBuf, numExecutionInt)
+
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(darcID),
 		Spawn: &byzcoin.Spawn{
@@ -462,6 +466,10 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 				{
 					Name:  "expireBlockIndex",
 					Value: expireBlockIndexBuf,
+				},
+				{
+					Name:  "numExecution",
+					Value: numExecutionBuf,
 				},
 			},
 		},
@@ -491,21 +499,34 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // AddSignatureToDeferredQuery allows MedChain user to sign a deferred query
 // by invoking an addProof action from the deferred contract on the deferred
 // query instance
-func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer darc.Signer) error {
+func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
 	log.Lvl1("[INFO] Add signature to the query transaction")
-	result, err := c.Bcl.GetDeferredData(instID)
+	if len(req.QueryID) == 0 {
+		return nil, errors.New("query ID required")
+	}
+
+	if len(req.ClientID) == 0 {
+		return nil, errors.New("ClientID required")
+	}
+
+	if len(req.QueryInstID) == 0 {
+		return nil, errors.New("query instance ID required")
+	}
+
+	result, err := c.Bcl.GetDeferredData(req.QueryInstID)
 	if err != nil {
-		return xerrors.Errorf("Getting the deffered instance from chain: %w", err)
+		return nil, xerrors.Errorf("failed to get deffered instance from skipchain: %w", err)
 	}
 	rootHash := result.InstructionHashes
-	identity := signer.Identity()
+	signer := c.Signers[0]
+	identity := signer.Identity() // TODO: Sign with private key of client
 	identityBuf, err := protobuf.Encode(&identity)
 	if err != nil {
-		return xerrors.Errorf("could not get the user identity: %w", err)
+		return nil, xerrors.Errorf("could not get the user identity: %w", err)
 	}
 	signature, err := signer.Sign(rootHash[0]) // == index
 	if err != nil {
-		return xerrors.Errorf("could not sign the deffered query: %w", err)
+		return nil, xerrors.Errorf("could not sign the deffered query: %w", err)
 	}
 
 	index := uint32(0) // The index of the instruction to sign in the transaction
@@ -513,7 +534,7 @@ func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer d
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: instID,
+		InstanceID: req.QueryInstID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractDeferredID,
 			Command:    "addProof",
@@ -535,9 +556,20 @@ func (c *Client) AddSignatureToDeferredQuery(instID byzcoin.InstanceID, signer d
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return xerrors.Errorf("Creating the transaction: %w", err)
+		return nil, xerrors.Errorf("failed to create the transaction: %w", err)
 	}
-	return c.spawnTx(ctx)
+
+	err = c.spawnTx(ctx)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to sign the deferred transaction: %w", err)
+	}
+
+	reply := &SignDeferredTxReply{}
+	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get reply from service: %w", err)
+	}
+	return reply, nil
 }
 
 // ExecDefferedQuery executes the query that has received enough signatures
@@ -555,6 +587,15 @@ func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
 		return xerrors.Errorf("transaction execution failed: %w", err)
 	}
 	return c.spawnTx(ctx)
+}
+
+// VerifStatus retrieves the status of the query from skipchain
+func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, error) {
+	reply := &VerifyStatusReply{}
+	if err := c.onetcl.SendProtobuf(c.entryPoint, req, reply); err != nil {
+		return nil, err
+	}
+	return reply, nil
 }
 
 // CreateNewSigner creates private and public key pairs
