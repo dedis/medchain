@@ -7,13 +7,16 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// The ID of the accessright contract
 var ContractAccessRightID = "accessright"
 
+// ContractAccessRight holds the data stored by the sccessright contract
 type ContractAccessRight struct {
 	byzcoin.BasicContract
 	AccessRight
 }
 
+// contractAccessRightFromBytes unmarshall the contract data
 func contractAccessRightFromBytes(in []byte) (byzcoin.Contract, error) {
 	cv := &ContractAccessRight{}
 	err := protobuf.Decode(in, &cv.AccessRight)
@@ -23,7 +26,7 @@ func contractAccessRightFromBytes(in []byte) (byzcoin.Contract, error) {
 	return cv, nil
 }
 
-// Spawn implements the byzcoin.Contract interface
+// Spawn implements the byzcoin.Contract interface. Store the AccessRight included in the ar argument
 func (c *ContractAccessRight) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction, coins []byzcoin.Coin) (sc []byzcoin.StateChange, cout []byzcoin.Coin, err error) {
 	cout = coins
 	// Find the darcID for this instance.
@@ -54,8 +57,10 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 
 	switch inst.Invoke.Command {
 	case "add":
+		// Get the arguments of the invoke:accessright.add transaction
 		nid := string(inst.Invoke.Args.Search("id"))
 		nar := string(inst.Invoke.Args.Search("ar"))
+		// Get the current on chain value of the AccessRight
 		ar := AccessRight{}
 		err = protobuf.Decode(v, &ar)
 		if err != nil {
@@ -65,12 +70,14 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 		if idx != -1 {
 			return nil, nil, xerrors.New("The id is already registered")
 		}
+		// Add the new querier ID and access rights
 		ar.Access = append(ar.Access, nar)
 		ar.Ids = append(ar.Ids, nid)
 		buf, err2 := protobuf.Encode(&ar)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("Encoding the access right struct: %w", err2)
 		}
+		// The statechange propose the new value to be stored for this instance
 		sc = []byzcoin.StateChange{
 			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
 				ContractAccessRightID, buf, darcID),
@@ -78,8 +85,10 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 		return
 
 	case "update":
+		// Get the arguments of the invoke:accessright.update transaction
 		nid := string(inst.Invoke.Args.Search("id"))
 		nar := string(inst.Invoke.Args.Search("ar"))
+		// Get the current on chain value of the AccessRight
 		ar := AccessRight{}
 		err = protobuf.Decode(v, &ar)
 		if err != nil {
@@ -94,6 +103,7 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 		if err != nil {
 			return nil, nil, xerrors.Errorf("Encoding the access right struct: %w", err2)
 		}
+		// The statechange propose the new value to be stored for this instance
 		sc = []byzcoin.StateChange{
 			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
 				ContractAccessRightID, buf, darcID),
@@ -101,7 +111,9 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 		return
 
 	case "delete":
+		// Get the arguments of the invoke:accessright.delete transaction
 		nid := string(inst.Invoke.Args.Search("id"))
+		// Get the current on chain value of the AccessRight
 		ar := AccessRight{}
 		err = protobuf.Decode(v, &ar)
 		if err != nil {
@@ -117,6 +129,7 @@ func (c *ContractAccessRight) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 		if err != nil {
 			return nil, nil, xerrors.Errorf("Encoding the access right struct: %w", err2)
 		}
+		// The statechange propose the new value to be stored for this instance
 		sc = []byzcoin.StateChange{
 			byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
 				ContractAccessRightID, buf, darcID),
@@ -138,7 +151,7 @@ func (c *ContractAccessRight) Delete(rst byzcoin.ReadOnlyStateTrie, inst byzcoin
 	if err != nil {
 		return
 	}
-
+	// The statechange propose the new value to be stored for this instance
 	sc = byzcoin.StateChanges{
 		byzcoin.NewStateChange(byzcoin.Remove, inst.InstanceID, ContractAccessRightID, nil, darcID),
 	}

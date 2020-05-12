@@ -58,6 +58,7 @@ func TestAccessRight_Spawn(t *testing.T) {
 	require.Nil(t, ctx.FillSignersAndSignWith(signer))
 	_, err = cl.AddTransaction(ctx)
 	require.Nil(t, err)
+	// Check that the contract is in the global state
 	pr, err := cl.WaitProof(byzcoin.NewInstanceID(ctx.Instructions[0].DeriveID("").Slice()), 2*genesisMsg.BlockInterval, myvalue)
 	require.Nil(t, err)
 	require.True(t, pr.InclusionProof.Match(ctx.Instructions[0].DeriveID("").Slice()))
@@ -66,7 +67,7 @@ func TestAccessRight_Spawn(t *testing.T) {
 	received := AccessRight{}
 	err = protobuf.Decode(v0, &received)
 	require.NoError(t, err)
-	require.Equal(t, val, received)
+	require.Equal(t, val, received) // Check that the AccessRight value is the same in the global state as the spawned one
 }
 
 func TestAccessRight_Invoke(t *testing.T) {
@@ -167,9 +168,9 @@ func TestAccessRight_Set(t *testing.T) {
 	cl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.Nil(t, err)
 	// instantiate a test context to verify the global state after several interactions with the contract
-	arctx := AccessRightTestContext{AccessRight{[]string{"1:1"}, []string{"count_per_site_shuffled:count_global"}}, signer, 2, cl}
+	arctx := AccessRightTestContext{AccessRight{[]string{"1:1"}, []string{"count_per_site_shuffled,count_global"}}, signer, 2, cl}
 	log.Lvl1("[INFO] Spawn access right contract")
-	val := AccessRight{[]string{"1:1"}, []string{"count_per_site_shuffled:count_global"}}
+	val := AccessRight{[]string{"1:1"}, []string{"count_per_site_shuffled,count_global"}}
 	myvalue, err := protobuf.Encode(&val)
 	require.NoError(t, err)
 	ctx, err := cl.CreateTransaction(byzcoin.Instruction{
@@ -224,6 +225,12 @@ func TestAccessRight_Set(t *testing.T) {
 
 }
 
+// ------------------------------------------------------------------------
+// Helper testing methods
+// ------------------------------------------------------------------------
+
+// This is a helper method that execute transactions and modify the local expected version of the AccessRight struct. This method locally act as the invoke:accessright.add method of the
+// access right contract.
 func (arctx *AccessRightTestContext) addAccess(id, access string, myID byzcoin.InstanceID) error {
 	ctx2, err := arctx.cl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: myID,
@@ -260,6 +267,9 @@ func (arctx *AccessRightTestContext) addAccess(id, access string, myID byzcoin.I
 	arctx.counter++
 	return nil
 }
+
+// This is a helper method that execute transactions and modify the local expected version of the AccessRight struct. This method locally act as the invoke:accessright.update method of the
+// access right contract.
 func (arctx *AccessRightTestContext) modifyAccess(id, access string, myID byzcoin.InstanceID) error {
 	ctx2, err := arctx.cl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: myID,
@@ -292,6 +302,9 @@ func (arctx *AccessRightTestContext) modifyAccess(id, access string, myID byzcoi
 	arctx.counter++
 	return nil
 }
+
+// This is a helper method that execute transactions and modify the local expected version of the AccessRight struct. This method locally act as the invoke:accessright.delete method of the
+// access right contract.
 func (arctx *AccessRightTestContext) deleteAccess(id string, myID byzcoin.InstanceID) error {
 	ctx2, err := arctx.cl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: myID,
