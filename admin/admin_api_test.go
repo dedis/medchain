@@ -60,16 +60,14 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	admcl.AddSignatureToDefferedTx(id, 0)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
-	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID()) // Verify that the darc is really in the global state
-	require.NoError(t, err)
+	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
@@ -82,7 +80,7 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
@@ -95,8 +93,6 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
-	require.NoError(t, err)
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID())
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 
@@ -111,7 +107,7 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl4.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
@@ -126,11 +122,9 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	err = admcl3.ExecDefferedTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 4 has been added to the admin darc")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID())
-	require.NoError(t, err)
 }
 
-func TestAdminClient_RemovingAdminsToDarc(t *testing.T) {
+func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up
 	// ------------------------------------------------------------------------
@@ -177,16 +171,14 @@ func TestAdminClient_RemovingAdminsToDarc(t *testing.T) {
 	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	admcl.AddSignatureToDefferedTx(id, 0)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
-	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID()) // Verify that the darc is really in the global state
-	require.NoError(t, err)
+	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
@@ -199,7 +191,7 @@ func TestAdminClient_RemovingAdminsToDarc(t *testing.T) {
 	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
@@ -209,9 +201,6 @@ func TestAdminClient_RemovingAdminsToDarc(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
-	require.NoError(t, err)
-	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID())
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 
@@ -232,14 +221,12 @@ func TestAdminClient_RemovingAdminsToDarc(t *testing.T) {
 	err = admcl3.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // For now the multisignature rule state that every admin sign for sensitive operations (in other rules admin shouldn't sign to be removed)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
 	err = admcl3.ExecDefferedTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been removed from the admin darc")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID())
-	require.NoError(t, err)
 }
 
 func TestAdminClient_UpdateAdminKeys(t *testing.T) {
@@ -289,16 +276,14 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	admcl.AddSignatureToDefferedTx(id, 0)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
-	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID()) // Verify that the darc is really in the global state
-	require.NoError(t, err)
+	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
@@ -311,7 +296,7 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	id, err = admcl.ModifyAdminKeysFromAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity(), newAdmcl2.AuthKey().Identity())
 	require.NoError(t, err)
 	admcl.bcl.WaitPropagation(1)
-	_, err = admcl2.bcl.GetDeferredData(id)
+	_, err = admcl2.bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
@@ -322,13 +307,10 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
-	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	_, err = lib.GetDarcByID(admcl.bcl, adminDarc.GetID())
-	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 }
 
-func TestAdminClient_AdminClient_SpawnProject(t *testing.T) {
+func TestAdminClient_SpawnProject(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up
 	// ------------------------------------------------------------------------
@@ -446,7 +428,7 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
-	admcl.incrementSignerCounter() // We increment the counter as the superadmin performed a transaction
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
 	slc := []string{admcl.AuthKey().Identity().String()}
 	admcl.SyncDarc(slc)
@@ -480,7 +462,7 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.Nil(t, err)
 	slc = append(slc, admcl2.AuthKey().Identity().String())
 
-	// update the list of known admin into clients
+	// TODO Change that to value of slc in adminDarc update the list of known admin into clients
 	admcl.SyncDarc(slc)
 	admcl2.SyncDarc(slc)
 
@@ -521,6 +503,10 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	id, err = admcl.bcl.ResolveInstanceID(pdarcID, "AR") // check that the access right value contract is correctly named
 	require.Equal(t, id, arID)
 	log.Lvl1("[INFO] The access right value contract is set")
+
+	// ------------------------------------------------------------------------
+	// 3. Interact with access rights for project A
+	// ------------------------------------------------------------------------
 
 	log.Lvl1("[INFO] Add the querier 1:1 to the project")
 	id, err = admcl.AddQuerierToProject(pdarcID, adid, "1:1", "count_per_site_shuffled,count_global")
@@ -583,7 +569,7 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.NoError(t, err)
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDefferedTx(id) // This transaction is expected to fail as admin 3 is required to sign (for now multisignature rule is such that every admin sign)
 	require.Error(t, err)
 	err = admcl3.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
