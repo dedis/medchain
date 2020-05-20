@@ -5,16 +5,19 @@ import (
 	"errors"
 	"strings"
 
+	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
+	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
 
 type Client struct {
 	bcl           *byzcoin.Client
+	scl           *onet.Client
 	adminkeys     darc.Signer
 	genDarc       darc.Darc
 	signerCounter uint64
@@ -29,6 +32,12 @@ var adminActions = map[darc.Action]uint{
 	"spawn:darc":                     0,
 }
 
+// func (cl *Client) DummyTest() error {
+// 	// sh := ShareID{"id12134655"}
+// 	err := cl.bcl.SendProtobuf(cl.bcl.Roster.RandomServerIdentity(), &sh, nil)
+// 	return err
+// }
+
 func NewClient(bcl *byzcoin.Client) (*Client, error) {
 	if bcl == nil {
 		return nil, errors.New("A Byzcoin Client is required")
@@ -37,6 +46,7 @@ func NewClient(bcl *byzcoin.Client) (*Client, error) {
 		bcl:           bcl,
 		adminkeys:     darc.NewSignerEd25519(nil, nil), // TODO add as optional arguments
 		signerCounter: 1,
+		scl:           onet.NewClient(cothority.Suite, "ShareID"),
 	}
 	if genDarc, err := bcl.GetGenDarc(); err == nil {
 		cl.genDarc = *genDarc
@@ -120,6 +130,11 @@ func (cl *Client) addDeferredTransaction(tx byzcoin.ClientTransaction, adid darc
 	ctxID, err := cl.spawnDeferredInstance(txBuf, adid)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
+	}
+	res := DefferedIDReply{}
+	err = cl.scl.SendProtobuf(cl.bcl.Roster.RandomServerIdentity(), &DefferedID{ctxID, &cl.bcl.Roster}, &res)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Sharing the id of the deferred transaction instance: %w", err)
 	}
 	return ctxID, nil
 }
@@ -272,6 +287,15 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Adding transaction to the ledger: %w", err)
 	}
 	return ctx.Instructions[0].DeriveID(""), err
+}
+
+func (cl *Client) FetchNewDefferedInstanceIDs() (GetDeferredIDsReply, error) {
+	res := GetDeferredIDsReply{}
+	err := cl.scl.SendProtobuf(cl.bcl.Roster.RandomServerIdentity(), &GetDeferredIDs{}, &res)
+	if err != nil {
+		return GetDeferredIDsReply{}, xerrors.Errorf("Sending the GetDeferredIDs request to the service : %w", err)
+	}
+	return res, nil
 }
 
 func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx uint64) error {
