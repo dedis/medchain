@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	s "github.com/medchain/services"
 	"github.com/urfave/cli"
 	"go.dedis.ch/kyber/v3/util/encoding"
 	"go.dedis.ch/kyber/v3/util/key"
@@ -36,21 +37,21 @@ func NonInteractiveSetup(c *cli.Context) error {
 		privStr = providedPrivKey
 		pubStr = providedPubKey
 	} else {
-		kp := key.NewKeyPair(libunlynx.SuiTe)
+		kp := key.NewKeyPair(s.TSuite)
 
-		privStr, err = encoding.ScalarToStringHex(libunlynx.SuiTe, kp.Private)
+		privStr, err = encoding.ScalarToStringHex(s.TSuite, kp.Private)
 		if err != nil {
 			log.Error("failed to convert scalar to hexadecimal")
 			return cli.NewExitError(err, 3)
 		}
-		pubStr, err = encoding.PointToStringHex(libunlynx.SuiTe, kp.Public)
+		pubStr, err = encoding.PointToStringHex(s.TSuite, kp.Public)
 		if err != nil {
 			log.Error("failed to convert point to hexadecimal")
 			return cli.NewExitError(err, 3)
 		}
 	}
 
-	public, err := encoding.StringHexToPoint(libunlynx.SuiTe, pubStr)
+	public, err := encoding.StringHexToPoint(s.TSuite, pubStr)
 	if err != nil {
 		log.Error("failed to convert hexadecimal to point")
 		return cli.NewExitError(err, 3)
@@ -60,7 +61,7 @@ func NonInteractiveSetup(c *cli.Context) error {
 	services := app.GenerateServiceKeyPairs()
 
 	conf := &app.CothorityConfig{
-		Suite:       libunlynx.SuiTe.String(),
+		Suite:       s.TSuite.String(),
 		Public:      pubStr,
 		Private:     privStr,
 		Address:     serverBinding,
@@ -68,7 +69,7 @@ func NonInteractiveSetup(c *cli.Context) error {
 		Description: description,
 	}
 
-	server := app.NewServerToml(libunlynx.SuiTe, public, serverBinding, conf.Description, services)
+	server := app.NewServerToml(s.TSuite, public, serverBinding, conf.Description, services)
 	group := app.NewGroupToml(server)
 
 	if err := conf.Save(privateTomlPath); err != nil {
