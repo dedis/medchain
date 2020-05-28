@@ -40,7 +40,7 @@ The defferred command manages the deffered transaction registered in the global 
 
 ### project
 
-     $ medadmin deffered subcommand [options] arguments
+     $ medadmin project subcommand [options] arguments
 
 The project command manages the project access rights.  
 
