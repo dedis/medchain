@@ -24,7 +24,6 @@ import (
 	"strconv"
 
 	"github.com/BurntSushi/toml"
-	"github.com/medchain/protocol"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/simul/monitor"
@@ -88,7 +87,7 @@ func (s *SimulationProtocol) Run(config *onet.SimulationConfig) error {
 			return err
 		}
 		go p.Start()
-		children := <-p.(*protocol.MedChainProtocol).ChildCount
+		children := <-p.(*protocols.MedChainProtocol).ChildCount
 		round.Record()
 		if children != size {
 			return errors.New("Didn't get " + strconv.Itoa(size) +

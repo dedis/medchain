@@ -43,7 +43,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
 	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
-		"invoke:v.count_global_obfuscated"
+		"invoke:medchain.count_global_obfuscated"
 	// The test will fail if InitAndExpr is used here since deferred transactions are not used in this test
 	exprA := expression.InitOrExpr(cl.Signers[0].Identity().String())
 	cl.AllDarcs["A"], _ = cl.CreateDarc("Project A darc", rulesA, actionsA, exprA)
@@ -299,7 +299,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
 	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
-		"invoke:v.count_global_obfuscated,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,_name:deferred"
+		"invoke:medchain.count_global_obfuscated,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,_name:deferred"
 
 	// all signers need to sing
 	exprA := expression.InitAndExpr(cl.Signers[0].Identity().String())
@@ -356,6 +356,12 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.True(t, resp1.OK)
 	require.Equal(t, "Submitted", req1.QueryStatus)
 
+	result, err := cl.Bcl.GetDeferredDataAfter(resp1.QueryInstID, cl.Bcl.Latest)
+	require.Nil(t, err)
+	// Default MaxNumExecution should be 1
+	require.Equal(t, result.MaxNumExecution, uint64(1))
+	require.NotEmpty(t, result.InstructionHashes)
+
 	cl.Bcl.WaitPropagation(1)
 
 	// Check consistency and # of queries.
@@ -378,19 +384,27 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req2 := &SignDeferredTxRequest{}
 	req2.ClientID = cl.ClientID
-	req2.QueryID = query.ID
 	req2.QueryInstID = req1.QueryInstID
 	resp2, err := cl.AddSignatureToDeferredQuery(req2)
 	require.NoError(t, err)
 	require.NotNil(t, resp2)
 	require.True(t, resp2.OK)
 
+	// ------------------------------------------------------------------------
+	// 4. Execute the query transaction
+	// ------------------------------------------------------------------------
 	err = cl.ExecDefferedQuery(req1.QueryInstID)
 	require.NoError(t, err)
+	require.Equal(t, resp2.QueryInstID, req2.QueryInstID)
+	require.Equal(t, resp2.QueryInstID, req1.QueryInstID)
+
+	require.NotEqual(t, resp2.QueryInstID, byzcoin.NewInstanceID(cl.AllDarcIDs["A"]))
 
 	// ------------------------------------------------------------------------
-	// 4. Check Authorizations
+	// 5. Check Authorizations
 	// ------------------------------------------------------------------------
+	err = cl.GetDarcRules(req1.QueryInstID)
+	require.NoError(t, err)
 
 	id2, err := cl.AuthorizeQuery(query, req1.QueryInstID)
 	require.Nil(t, err)
@@ -814,7 +828,7 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	require.NoError(t, err)
 
 	cl.GMsg = s.req
-	cl.DarcID = s.genDarc.GetBaseID()
+	// cl.DarcID = s.genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{s.owner}
 	cl.GenDarc = s.genDarc
 	log.Lvl1("[INFO] Created the services")

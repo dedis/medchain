@@ -100,11 +100,11 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 
 	// Initialize MedChain client
 	genDarc := req.GenesisDarc
-	cl, err := medchain.NewClient(bcl)
+	cl, err := medchain.NewClient(bcl, config.Server.ServerIdentity, "1") //TODO: or maybe use randomServerIdentity
 	if err != nil {
 		return xerrors.Errorf("couldn't start the client: %v", err)
 	}
-	cl.DarcID = genDarc.GetBaseID()
+	// cl.DarcID = genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{signer}
 	cl.GenDarc = &genDarc
 	log.Lvl1("Starting simulation tests")

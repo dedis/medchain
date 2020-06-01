@@ -5,12 +5,14 @@ package medchain
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
+	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
@@ -36,8 +38,6 @@ type Client struct {
 	entryPoint *network.ServerIdentity
 	public     kyber.Point
 	private    kyber.Scalar
-	// The DarcID with "invoke:medchain.update" & "invoke:medchain.verifystatus "permission on it.
-	DarcID darc.ID
 	// Signers are the Darc signers that will sign transactions sent with this client.
 	Signers []darc.Signer
 	// Instance ID of naming contract
@@ -102,7 +102,7 @@ func (c *Client) Create() error {
 	return nil
 }
 
-// AuthorizeQuery asks the service to write queries to the ledger.
+// AuthorizeQuery checks authorizations of the query
 func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
 	log.Lvl1("[INFO] Authorization of query ")
 	return c.createQueryAndWait(qu, instID)
@@ -110,28 +110,36 @@ func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.In
 
 // createQueryAndWait sends a request to create a query and waits for N block intervals
 // that the queries are added to the ledger
-func (c *Client) createQueryAndWait(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
+func (c *Client) createQueryAndWait(query Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
 
-	ctx, err := c.prepareTx(qu, instID)
+	ctx, _, err := c.prepareTx(query, instID)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not create transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %w", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not add transaction to ledger: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %w", err)
 	}
 
-	// newInstID := ctx.Instructions[0].DeriveID("")
+	newInstID := ctx.Instructions[0].DeriveID("")
 	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
 
-	return instID, nil
+	// // Name the instance of the query with as its key using contract_name to
+	// // make retrievals easier
+	// err = c.nameInstance(instID, darcID, query.ID)
+	// if err != nil {
+	// 	return *new(byzcoin.InstanceID), err
+	// }
+	// log.Lvl1("[INFO] Query instance was named after authorizations were checked")
+
+	return newInstID, nil
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.ClientTransaction, error) {
+func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.ClientTransaction, darc.ID, error) {
 
 	ok := true
 	//var action string
@@ -145,7 +153,7 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 	// Check if the query is authorized/rejected
 	authorizations, err := c.checkAuth(query, darcID, action)
 	if err != nil {
-		return *new(byzcoin.ClientTransaction), err
+		return *new(byzcoin.ClientTransaction), nil, err
 	}
 	for _, res := range authorizations {
 		if res == false {
@@ -179,11 +187,12 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 	// 	return nil, nil, err
 	// }
 
+	// We spawn a new conract instance with the SAME instance ID after the authorization since it is not possible to update
+	// the status of a query spawned as a deferred contract (deferred contract only supports addproof and exec)
 	instr := byzcoin.Instruction{
 		InstanceID: instID,
-		Invoke: &byzcoin.Invoke{
+		Spawn: &byzcoin.Spawn{
 			ContractID: ContractName,
-			Command:    action,
 			Args:       []byzcoin.Argument{args},
 		},
 		SignerCounter: c.IncrementCtrs(),
@@ -191,10 +200,10 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 
 	ctx, err := c.Bcl.CreateTransaction(instr)
 	if err != nil {
-		return *new(byzcoin.ClientTransaction), err
+		return *new(byzcoin.ClientTransaction), nil, err
 	}
 
-	return ctx, nil
+	return ctx, darcID, nil
 }
 
 // AuthorizeDeferredQuery asks the service to write queries using deferred transactions to the ledger.
@@ -308,11 +317,11 @@ func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.Instan
 	}
 	ctx, err := c.Bcl.CreateTransaction(instrs...)
 	if err != nil {
-		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("Could not create transaction: %w", err)
+		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("could not create transaction: %w", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("Could not add transaction to ledger: %w", err)
+		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("could not add transaction to ledger: %w", err)
 	}
 	for i := range ctx.Instructions {
 		keys[i] = ctx.Instructions[i].DeriveID("")
@@ -353,18 +362,18 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 		},
 		SignerCounter: c.IncrementCtrs(),
 	}
-	tx, err := c.Bcl.CreateTransaction(instr)
+	ctx, err := c.Bcl.CreateTransaction(instr)
 	if err != nil {
 		return *new(byzcoin.InstanceID), err
 	}
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %w", err)
 	}
-	err = c.spawnTx(tx)
+	err = c.spawnTx(ctx)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %w", err)
 	}
-	instID := tx.Instructions[0].DeriveID("")
+	instID := ctx.Instructions[0].DeriveID("")
 
 	// Name the instance of the query with as its key using contract_name to
 	// make retrievals easier
@@ -437,8 +446,16 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	reply := &AddDeferredQueryReply{}
 	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get reply from service: %w", err)
+		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %w", err)
 	}
+	// Broadcast the instance ID to all nodes and save it
+	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
+	sharingReply := &PropagateIDReply{}
+	err = c.onetcl.SendProtobuf(c.entryPoint, sharingReq, sharingReply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %w", err)
+	}
+
 	return reply, nil
 }
 
@@ -476,11 +493,11 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 		SignerCounter: c.signerCtrs,
 	})
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not create deferred transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create deferred transaction: %w", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Could not add deferred transaction to ledger: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %w", err)
 	}
 	instID := ctx.Instructions[0].DeriveID("")
 
@@ -488,7 +505,6 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 	// make retrievals easier
 	err = c.nameInstance(instID, darcID, query.ID)
 	if err != nil {
-		fmt.Println("debug4")
 		return *new(byzcoin.InstanceID), err
 	}
 	log.Lvl1("[INFO] Deferred Query instance was named ")
@@ -501,9 +517,6 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
 	log.Lvl1("[INFO] Add signature to the query transaction")
-	if len(req.QueryID) == 0 {
-		return nil, errors.New("query ID required")
-	}
 
 	if len(req.ClientID) == 0 {
 		return nil, errors.New("ClientID required")
@@ -584,8 +597,48 @@ func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return xerrors.Errorf("transaction execution failed: %w", err)
+		return xerrors.Errorf("failed to execute transaction: %w", err)
 	}
+	return c.spawnTx(ctx)
+}
+
+// GetDarcRules returns the rules for signers of a query transaction in the project darc
+func (c *Client) GetDarcRules(instID byzcoin.InstanceID) error {
+	log.Lvl1("[INFO] Checking the signer rules for instance ID", instID)
+	instIDBuf, err := hex.DecodeString(instID.String())
+	if err != nil {
+		return xerrors.Errorf("failed to decode the instid string: %v", err)
+	}
+	pr, err := c.Bcl.GetProofFromLatest(instIDBuf)
+	proof := pr.Proof
+	_, _, _, darcID, err := proof.KeyValue()
+	darc, err := lib.GetDarcByID(c.Bcl, darcID)
+	rules := darc.Rules.List
+	for i := range rules {
+		fmt.Println(rules[i].String())
+	}
+
+	return nil
+}
+
+// AddSignerToDarc adds new signer to project darc
+func (c *Client) AddSignerToDarc(darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer) error {
+	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
+	if err != nil {
+		return xerrors.Errorf("retrieving darc : %w", err)
+	}
+	exp := projectDarc.Rules.GetEvolutionExpr()
+	rulestring := strings.Split(string(exp), "&")
+	for i := range rulestring {
+		rulestring[i] = strings.TrimSpace(rulestring[i])
+	}
+	// c.Signers = append(c.Signers, newSigner)
+
+	ctx, err := c.EvolveProjectDarc(rulestring, projectDarc, darcActions)
+	if err != nil {
+		return xerrors.Errorf("Evolving the admin darc: %w", err)
+	}
+
 	return c.spawnTx(ctx)
 }
 
@@ -615,8 +668,8 @@ func (c *Client) AddRuleToDarc(userDarc *darc.Darc, action string, expr expressi
 	return userDarc
 }
 
-// UpdateDarcRule update action rules of the given darc
-func (c *Client) UpdateDarcRule(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
+// UpdateDarcActionRule update action rules of the given darc
+func (c *Client) UpdateDarcActionRule(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
 	actions := strings.Split(action, ",")
 
 	for i := 0; i < len(actions); i++ {
@@ -825,53 +878,83 @@ func (c *Client) StreamQueriesFrom(handler StreamHandler, id []byte) error {
 	}
 }
 
-// EvolveDarc is used to evolve a darc
-func (c *Client) EvolveDarc(d1 *darc.Darc, rules darc.Rules, name string, prevSigners ...darc.Signer) (*darc.Darc, error) {
-	// Now the client wants to evolve the darc (change the owner), so it
-	// creates a request and then sends it to the server.
-	darcEvol := darc.NewDarc(rules, []byte(name))
-	darcEvol.EvolveFrom(d1)
-	r, d2Buf, _ := darcEvol.MakeEvolveRequest(prevSigners...)
+// EvolveProjectDarc is used to evolve a darc
+func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActions []darc.Action) (byzcoin.ClientTransaction, error) {
 
-	// Client sends request r and serialised darc d2Buf to the server, and
-	// the server must verify it. Usually the server will look in its
-	// database for the base ID of the darc in the request and find the
-	// latest one. But in this case we assume it already knows. If the
-	// verification is successful, then the server should add the darc in
-	// the request to its database.
-	d2Server, err := r.MsgToDarc(d2Buf)
+	newdarc := olddarc.Copy()
+	newExpr := []expression.Expr{expression.InitAndExpr(rules...), expression.InitOrExpr(rules...)}
+	err := c.UpdateDarcSignerRule(newdarc, darcActions, newExpr)
 	if err != nil {
-		return nil, err
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("updating darc signer rules: %w", err)
 	}
-	if !bytes.Equal(d2Server.GetID(), darcEvol.GetID()) {
-		return nil, fmt.Errorf("Darc Evolution failed")
+	err = newdarc.EvolveFrom(olddarc)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %w", err)
+	}
+	_, darc2Buf, err := newdarc.MakeEvolveRequest(c.Signers...)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %w", err)
 	}
 
-	// If the darcs stored on the server are trustworthy, then using
-	// `Request.Verify` is enough. To do a complete verification,
-	// Darc.Verify should be used.
-	fmt.Println(d2Server.VerifyWithCB(func(s string, latest bool) *darc.Darc {
-		if s == darc.NewIdentityDarc(d1.GetID()).String() {
-			return d1
-		}
-		return nil
-	}, true))
-	return darcEvol, nil
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(olddarc.GetBaseID()),
+		Invoke: &byzcoin.Invoke{
+			ContractID: byzcoin.ContractDarcID,
+			Command:    "evolve",
+			Args: []byzcoin.Argument{{
+				Name:  "darc",
+				Value: darc2Buf,
+			}},
+		},
+	})
+	if err != nil {
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("creating the transaction: %w", err)
+	}
+	return ctx, nil
 }
 
-// // Search executes a search on the filter in req. See the definition of type
-// // SearchRequest for additional details about how the filter is interpreted.
-// // The ID and Instance fields of the SearchRequest will be filled in from c.
-// func (c *Client) Search(req *SearchRequest) (*SearchResponse, error) {
-// 	req.ID = c.ByzCoin.ID
-// 	req.Instance = c.Instance
+// UpdateDarcSignerRule updates the rules in project darc
+func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr) error {
+	err := evolvedDarc.Rules.UpdateEvolution(newSignerExpr[0])
+	if err != nil {
+		return xerrors.Errorf("updating _evolve rule in darc: %w", err)
+	}
+	err = evolvedDarc.Rules.UpdateSign(newSignerExpr[0])
+	if err != nil {
+		return xerrors.Errorf("updating the _sign rule in darc: %w", err)
+	}
 
-// 	reply := &SearchResponse{}
-// 	if err := c.c.SendProtobuf(c.ByzCoin.Roster.List[0], req, reply); err != nil {
-// 		return nil, err
-// 	}
-// 	return reply, nil
-// }
+	for k, v := range darcActions {
+		err = evolvedDarc.Rules.UpdateRule(v, newSignerExpr[k])
+		if err != nil {
+			return xerrors.Errorf("updating the %s expression in darc: %w", v, err)
+		}
+	}
+	return nil
+}
+
+// Search executes a search on the filter in req. See the definition of type
+// SearchRequest for additional details about how the filter is interpreted.
+// The ID and Instance fields of the SearchRequest will be filled in from c.
+func (c *Client) Search(req *SearchRequest) (*SearchReply, error) {
+	req.ID = c.Bcl.ID
+
+	reply := &SearchReply{}
+	if err := c.onetcl.SendProtobuf(c.Bcl.Roster.List[0], req, reply); err != nil {
+		return nil, err
+	}
+	return reply, nil
+}
+
+// GetSharedData retreives the new Instance ID saved at nodes
+func (c *Client) GetSharedData() (*GetSharedDataReply, error) {
+	rep := &GetSharedDataReply{}
+	err := c.onetcl.SendProtobuf(c.entryPoint, &GetSharedDataRequest{}, &rep)
+	if err != nil {
+		return &GetSharedDataReply{}, xerrors.Errorf("could not send the GetSharedDataRequest request to the service : %v", err)
+	}
+	return rep, nil
+}
 
 // GetProjectFromQuery exports the projects to which queries are directed
 func (c *Client) getProjectFromQuery(qu []Query) []string {

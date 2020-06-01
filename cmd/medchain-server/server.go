@@ -3,7 +3,7 @@ package main
 import (
 	// Empty imports to have the init-functions called which should
 	// register the protocol
-	_ "github.com/medchain/protocol"
+	_ "github.com/medchain/protocols"
 	_ "github.com/medchain/services"
 	"github.com/urfave/cli"
 	"go.dedis.ch/onet/v3/app"

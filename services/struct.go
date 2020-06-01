@@ -15,14 +15,14 @@ import (
 // We need to register all messages so the network knows how to handle them.
 func init() {
 	network.RegisterMessages(
-		&Count{}, &CountReply{},
-		&Clock{}, &ClockReply{},
 		&SearchRequest{}, &SearchReply{},
 		&AddQueryRequest{}, &AddQueryReply{},
 		&AddDeferredQueryRequest{}, &AddDeferredQueryReply{},
 		&QueryRequest{}, &QueryReply{},
 		&VerifyStatusRequest{}, &VerifyStatusReply{},
 		&SignDeferredTxRequest{}, &SignDeferredTxReply{},
+		&PropagateIDRequest{}, &PropagateIDReply{},
+		&GetSharedDataRequest{}, &GetSharedDataReply{},
 		//ExecuteDeferredTxRequest{}, ExecuteDeferredTxReply{},
 	)
 
@@ -94,7 +94,6 @@ type VerifyStatusReply struct {
 type SignDeferredTxRequest struct {
 	// TODO: is the id of the user also needed?
 	ClientID    string
-	QueryID     string
 	QueryStatus string
 	QueryInstID byzcoin.InstanceID
 }
@@ -130,23 +129,23 @@ type SearchReply struct {
 	Truncated bool
 }
 
-// Clock will run the tepmlate-protocol on the roster and return
-// the time spent doing so.
-type Clock struct {
-	Roster *onet.Roster
+// PropagateIDRequest includes the data that is shared among all nodes
+type PropagateIDRequest struct {
+	QueryInstID byzcoin.InstanceID
+	Status      []byte
+	Roster      *onet.Roster
 }
 
-// ClockReply returns the time spent for the protocol-run.
-type ClockReply struct {
-	Time     float64
-	Children int
+// PropagateIDReply is the reply to PropagateIDRequest
+type PropagateIDReply struct {
+	OK bool
 }
 
-// Count will return how many times the protocol has been run.
-type Count struct {
+// GetSharedDataRequest implments the request to get data that is shared among nodes
+type GetSharedDataRequest struct {
 }
 
-// CountReply returns the number of protocol-runs
-type CountReply struct {
-	Count int
+// GetSharedDataReply is the reply to GetSharedDataRequest
+type GetSharedDataReply struct {
+	QueryInstIDs []byzcoin.InstanceID
 }

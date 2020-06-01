@@ -10,16 +10,16 @@ export  GO111MODULE=on
 NBR=3
 NBR_SERVERS_GROUP=$NBR
 
-. ../../../go.dedis.ch/cothority/libtest.sh
+./libtest.sh
 
 # Use a local config dir.
-mc="./mcadmin -c ."
+mccl="./mcadmin -c ."
 
 main(){
 	build $APPDIR/../../../go.dedis.ch/cothority/byzcoin/bcadmin
 	startTest
 	export  GO111MODULE=auto
-	buildConode github.com/medchain/services
+	buildConode github.com/medchain/services/medchain-cli-client
 
 	# This must succeed before any others will work.
 	run testMedChain
@@ -32,7 +32,7 @@ testMedChain(){
 	rm -f *.cfg
 
 	echo $PWD
-	# run conodes in background (a subshell)
+	# run medchain nodes in background (a subshell)
 	runCoBG 1 2 3
 	runGrepSed "export BC=" "" ./bcadmin -c . create --roster public.toml --interval .5s
 	eval "$SED"

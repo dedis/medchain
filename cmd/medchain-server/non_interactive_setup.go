@@ -12,7 +12,7 @@ import (
 	"go.dedis.ch/onet/v3/network"
 )
 
-// NonInteractiveSetup is used to setup the cothority node for unlynx in a non-interactive way (and without error checks)
+// NonInteractiveSetup is used to setup the cothority node for medchain in a non-interactive way (and without error checks)
 func NonInteractiveSetup(c *cli.Context) error {
 
 	// cli arguments
