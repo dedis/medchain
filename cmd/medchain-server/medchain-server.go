@@ -2,17 +2,21 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	s "github.com/medchain/services"
 	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
+	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/app"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/onet/v3/network"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
@@ -81,24 +85,37 @@ func submitQuery(c *cli.Context) error {
 		return cli.NewExitError(err, 3)
 	}
 
-	group := readGroup(groupTomlPath)
-	if err != nil {
-		return err
+	var list []*network.ServerIdentity
+	var si *network.ServerIdentity
+
+	address := c.String("address")
+	if address != "" {
+		// Contact desired server
+		log.Info("[INFO] contacting server at", address)
+		addr := network.Address(address)
+		if !strings.HasPrefix(address, "tls://") {
+			addr = network.NewAddress(network.TLS, address)
+		}
+		si := network.NewServerIdentity(nil, addr)
+		if si.Address.Port() == "" {
+			return errors.New("port not found, must provide addr:port")
+		}
+		list = append(list, si)
+	} else {
+
+		roster, err := readGroup(groupTomlPath)
+		if err != nil {
+			return errors.New("couldn't read file: " + err.Error())
+		}
+		list = roster.List
+		log.Info("[INFO] Roster list is", list)
 	}
-	if group == nil {
-		return xerrors.Errorf("error while reading group definition file: %v", groupTomlPath)
-	}
-	roster := group.Roster
-	if len(roster.List) <= 0 {
-		return xerrors.Errorf("empty or invalid medchain group file: %v", groupTomlPath)
-	}
-	_, err = group.Roster.Aggregate.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	log.Lvl1("[INFO] Sending request to") //TODO: exect server address
+
+	log.Info("[INFO] Sending request to", si)
+
 	name := projectDarc.Description
-	client, err := s.NewClient(bcl, roster.RandomServerIdentity(), clientID)
+
+	client, err := s.NewClient(bcl, si, clientID)
 	if err != nil {
 		return xerrors.Errorf("failed to init client: %v", err)
 	}
@@ -145,7 +162,7 @@ func submitQuery(c *cli.Context) error {
 	}
 	defer fWrite.Close()
 
-	_, err = fWrite.WriteString(base64.URLEncoding.EncodeToString())
+	_, err = fWrite.WriteString(base64.URLEncoding.EncodeToString([]byte(req.QueryInstID.String())))
 	if err != nil {
 		return err
 	}
@@ -200,7 +217,7 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 		return cli.NewExitError(err, 3)
 	}
 
-	log.Lvl1("[INFO] Reading medchain group definition")
+	log.Info("[INFO] Reading medchain group definition")
 
 	groupTomlPath := c.String("file")
 	if groupTomlPath == "" {
@@ -209,35 +226,37 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 		return cli.NewExitError(err, 3)
 	}
 
-	group := readGroup(groupTomlPath)
-	if err != nil {
-		return err
-	}
-	if group == nil {
-		return xerrors.Errorf("error while reading group definition file: %v", groupTomlPath)
-	}
-	roster := group.Roster
-	if len(roster.List) <= 0 {
-		return xerrors.Errorf("empty or invalid medchain group file: %v", groupTomlPath)
-	}
-	b, err := group.Roster.Aggregate.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	log.Lvl1("[INFO] Sending request to", roster.RandomServerIdentity()) //TODO: exact server address
-	name := projectDarc.Description
-	client, err := s.NewClient(bcl, roster.RandomServerIdentity(), clientID)
-	if err != nil {
-		return xerrors.Errorf("failed to init client: %v", err)
+	var list []*network.ServerIdentity
+	var si *network.ServerIdentity
+
+	address := c.String("address")
+	if address != "" {
+		// Contact desired server
+		log.Info("[INFO] contacting server at", address)
+		addr := network.Address(address)
+		if !strings.HasPrefix(address, "tls://") {
+			addr = network.NewAddress(network.TLS, address)
+		}
+		si := network.NewServerIdentity(nil, addr)
+		if si.Address.Port() == "" {
+			return errors.New("port not found, must provide addr:port")
+		}
+		list = append(list, si)
+	} else {
+
+		roster, err := readGroup(groupTomlPath)
+		if err != nil {
+			return errors.New("couldn't read file: " + err.Error())
+		}
+		list = roster.List
+		log.Info("[INFO] Roster list is", list)
 	}
 
-	ccfg, err := app.LoadCothority(c.Args().First())
+	log.Info("[INFO] Sending request to", si.String()) //TODO: exact server address
+	name := projectDarc.Description
+	client, err := s.NewClient(bcl, si, clientID)
 	if err != nil {
-		return err
-	}
-	si, err := ccfg.GetServerIdentity()
-	if err != nil {
-		return err
+		return xerrors.Errorf("failed to init client: %v", err)
 	}
 
 	err = client.Create()
@@ -246,7 +265,7 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 	}
 
 	client.AllDarcIDs[string(name)] = projectDarc.GetBaseID()
-	client.DarcID = projectDarc.GetBaseID()
+	// client.DarcID = projectDarc.GetBaseID()
 
 	req := &s.SignDeferredTxRequest{}
 	req.ClientID = clientID
@@ -272,9 +291,10 @@ func readGroupArgs(c *cli.Context, pos int) *app.Group {
 		log.Fatal("Please give the group-file as argument")
 	}
 	name := c.Args().Get(pos)
-	return readGroup(name)
+	return readAppGroup(name)
 }
-func readGroup(name string) *app.Group {
+
+func readAppGroup(name string) *app.Group {
 	f, err := os.Open(name)
 	log.ErrFatal(err, "Couldn't open group definition file")
 	group, err := app.ReadGroupDescToml(f)
@@ -284,4 +304,23 @@ func readGroup(name string) *app.Group {
 			name)
 	}
 	return group
+}
+
+// readGroup takes a toml file name and reads the file, returning the entities
+// within.
+func readGroup(tomlFileName string) (*onet.Roster, error) {
+	f, err := os.Open(tomlFileName)
+	if err != nil {
+		return nil, err
+	}
+	g, err := app.ReadGroupDescToml(f)
+	if err != nil {
+		return nil, err
+	}
+	if len(g.Roster.List) <= 0 {
+		return nil, errors.New("Empty or invalid group file:" +
+			tomlFileName)
+	}
+	log.Lvl3(g.Roster)
+	return g.Roster, err
 }
