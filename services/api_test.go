@@ -1,6 +1,7 @@
 package medchain
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"strings"
 	"testing"
@@ -282,13 +283,13 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
 
-	log.Lvl1("[INFO] Starting the service")
+	log.Info("[INFO] Starting the service")
 	s, _, cl := newSer(t)
 	require.Equal(t, s.owner, cl.Signers[0])
 	leader := s.services[0]
 	defer s.close()
 
-	log.Lvl1("[INFO] Starting ByzCoin Client")
+	log.Info("[INFO] Starting ByzCoin Client")
 	err := cl.Create()
 	require.Nil(t, err)
 
@@ -397,8 +398,12 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, resp2.QueryInstID, req2.QueryInstID)
 	require.Equal(t, resp2.QueryInstID, req1.QueryInstID)
+	require.Equal(t, resp1.QueryInstID, resp2.QueryInstID)
 
-	require.NotEqual(t, resp2.QueryInstID, byzcoin.NewInstanceID(cl.AllDarcIDs["A"]))
+	iIDStr := resp2.QueryInstID.String()
+	iIDBuf, err := hex.DecodeString(iIDStr)
+	require.NoError(t, err)
+	require.Equal(t, resp2.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
 
 	// ------------------------------------------------------------------------
 	// 5. Check Authorizations

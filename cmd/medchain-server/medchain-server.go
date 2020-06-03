@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	s "github.com/medchain/services"
-	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/onet/v3"
@@ -19,6 +19,7 @@ import (
 	"go.dedis.ch/onet/v3/network"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 func submitQuery(c *cli.Context) error {
@@ -182,18 +183,20 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 	// ---
 	log.Lvl1("[INFO] Starting adding signature to deferred query")
 
-	// var iid byzcoin.InstanceID
-	iidStr := c.String("iid")
-	if iidStr == "" {
-		err := fmt.Errorf("arguments not OK")
-		return cli.NewExitError(err, 3)
+	iIDStr := c.String("iid")
+	if iIDStr == "" {
+
+		return xerrors.New("--iid flag is required")
 	}
-	iid := byzcoin.NewInstanceID([]byte(iidStr)) //TODO: double-check this is the same instanceID
+	iIDBuf, err := hex.DecodeString(iIDStr)
+	if err != nil {
+		return err
+	}
+	iid := byzcoin.NewInstanceID(iIDBuf)
 
 	bcArg := c.String("bc")
 	if bcArg == "" {
-		err := fmt.Errorf("arguments not OK")
-		return cli.NewExitError(err, 3)
+		return xerrors.New("--bc flag is required")
 	}
 
 	cfg, bcl, err := lib.LoadConfig(bcArg)
@@ -252,7 +255,7 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 		log.Info("[INFO] Roster list is", list)
 	}
 
-	log.Info("[INFO] Sending request to", si.String()) //TODO: exact server address
+	log.Info("[INFO] Sending request to", si.String()) //TODO: exact server address -> done
 	name := projectDarc.Description
 	client, err := s.NewClient(bcl, si, clientID)
 	if err != nil {
@@ -286,6 +289,122 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 	return nil
 }
 
+func verifyStatus(c *cli.Context) error {
+	// Here is what this function does:
+	//   1. Reads instanceID of query to check its status on the chain
+	//   2. Retrieves the query from chain
+	//	 3. Returns the status of query
+	//   4. Writes query instanceID to file
+
+	// ---
+	// 1. 1. Reads instanceID of query to check its status on the chain
+	// ---
+	log.Lvl1("[INFO] Starting to retrieve query status")
+
+	iIDStr := c.String("iid")
+	if iIDStr == "" {
+
+		return xerrors.New("--iid flag is required")
+	}
+	iIDBuf, err := hex.DecodeString(iIDStr)
+	if err != nil {
+		return err
+	}
+	iid := byzcoin.NewInstanceID(iIDBuf)
+
+	bcArg := c.String("bc")
+	if bcArg == "" {
+		xerrors.New("--bc flag is required")
+	}
+
+	cfg, bcl, err := lib.LoadConfig(bcArg)
+	if err != nil {
+		return err
+	}
+
+	dstr := c.String("darc") //TODO: Read darc from file? admin?
+	if dstr == "" {
+		dstr = cfg.AdminDarc.GetIdentityString()
+	}
+
+	projectDarc, err := lib.GetDarcByString(bcl, dstr)
+	if err != nil {
+		return err
+	}
+	clientID := c.String("clientid") //TODO: Read ClientID from other sources?
+	if clientID == "" {
+		err := fmt.Errorf("arguments not OK")
+		log.Error(err)
+		return cli.NewExitError(err, 3)
+	}
+
+	log.Info("[INFO] Reading medchain group definition")
+
+	groupTomlPath := c.String("file")
+	if groupTomlPath == "" {
+		err := fmt.Errorf("arguments not OK")
+		log.Error(err)
+		return cli.NewExitError(err, 3)
+	}
+
+	var list []*network.ServerIdentity
+	var si *network.ServerIdentity
+
+	address := c.String("address")
+	if address != "" {
+		// Contact desired server
+		log.Info("[INFO] contacting server at", address)
+		addr := network.Address(address)
+		if !strings.HasPrefix(address, "tls://") {
+			addr = network.NewAddress(network.TLS, address)
+		}
+		si := network.NewServerIdentity(nil, addr)
+		if si.Address.Port() == "" {
+			return errors.New("port not found, must provide addr:port")
+		}
+		list = append(list, si)
+	} else {
+
+		roster, err := readGroup(groupTomlPath)
+		if err != nil {
+			return errors.New("couldn't read file: " + err.Error())
+		}
+		list = roster.List
+		log.Info("[INFO] Roster list is", list)
+	}
+
+	log.Info("[INFO] Sending request to", si.String()) //TODO: double-check server address??
+	name := projectDarc.Description
+	client, err := s.NewClient(bcl, si, clientID)
+	if err != nil {
+		return xerrors.Errorf("failed to init client: %v", err)
+	}
+
+	err = client.Create()
+	if err != nil {
+		return xerrors.Errorf("failed to create client: %v", err)
+	}
+
+	client.AllDarcIDs[string(name)] = projectDarc.GetBaseID() //TODo: what about other darcs?
+
+	req := &s.SignDeferredTxRequest{}
+	req.ClientID = clientID
+	req.QueryInstID = iid
+	reply, err := client.AddSignatureToDeferredQuery(req)
+	if err != nil {
+		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
+	}
+
+	// ---
+	// 3. Get the response back from MedChain service
+	// ---
+	if reply.OK != true {
+		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
+	}
+	client.Bcl.WaitPropagation(1)
+
+	return nil
+}
 func readGroupArgs(c *cli.Context, pos int) *app.Group {
 	if c.NArg() <= pos {
 		log.Fatal("Please give the group-file as argument")

@@ -12,6 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli v1.22.0
+	github.com/urfave/cli/v2 v2.2.0 // indirect
 	go.dedis.ch/cothority/v3 v3.4.0
 	go.dedis.ch/kyber/v3 v3.0.11
 	go.dedis.ch/onet/v3 v3.0.31

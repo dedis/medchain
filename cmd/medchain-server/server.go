@@ -5,8 +5,8 @@ import (
 	// register the protocol
 	_ "github.com/medchain/protocols"
 	_ "github.com/medchain/services"
-	"github.com/urfave/cli"
 	"go.dedis.ch/onet/v3/app"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 func runServer(ctx *cli.Context) error {

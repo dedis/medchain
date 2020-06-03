@@ -97,14 +97,14 @@ func (c *Client) Create() error {
 		xerrors.Errorf("Could not add naming contract instace to the ledger: %w", err)
 	}
 
-	log.Lvl1("[INFO] (Create) Contract_name instance was added to the ledger")
+	log.Info("[INFO] (Create) Contract_name instance was added to the ledger")
 
 	return nil
 }
 
 // AuthorizeQuery checks authorizations of the query
 func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
-	log.Lvl1("[INFO] Authorization of query ")
+	log.Info("[INFO] Authorization of query ")
 	return c.createQueryAndWait(qu, instID)
 }
 
@@ -125,7 +125,7 @@ func (c *Client) createQueryAndWait(query Query, instID byzcoin.InstanceID) (byz
 	}
 
 	newInstID := ctx.Instructions[0].DeriveID("")
-	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
+	log.Info("[INFO] (Invoke) Query was added to the ledger")
 
 	// // Name the instance of the query with as its key using contract_name to
 	// // make retrievals easier
@@ -133,7 +133,7 @@ func (c *Client) createQueryAndWait(query Query, instID byzcoin.InstanceID) (byz
 	// if err != nil {
 	// 	return *new(byzcoin.InstanceID), err
 	// }
-	// log.Lvl1("[INFO] Query instance was named after authorizations were checked")
+	// log.Info("[INFO] Query instance was named after authorizations were checked")
 
 	return newInstID, nil
 }
@@ -165,7 +165,7 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 			// This action will not be rejected by Darc and thus query rejection will be recorded
 			// in the ledger
 			action = "update"
-			log.Lvl1("[INFO] (Invoke) Query was REJECTED")
+			log.Info("[INFO] (Invoke) Query was REJECTED")
 		}
 	}
 	if ok {
@@ -174,14 +174,14 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 			Value: []byte("Authorized"),
 		}
 		action = c.getActionFromOneQuery(query)
-		log.Lvl1("[INFO] (Invoke) Query was AUTHORIZED")
+		log.Info("[INFO] (Invoke) Query was AUTHORIZED")
 
 	}
 
 	// // Get the instance ID of the query instance using its name
 	// // For the sake of performance, one should try to avoidusing
 	// // ResolveInstance() to get the instance ID using its name.
-	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, query.ID)
+	// replyID, err := c.Bcl.ResolveInstanceID(darcID, query.ID)
 	// if err != nil {
 	// 	fmt.Println("debug6")
 	// 	return nil, nil, err
@@ -227,7 +227,7 @@ func (c *Client) CreateQueryAndWaitDeferred(numInterval int, spawnedKeys []byzco
 		fmt.Println("debug2")
 		return qu, nil, err
 	}
-	log.Lvl1("[INFO] (Invoke) Query was added to the ledger")
+	log.Info("[INFO] (Invoke) Query was added to the ledger")
 
 	return qu, keys, nil
 }
@@ -291,7 +291,7 @@ func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.Instan
 				// This action will not be rejected by Darc and thus query rejection will be recorded
 				// in the ledger
 				action = "update"
-				log.Lvl1("[INFO] (Invoke) Query was REJECTED")
+				log.Info("[INFO] (Invoke) Query was REJECTED")
 			}
 		}
 		if ok {
@@ -300,7 +300,7 @@ func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.Instan
 				Value: []byte("Authorized"),
 			}
 			action = c.getActionFromOneQuery(query)
-			log.Lvl1("[INFO] (Invoke) Query was AUTHORIZED")
+			log.Info("[INFO] (Invoke) Query was AUTHORIZED")
 
 		}
 
@@ -387,7 +387,7 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 
 //SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
 func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
-	log.Lvl1("[INFO] Spawning the deferred query ")
+	log.Info("[INFO] Spawning the deferred query ")
 
 	if len(req.QueryID) == 0 {
 		return nil, errors.New("query ID required")
@@ -398,7 +398,7 @@ func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQ
 	}
 
 	req.QueryStatus = "Submitted"
-	log.Lvl1("[INFO] Spawning the deferred query ")
+	log.Info("[INFO] Spawning the deferred query ")
 	return c.createDeferredInstance(req)
 }
 
@@ -507,7 +507,7 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 	if err != nil {
 		return *new(byzcoin.InstanceID), err
 	}
-	log.Lvl1("[INFO] Deferred Query instance was named ")
+	log.Info("[INFO] Deferred Query instance was named ")
 
 	return instID, err
 }
@@ -516,7 +516,7 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // by invoking an addProof action from the deferred contract on the deferred
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
-	log.Lvl1("[INFO] Add signature to the query transaction")
+	log.Info("[INFO] Add signature to the query transaction")
 
 	if len(req.ClientID) == 0 {
 		return nil, errors.New("ClientID required")
@@ -587,7 +587,7 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 
 // ExecDefferedQuery executes the query that has received enough signatures
 func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
-	log.Lvl1("[INFO] Execute the query transaction")
+	log.Info("[INFO] Execute the query transaction")
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
 		Invoke: &byzcoin.Invoke{
@@ -604,7 +604,7 @@ func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
 
 // GetDarcRules returns the rules for signers of a query transaction in the project darc
 func (c *Client) GetDarcRules(instID byzcoin.InstanceID) error {
-	log.Lvl1("[INFO] Checking the signer rules for instance ID", instID)
+	log.Info("[INFO] Checking the signer rules for instance ID", instID)
 	instIDBuf, err := hex.DecodeString(instID.String())
 	if err != nil {
 		return xerrors.Errorf("failed to decode the instid string: %v", err)
@@ -1017,10 +1017,10 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	if err != nil {
 		return xerrors.Errorf("Could not add transaction to ledger: %w", err)
 	}
-	log.Lvl1("[INFO] (Naming Contract) Query was added to the ledger")
+	log.Info("[INFO] (Naming Contract) Query was added to the ledger")
 
 	// // This sanity check heavily reduces the performance
-	// replyID, err := c.ByzCoin.ResolveInstanceID(darcID, name)
+	// replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
 	// if err != nil {
 	// 	return err
 	// }

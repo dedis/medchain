@@ -3,18 +3,20 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"time"
 
-	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/onet/v3/app"
+	"go.dedis.ch/onet/v3/cfgpath"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 const (
 	// BinaryName represents the name of the binary
-	BinaryName = "mc"
+	BinaryName = "medchain-server"
 
 	// Version of the binary
 	Version = "1.00"
@@ -24,6 +26,9 @@ const (
 
 	optionConfig      = "config"
 	optionConfigShort = "c"
+
+	optionBCConfig      = "bc-config"
+	optionBCConfigShort = "bc"
 
 	optionGroupFile      = "file"
 	optionGroupFileShort = "f"
@@ -35,6 +40,12 @@ const (
 
 	optionClientID      = "clientid"
 	optionClientIDShort = "cid"
+
+	optionInstanceID      = "instid"
+	optionInstanceIDShort = "iid"
+
+	optionDarc      = "darc"
+	optionDarcShort = "d"
 
 	// setup options
 	optionServerBinding      = "serverBinding"
@@ -84,6 +95,17 @@ func main() {
 			Value: 0,
 			Usage: "debug-level: 1 for terse, 5 for maximal",
 		},
+		cli.StringFlag{
+			Name:   "bc-config, bc",
+			EnvVar: "BC_CONFIG",
+			Value:  path.Join(cfgpath.GetConfigPath(BinaryName), app.DefaultServerConfig),
+			Usage:  "Byzcoin configuration file of the server",
+		},
+		cli.BoolFlag{
+			Name:   "wait, w",
+			EnvVar: "BC_WAIT",
+			Usage:  "wait for transaction to be available in all nodes",
+		},
 	}
 
 	clientFlags := []cli.Flag{
@@ -95,6 +117,14 @@ func main() {
 		cli.StringFlag{
 			Name:  optionClientID + ", " + optionClientIDShort,
 			Usage: "Client ID",
+		},
+		cli.StringFlag{
+			Name:  optionInstanceID + ", " + optionInstanceIDShort,
+			Usage: "Instance ID of query",
+		},
+		cli.StringFlag{
+			Name:  optionDarc + ", " + optionDarcShort,
+			Usage: "darc used to authorize the query",
 		},
 	}
 
@@ -205,10 +235,14 @@ func main() {
 						if c.String(optionConfig) != "" {
 							return fmt.Errorf("[-] Configuration file option cannot be used for the 'setup' command")
 						}
+						if c.String(optionBCConfig) != "" {
+							return fmt.Errorf("[-] Path to Byzcoin configuration file option cannot be used for the 'setup' command")
+						}
 						if c.GlobalIsSet("debug") {
 							return fmt.Errorf("[-] Debug option cannot be used for the 'setup' command")
 						}
 						app.InteractiveConfig(cothority.Suite, BinaryName)
+
 						return nil
 					},
 				},
@@ -218,13 +252,6 @@ func main() {
 					Usage:   "Setup server configuration (non-interactive)",
 					Action:  NonInteractiveSetup,
 					Flags:   nonInteractiveSetupFlags,
-				},
-				{
-					Name:    "getAggregateKey",
-					Aliases: []string{"gak"},
-					Usage:   "Get AggregateTarget Key from group.toml",
-					Action:  getAggregateKey,
-					Flags:   clientFlags,
 				},
 			},
 		},
