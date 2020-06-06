@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/onet/v3/app"
-	"go.dedis.ch/onet/v3/cfgpath"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
 	cli "gopkg.in/urfave/cli.v1"
@@ -44,8 +42,11 @@ const (
 	optionInstanceID      = "instid"
 	optionInstanceIDShort = "iid"
 
-	optionDarc      = "darc"
-	optionDarcShort = "d"
+	optionDarcID      = "darcid"
+	optionDarcIDShort = "did"
+
+	optionServerAddress      = "address"
+	optionServerAddressShort = "adrs"
 
 	// setup options
 	optionServerBinding      = "serverBinding"
@@ -95,20 +96,13 @@ func main() {
 			Value: 0,
 			Usage: "debug-level: 1 for terse, 5 for maximal",
 		},
-		cli.StringFlag{
-			Name:   "bc-config, bc",
-			EnvVar: "BC_CONFIG",
-			Value:  path.Join(cfgpath.GetConfigPath(BinaryName), app.DefaultServerConfig),
-			Usage:  "Byzcoin configuration file of the server",
-		},
-		cli.BoolFlag{
-			Name:   "wait, w",
-			EnvVar: "BC_WAIT",
-			Usage:  "wait for transaction to be available in all nodes",
-		},
 	}
 
 	clientFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  optionBCConfig + ", " + optionBCConfigShort,
+			Usage: "Byzcoin config file",
+		},
 		cli.StringFlag{
 			Name:  optionGroupFile + ", " + optionGroupFileShort,
 			Value: DefaultGroupFile,
@@ -119,12 +113,8 @@ func main() {
 			Usage: "Client ID",
 		},
 		cli.StringFlag{
-			Name:  optionInstanceID + ", " + optionInstanceIDShort,
-			Usage: "Instance ID of query",
-		},
-		cli.StringFlag{
-			Name:  optionDarc + ", " + optionDarcShort,
-			Usage: "darc used to authorize the query",
+			Name:  optionServerAddress + ", " + optionServerAddressShort,
+			Usage: "Address of server to use",
 		},
 	}
 
@@ -163,9 +153,19 @@ func main() {
 	}
 
 	cliApp.Commands = []cli.Command{
+		// BEGIN CLIENT: Create a MedChain CLI Client ----------
+		{
+			Name:    "create",
+			Aliases: []string{"s"},
+			Usage:   "Create a MedChain CLI Client",
+			Action:  create,
+			Flags:   clientFlags,
+		},
+		// CLIENT END: SUBMIT DEFERRED QUERY ------------
+
 		// BEGIN CLIENT: SUBMIT DEFERRED QUERY ----------
 		{
-			Name:    "submit",
+			Name:    "query",
 			Aliases: []string{"s"},
 			Usage:   "Submit a query for authorization",
 			Action:  submitQuery,
@@ -175,7 +175,7 @@ func main() {
 
 		// BEGIN CLIENT:  SIGN PROPOSED QUERY ----------
 		{
-			Name:    "addsignature",
+			Name:    "sign",
 			Aliases: []string{"d"},
 			Usage:   "Add signature to a proposed query",
 			Action:  addSignatureToDeferredQuery,

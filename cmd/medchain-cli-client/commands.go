@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/clicontracts"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 // PLEASE READ THIS
