@@ -21,7 +21,6 @@ type Client struct {
 	adminkeys         darc.Signer
 	genDarc           darc.Darc
 	signerCounter     uint64
-	slc               []string                    // List of known admin ids (used to create expressions)
 	pendingDefferedTx map[byzcoin.InstanceID]bool // Set of deferred transactions IDs
 }
 
@@ -45,7 +44,7 @@ func NewClient(bcl *byzcoin.Client) (*Client, error) {
 	}
 	cl := &Client{
 		Bcl:               bcl,
-		adminkeys:         darc.NewSignerEd25519(nil, nil), // TODO add as optional arguments
+		adminkeys:         darc.NewSignerEd25519(nil, nil),
 		signerCounter:     1,
 		scl:               onet.NewClient(cothority.Suite, "ShareID"),
 		pendingDefferedTx: make(map[byzcoin.InstanceID]bool),
@@ -67,10 +66,6 @@ func NewClientWithAuth(bcl *byzcoin.Client, keys *darc.Signer) (*Client, error) 
 	return cl, err
 }
 
-// TODO for now admin different ids are saved locally
-func (cl *Client) SyncDarc(slc []string) {
-	cl.slc = slc
-}
 func (cl *Client) AuthKey() darc.Signer {
 	return cl.adminkeys
 }
@@ -152,7 +147,6 @@ func (cl *Client) AddAdminToAdminDarc(adid darc.ID, newAdmin string) (byzcoin.In
 		slc[i] = strings.TrimSpace(slc[i])
 	}
 	slc = append(slc, newAdmin)
-	cl.slc = slc
 	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
@@ -176,7 +170,6 @@ func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, adminId string) (byzcoi
 		return *new(byzcoin.InstanceID), xerrors.Errorf("The adminID doesn't exist in the admin darc")
 	}
 	slc = append(slc[:idx], slc[idx+1:]...)
-	cl.slc = slc
 	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
@@ -259,10 +252,7 @@ func (cl *Client) evolveAdminDarc(slc []string, olddarc *darc.Darc) (byzcoin.Cli
 }
 
 func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc.ID) (byzcoin.InstanceID, error) {
-	// TODO add as arguments
-	expireBlockIndexInt := uint64(6000)
-	expireBlockIndexBuf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
+	// TODO add as arguments && implement expiration
 
 	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(adid),
@@ -272,10 +262,6 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 				{
 					Name:  "proposedTransaction",
 					Value: proposedTransactionBuf,
-				},
-				{
-					Name:  "expireBlockIndex",
-					Value: expireBlockIndexBuf,
 				},
 			},
 		},
@@ -328,7 +314,6 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx ui
 	if err != nil {
 		return xerrors.Errorf("Signing the deffered transaction: %w", err)
 	}
-	// TODO: Implement multi instructions transactions.
 	index := uint32(instIdx) // The index of the instruction to sign in the transaction
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
@@ -396,12 +381,12 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Getting the admin darc from chain: %w", err)
 	}
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
-	pdarc := darc.NewDarc(rules, []byte(pdarcDescription)) //TODO share admin identities
+	pdarc := darc.NewDarc(rules, []byte(pdarcDescription))
 	pdarcActions := "spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete"
 	pdarcExpr := createMultisigRuleExpression([]string{adminDarc.GetIdentityString()})
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
-	pdarcActions = "_name:accessright"
-	pdarcExpr = expression.InitOrExpr(cl.adminkeys.Identity().String()) //TODO sync the id of all admins
+	pdarcActions = "_name:accessright" //TODO add slc
+	pdarcExpr = expression.InitOrExpr(cl.adminkeys.Identity().String())
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
 	if err != nil {
 		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Adding rules to darc: %w", err)
@@ -478,12 +463,12 @@ func (cl *Client) AttachAccessRightToProject(arID byzcoin.InstanceID) error {
 	return cl.spawnTransaction(ctx)
 }
 
-func (cl *Client) GetAccessRightInstanceID(id byzcoin.InstanceID) (byzcoin.InstanceID, error) {
+func (cl *Client) GetAccessRightInstanceID(id byzcoin.InstanceID, instID uint64) (byzcoin.InstanceID, error) {
 	result, err := cl.Bcl.GetDeferredData(id)
 	if err != nil {
 		return byzcoin.InstanceID{}, xerrors.Errorf("Getting the deferred data: %w", err)
 	}
-	finalId := result.ExecResult[0] //TODO argument instruction id
+	finalId := result.ExecResult[instID]
 	return byzcoin.NewInstanceID(finalId), nil
 }
 
@@ -690,7 +675,6 @@ func (cl *Client) spawnTransaction(ctx byzcoin.ClientTransaction) error {
 	return nil
 }
 
-// TODO Create util package to reuse methods
 func AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) error {
 	actions := strings.Split(action, ",")
 

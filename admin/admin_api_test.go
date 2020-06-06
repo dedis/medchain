@@ -345,8 +345,6 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
 	admcl.incrementSignerCounter() // We increment the counter as the superadmin performed a transaction
 	require.NoError(t, err)
-	slc := []string{admcl.AuthKey().Identity().String()}
-	admcl.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -431,8 +429,6 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
 	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	slc := []string{admcl.AuthKey().Identity().String()}
-	admcl.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -461,11 +457,6 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
-	slc = append(slc, admcl2.AuthKey().Identity().String())
-
-	// TODO Change that to value of slc in adminDarc update the list of known admin into clients
-	admcl.SyncDarc(slc)
-	admcl2.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 2. Create a new project named project A
@@ -634,8 +625,6 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
 	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	slc := []string{admcl.AuthKey().Identity().String()}
-	admcl.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -664,11 +653,6 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
-	slc = append(slc, admcl2.AuthKey().Identity().String())
-
-	// TODO Change that to value of slc in adminDarc update the list of known admin into clients
-	admcl.SyncDarc(slc)
-	admcl2.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 2. Create a new project named project A
@@ -847,8 +831,6 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
 	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	slc := []string{admcl.AuthKey().Identity().String()}
-	admcl.SyncDarc(slc)
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -890,7 +872,7 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	ddata, err := admcl.Bcl.GetDeferredData(id)
 	arID := ddata.ProposedTransaction.Instructions[0].DeriveID("")
 
-	finalID, err := admcl.GetAccessRightInstanceID(id)
+	finalID, err := admcl.GetAccessRightInstanceID(id, 0)
 	require.NoError(t, err)
 	require.Equal(t, arID, finalID)
 	// bind the accessright instance to the project darc
