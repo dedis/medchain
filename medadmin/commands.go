@@ -405,6 +405,30 @@ var cmds = cli.Commands{
 					},
 				},
 			},
+			{
+				Name:   "show",
+				Usage:  "Show the access rights of a user",
+				Action: showAccess,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config",
+					},
+					cli.StringFlag{
+						Name:  "keys",
+						Usage: "the ed25519 private key that will sign the create query transaction",
+					},
+					cli.StringFlag{
+						Name:  "pdid",
+						Usage: "the project darc id",
+					},
+					cli.StringFlag{
+						Name:  "qid",
+						Usage: "the querier id",
+					},
+				},
+			},
 		},
 	},
 }

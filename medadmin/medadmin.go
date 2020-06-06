@@ -115,12 +115,14 @@ func spawn(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
+	fmt.Println("New admininistration darc spawned :")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
 func create(c *cli.Context) error {
 	keys := darc.NewSignerEd25519(nil, nil)
+	fmt.Println("New admin identity key pair created :")
 	fmt.Println(keys.Identity().String())
 	err := bcadminlib.SaveKey(keys)
 	return err
@@ -147,12 +149,12 @@ func addAdmin(c *cli.Context) error {
 
 	cl.SyncSignerCounter()
 	// TODO broadcast the base ID
-	darc, err := cl.AddAdminToAdminDarc(adid, id)
-	fmt.Println(darc)
+	deferredId, err := cl.AddAdminToAdminDarc(adid, id)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println(darc)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(deferredId)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 func removeAdmin(c *cli.Context) error {
@@ -177,10 +179,10 @@ func removeAdmin(c *cli.Context) error {
 	cl.SyncSignerCounter()
 	// TODO broadcast the base ID
 	darc, err := cl.RemoveAdminFromAdminDarc(adid, id)
-	fmt.Println(darc)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
+	fmt.Println("Deffered transaction spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -211,10 +213,10 @@ func modifyAdminKey(c *cli.Context) error {
 	cl.SyncSignerCounter()
 	// TODO broadcast the base ID
 	darc, err := cl.ModifyAdminKeysFromAdminDarc(adid, oldKey, newKey)
-	fmt.Println(darc)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
+	fmt.Println("Deffered transaction spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -253,6 +255,7 @@ func deferredSign(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Succesfully added signature to deferred transaction")
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -272,6 +275,7 @@ func deferredExec(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Succesfully executed the deferred transaction")
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 func projectCreate(c *cli.Context) error {
@@ -300,8 +304,9 @@ func projectCreate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("deferred tx id", defId)
-	fmt.Println("project darc id", pdarcID)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(defId)
+	fmt.Println("Project darc ID: ", pdarcID)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -323,7 +328,7 @@ func projectCreateAccessRight(c *cli.Context) error {
 
 	pdidstring := c.String("pdid")
 	if pdidstring == "" {
-		return xerrors.New("--adid flag is required")
+		return xerrors.New("--pdid flag is required")
 	}
 
 	pdid, err := lib.StringToDarcID(pdidstring)
@@ -336,7 +341,8 @@ func projectCreateAccessRight(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("deferred tx id", id)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -357,7 +363,8 @@ func getExecResult(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Exec result id: ", finalID)
+	fmt.Println("Instance ID after execution:")
+	fmt.Println(finalID)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -378,6 +385,7 @@ func attach(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Successfully attached accessright contract instance to project darc")
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -389,7 +397,7 @@ func addQuerier(c *cli.Context) error {
 
 	pdidstring := c.String("pdid")
 	if pdidstring == "" {
-		return xerrors.New("--adid flag is required")
+		return xerrors.New("--pdid flag is required")
 	}
 
 	pdid, err := lib.StringToDarcID(pdidstring)
@@ -421,7 +429,8 @@ func addQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("deferred tx id", id)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -433,7 +442,7 @@ func modifyQuerier(c *cli.Context) error {
 
 	pdidstring := c.String("pdid")
 	if pdidstring == "" {
-		return xerrors.New("--adid flag is required")
+		return xerrors.New("--pdid flag is required")
 	}
 
 	pdid, err := lib.StringToDarcID(pdidstring)
@@ -452,7 +461,7 @@ func modifyQuerier(c *cli.Context) error {
 
 	access := c.String("access")
 	if access == "" {
-		return xerrors.New("--qid flag is required")
+		return xerrors.New("--access flag is required")
 	}
 
 	adid, err := lib.StringToDarcID(adidstring)
@@ -465,7 +474,8 @@ func modifyQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("deferred tx id", id)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -477,7 +487,7 @@ func removeQuerier(c *cli.Context) error {
 
 	pdidstring := c.String("pdid")
 	if pdidstring == "" {
-		return xerrors.New("--adid flag is required")
+		return xerrors.New("--pdid flag is required")
 	}
 
 	pdid, err := lib.StringToDarcID(pdidstring)
@@ -504,7 +514,8 @@ func removeQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("deferred tx id", id)
+	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -516,7 +527,7 @@ func verifyAccess(c *cli.Context) error {
 
 	pdidstring := c.String("pdid")
 	if pdidstring == "" {
-		return xerrors.New("--adid flag is required")
+		return xerrors.New("--pdid flag is required")
 	}
 
 	pdid, err := lib.StringToDarcID(pdidstring)
@@ -539,7 +550,42 @@ func verifyAccess(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Access status for ", qid, " ", access, " : ", bool)
+	fmt.Println("Access status for ", qid, " for access: ", access)
+	if bool {
+		fmt.Println("Granted")
+	} else {
+		fmt.Println("Denied")
+	}
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
+}
+func showAccess(c *cli.Context) error {
+	cl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+
+	pdidstring := c.String("pdid")
+	if pdidstring == "" {
+		return xerrors.New("--pdid flag is required")
+	}
+
+	pdid, err := lib.StringToDarcID(pdidstring)
+	if err != nil {
+		return xerrors.Errorf("failed to parse darc: %v", err)
+	}
+
+	qid := c.String("qid")
+	if qid == "" {
+		return xerrors.New("--qid flag is required")
+	}
+
+	cl.SyncSignerCounter()
+	accessString, err := cl.ShowAccessRights(qid, pdid)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Access status for", qid)
+	fmt.Println(accessString)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 

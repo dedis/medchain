@@ -651,6 +651,32 @@ func (cl *Client) VerifyAccessRights(qid, access string, pdid darc.ID) (bool, er
 	return strings.Contains(received.Access[idx], access), nil
 }
 
+func (cl *Client) ShowAccessRights(qid string, pdid darc.ID) (string, error) {
+	arid, err := cl.Bcl.ResolveInstanceID(pdid, "AR")
+	if err != nil {
+		return "", xerrors.Errorf("Reolving access right instance: %w", err)
+	}
+	pr, err := cl.Bcl.GetProof(arid.Slice())
+	if err != nil {
+		return "", xerrors.Errorf("Getting the proof of the accessright contract instance: %w", err)
+	}
+	vv, _, _, err := pr.Proof.Get(arid.Slice())
+	if err != nil {
+		return "", xerrors.Errorf("Getting the value: %w", err)
+	}
+	received := AccessRight{}
+	err = protobuf.Decode(vv, &received)
+	if err != nil {
+		return "", xerrors.Errorf("Unmarshalling: %w", err)
+	}
+	idx, _ := Find(received.Ids, qid)
+	if idx == -1 {
+		return "", xerrors.Errorf("There is no such querier registered in the accessright contract")
+	}
+
+	return received.Access[idx], nil
+}
+
 func (cl *Client) spawnTransaction(ctx byzcoin.ClientTransaction) error {
 	err := ctx.FillSignersAndSignWith(cl.adminkeys)
 	if err != nil {
