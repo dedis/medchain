@@ -32,12 +32,6 @@ var adminActions = map[darc.Action]uint{
 	"spawn:darc":                     0,
 }
 
-// func (cl *Client) DummyTest() error {
-// 	// sh := ShareID{"id12134655"}
-// 	err := cl.Bcl.SendProtobuf(cl.Bcl.Roster.RandomServerIdentity(), &sh, nil)
-// 	return err
-// }
-
 func NewClient(bcl *byzcoin.Client) (*Client, error) {
 	if bcl == nil {
 		return nil, errors.New("A Byzcoin Client is required")
@@ -385,6 +379,9 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 	pdarcActions := "spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete"
 	pdarcExpr := createMultisigRuleExpression([]string{adminDarc.GetIdentityString()})
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Adding rule to darc: %w", err)
+	}
 	pdarcActions = "_name:accessright" //TODO add slc
 	pdarcExpr = expression.InitOrExpr(cl.adminkeys.Identity().String())
 	err = AddRuleToDarc(pdarc, pdarcActions, pdarcExpr)
@@ -407,6 +404,9 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 			},
 		},
 	})
+	if err != nil {
+		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Creating the transaction: %w", err)
+	}
 
 	return ctx, pdarc.GetBaseID(), pdarc.GetIdentityString(), nil
 }

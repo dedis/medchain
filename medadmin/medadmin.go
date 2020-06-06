@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	admin "github.com/medchain/admin"
@@ -27,19 +28,13 @@ import (
 	"go.dedis.ch/protobuf"
 )
 
-type config struct {
-	Name    string
-	QueryID byzcoin.InstanceID //
-}
-
 type bcConfig struct {
 	Roster    onet.Roster
 	ByzCoinID skipchain.SkipBlockID
 }
 
 var cliApp = cli.NewApp()
-var dataDir = ""
-var gitTag = "dev" //TODO change
+var gitTag = "dev"
 
 func init() {
 	cliApp.Name = "medadmin"
@@ -88,7 +83,7 @@ func getClient(c *cli.Context, priv bool) (*admin.Client, error) {
 		return nil, err
 	}
 
-	// // get the private key from the cmdline.
+	// get the private key from the cmdline.
 	sstr := c.String("keys")
 	if sstr == "" {
 		return nil, errors.New("--keys is required")
@@ -148,7 +143,6 @@ func addAdmin(c *cli.Context) error {
 	}
 
 	cl.SyncSignerCounter()
-	// TODO broadcast the base ID
 	deferredId, err := cl.AddAdminToAdminDarc(adid, id)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
@@ -157,6 +151,7 @@ func addAdmin(c *cli.Context) error {
 	fmt.Println(deferredId)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
+
 func removeAdmin(c *cli.Context) error {
 	cl, err := getClient(c, true)
 	if err != nil {
@@ -177,7 +172,6 @@ func removeAdmin(c *cli.Context) error {
 	}
 
 	cl.SyncSignerCounter()
-	// TODO broadcast the base ID
 	darc, err := cl.RemoveAdminFromAdminDarc(adid, id)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
@@ -211,7 +205,6 @@ func modifyAdminKey(c *cli.Context) error {
 	}
 
 	cl.SyncSignerCounter()
-	// TODO broadcast the base ID
 	darc, err := cl.ModifyAdminKeysFromAdminDarc(adid, oldKey, newKey)
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
@@ -245,13 +238,21 @@ func deferredSign(c *cli.Context) error {
 	if instID == "" {
 		return xerrors.New("--id flag is required")
 	}
+	txidx := c.String("txidx")
+	if txidx == "" {
+		return xerrors.New("--id flag is required")
+	}
+	idx, err := strconv.ParseUint(txidx, 10, 64)
+	if err != nil {
+		return err
+	}
 	instIDBuf, err := hex.DecodeString(instID)
 	if err != nil {
 		return err
 	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 	cl.SyncSignerCounter()
-	err = cl.AddSignatureToDefferedTx(id, 0) //TODO change index as argument
+	err = cl.AddSignatureToDefferedTx(id, idx)
 	if err != nil {
 		return err
 	}
@@ -269,6 +270,9 @@ func deferredExec(c *cli.Context) error {
 		return xerrors.New("--id flag is required")
 	}
 	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 	cl.SyncSignerCounter()
 	err = cl.ExecDefferedTx(id)
@@ -278,6 +282,7 @@ func deferredExec(c *cli.Context) error {
 	fmt.Println("Succesfully executed the deferred transaction")
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
+
 func projectCreate(c *cli.Context) error {
 	cl, err := getClient(c, true)
 	if err != nil {
@@ -357,9 +362,12 @@ func getExecResult(c *cli.Context) error {
 		return xerrors.New("--id flag is required")
 	}
 	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 
-	finalID, err := cl.GetAccessRightInstanceID(id)
+	finalID, err := cl.GetAccessRightInstanceID(id, 0)
 	if err != nil {
 		return err
 	}
@@ -379,6 +387,9 @@ func attach(c *cli.Context) error {
 		return xerrors.New("--id flag is required")
 	}
 	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 	cl.SyncSignerCounter()
 	err = cl.AttachAccessRightToProject(id)
@@ -558,6 +569,7 @@ func verifyAccess(c *cli.Context) error {
 	}
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
+
 func showAccess(c *cli.Context) error {
 	cl, err := getClient(c, true)
 	if err != nil {

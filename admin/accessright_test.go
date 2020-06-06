@@ -119,6 +119,7 @@ func TestAccessRight_Invoke(t *testing.T) {
 	require.NoError(t, err)
 	received := AccessRight{}
 	err = protobuf.Decode(vv, &received)
+	require.NoError(t, err)
 	require.Equal(t, val, received)
 
 	log.Lvl1("[INFO] Invoke accessright.add")
@@ -137,6 +138,7 @@ func TestAccessRight_Invoke(t *testing.T) {
 	err = arctx.deleteAccess("3:2", myID)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.NoError(t, err)
 	pr2, err := cl.GetProof(myID.Slice())
 	require.Nil(t, err)
 	require.True(t, pr2.Proof.InclusionProof.Match(myID.Slice()))
@@ -146,6 +148,7 @@ func TestAccessRight_Invoke(t *testing.T) {
 
 	received = AccessRight{}
 	err = protobuf.Decode(v2, &received)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Verify global state")
 	require.Equal(t, arctx.ar, received) // verify that the expected state of the access right is the same as the instance in the global state
 }
@@ -199,6 +202,7 @@ func TestAccessRight_Set(t *testing.T) {
 	require.NoError(t, err)
 	received := AccessRight{}
 	err = protobuf.Decode(vv, &received)
+	require.NoError(t, err)
 	require.Equal(t, val, received)
 
 	log.Lvl1("[INFO] Invoke accessright.add with id 1:1 already registered in the state : Expected to fail")
@@ -211,6 +215,7 @@ func TestAccessRight_Set(t *testing.T) {
 	err = arctx.deleteAccess("5:3", myID)
 	require.Error(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.NoError(t, err)
 	pr2, err := cl.GetProof(myID.Slice())
 	require.Nil(t, err)
 	require.True(t, pr2.Proof.InclusionProof.Match(myID.Slice()))
@@ -220,6 +225,7 @@ func TestAccessRight_Set(t *testing.T) {
 
 	received = AccessRight{}
 	err = protobuf.Decode(v2, &received)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Verify global state")
 	require.Equal(t, arctx.ar, received) // verify that the expected state of the access right is the same as the instance in the global state
 
@@ -287,6 +293,9 @@ func (arctx *AccessRightTestContext) modifyAccess(id, access string, myID byzcoi
 		},
 		SignerCounter: []uint64{arctx.counter},
 	})
+	if err != nil {
+		return xerrors.Errorf("Creating the transaction:  %w", err)
+	}
 	idx, _ := Find(arctx.ar.Ids, id)
 	if idx != -1 {
 		arctx.ar.Access[idx] = access
@@ -319,6 +328,9 @@ func (arctx *AccessRightTestContext) deleteAccess(id string, myID byzcoin.Instan
 		},
 		SignerCounter: []uint64{arctx.counter},
 	})
+	if err != nil {
+		return xerrors.Errorf("Creating the transaction:  %w", err)
+	}
 	idx, _ := Find(arctx.ar.Ids, id)
 	if idx != -1 {
 		arctx.ar.Access = append(arctx.ar.Access[:idx], arctx.ar.Access[idx+1:]...)

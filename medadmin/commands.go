@@ -153,6 +153,10 @@ var cmds = cli.Commands{
 						Name:  "id",
 						Usage: "the instance id of the deffered transaction",
 					},
+					cli.StringFlag{
+						Name:  "txidx",
+						Usage: "the index of the instruction to sign",
+					},
 				},
 			},
 			{
