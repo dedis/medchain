@@ -43,7 +43,7 @@ type Client struct {
 	// Instance ID of naming contract
 	NamingInstance byzcoin.InstanceID
 	GenDarc        *darc.Darc
-	// Map projects to their darcs
+	// // Map projects to their darcs
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
 	GMsg       *byzcoin.CreateGenesisBlock
@@ -78,6 +78,7 @@ func (c *Client) Create() error {
 	}
 	c.AllDarcs = make(map[string]*darc.Darc)
 	c.AllDarcIDs = make(map[string]darc.ID)
+
 	// Spawn an instance of naming contract
 	namingTx, err := c.Bcl.CreateTransaction(
 		byzcoin.Instruction{
@@ -103,51 +104,71 @@ func (c *Client) Create() error {
 }
 
 // AuthorizeQuery checks authorizations of the query
-func (c *Client) AuthorizeQuery(qu Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
+func (c *Client) AuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
 	log.Info("[INFO] Authorization of query ")
-	return c.createQueryAndWait(qu, instID)
+
+	if len(req.QueryID) == 0 {
+		return nil, xerrors.New("query ID required")
+	}
+
+	req.QueryStatus = "Submitted"
+	log.Info("[INFO] Spawning the deferred query ")
+	return c.createQueryAndWait(req)
 }
 
 // createQueryAndWait sends a request to create a query and waits for N block intervals
 // that the queries are added to the ledger
-func (c *Client) createQueryAndWait(query Query, instID byzcoin.InstanceID) (byzcoin.InstanceID, error) {
+func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
 
-	ctx, _, err := c.prepareTx(query, instID)
+	query := Query{}
+	query.ID = req.QueryID
+	query.Status = req.QueryStatus
+
+	ctx, _, err := c.prepareTx(query, req.DarcID, req.QueryInstID)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %w", err)
+		return nil, xerrors.Errorf("could not create transaction: %w", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %w", err)
+		return nil, xerrors.Errorf("could not add transaction to ledger: %w", err)
 	}
-
+	req.BlockID = c.Bcl.ID
 	newInstID := ctx.Instructions[0].DeriveID("")
-	log.Info("[INFO] (Invoke) Query was added to the ledger")
+	log.Info("[INFO] (AuthorizeQuery) Query was added to the ledger")
 
-	// // Name the instance of the query with as its key using contract_name to
-	// // make retrievals easier
-	// err = c.nameInstance(instID, darcID, query.ID)
-	// if err != nil {
-	// 	return *new(byzcoin.InstanceID), err
-	// }
-	// log.Info("[INFO] Query instance was named after authorizations were checked")
+	// Name the instance of the query with as its key using contract_name to
+	// make retrievals easier
+	err = c.nameInstance(newInstID, req.DarcID, query.ID+"_auth")
+	if err != nil {
+		return nil, err
+	}
+	log.Info("[INFO] (AuthorizeQuery) Query instance was named after authorizations were checked as query.ID_auth")
 
-	return newInstID, nil
+	// update
+	req.QueryInstID = newInstID
+	reply := &AuthorizeQueryReply{}
+	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get AuthorizeQeryReply from service: %w", err)
+	}
+	reply.QueryInstID = newInstID
+	log.Info("[INFO] (AuthorizeQuery) InstanceID received from service is:", reply.QueryInstID)
+	log.Info("[INFO] (AuthorizeQuery) reply.OK received from service is:", reply.OK)
+
+	return reply, nil
 }
 
 // prepareTx prepares a transaction that will be committed to the ledger.
-func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.ClientTransaction, darc.ID, error) {
+func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceID) (byzcoin.ClientTransaction, darc.ID, error) {
 
 	ok := true
 	//var action string
 	var args byzcoin.Argument
 
 	// Get the project darc
-	project := c.getProjectFromOneQuery(query)
-	darcID := c.AllDarcIDs[project]
 	action := c.getActionFromOneQuery(query)
 
 	// Check if the query is authorized/rejected
@@ -206,32 +227,6 @@ func (c *Client) prepareTx(query Query, instID byzcoin.InstanceID) (byzcoin.Clie
 	return ctx, darcID, nil
 }
 
-// AuthorizeDeferredQuery asks the service to write queries using deferred transactions to the ledger.
-func (c *Client) AuthorizeDeferredQuery(spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
-	return c.CreateQueryAndWaitDeferred(10, spawnedKeys, qu...)
-}
-
-// CreateQueryAndWaitDeferred sends a request to create a query as a deferred transaction and waits for N block intervals
-// that the queries are added to the ledger
-func (c *Client) CreateQueryAndWaitDeferred(numInterval int, spawnedKeys []byzcoin.InstanceID, qu ...Query) ([]Query, []byzcoin.InstanceID, error) {
-	if c.signerCtrs == nil {
-		c.RefreshSignerCounters()
-	}
-
-	tx, keys, err := c.prepareDeferredTx(qu, spawnedKeys)
-	if err != nil {
-		fmt.Println("debug1")
-		return qu, nil, err
-	}
-	if _, err := c.Bcl.AddTransactionAndWait(*tx, numInterval); err != nil {
-		fmt.Println("debug2")
-		return qu, nil, err
-	}
-	log.Info("[INFO] (Invoke) Query was added to the ledger")
-
-	return qu, keys, nil
-}
-
 // checkAuth checks authorizations for the query
 func (c *Client) checkAuth(query Query, darcID darc.ID, action string) ([]bool, error) {
 	// We need the identity part of the signatures before
@@ -261,74 +256,6 @@ func (c *Client) checkAuth(query Query, darcID darc.ID, action string) ([]bool, 
 	return authorizations, nil
 }
 
-// prepareDeferredTx prepares a transaction and checks for authorazations of the transaction. The transaction wil then be committed to the ledger.
-func (c *Client) prepareDeferredTx(queries []Query, spawnedKeys []byzcoin.InstanceID) (*byzcoin.ClientTransaction, []byzcoin.InstanceID, error) {
-
-	ok := true
-	//var action string
-	var args byzcoin.Argument
-	keys := make([]byzcoin.InstanceID, len(queries))
-	instrs := make([]byzcoin.Instruction, len(queries))
-
-	for i, query := range queries {
-		// Get the project darc
-		project := c.getProjectFromOneQuery(query)
-		darcID := c.AllDarcIDs[project]
-		action := c.getActionFromOneQuery(query)
-
-		// Check if the query is authorized/rejected
-		authorizations, err := c.checkAuth(query, darcID, action)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, res := range authorizations {
-			if res == false {
-				ok = false //reject the query as at least one of the signers can't sign
-				args = byzcoin.Argument{
-					Name:  query.ID,
-					Value: []byte("Rejected"),
-				}
-				// This action will not be rejected by Darc and thus query rejection will be recorded
-				// in the ledger
-				action = "update"
-				log.Info("[INFO] (Invoke) Query was REJECTED")
-			}
-		}
-		if ok {
-			args = byzcoin.Argument{
-				Name:  query.ID,
-				Value: []byte("Authorized"),
-			}
-			action = c.getActionFromOneQuery(query)
-			log.Info("[INFO] (Invoke) Query was AUTHORIZED")
-
-		}
-
-		instrs[i] = byzcoin.Instruction{
-			InstanceID: spawnedKeys[i],
-			Invoke: &byzcoin.Invoke{
-				ContractID: ContractName,
-				Command:    action,
-				Args:       []byzcoin.Argument{args},
-			},
-			SignerCounter: c.IncrementCtrs(),
-		}
-
-	}
-	ctx, err := c.Bcl.CreateTransaction(instrs...)
-	if err != nil {
-		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("could not create transaction: %w", err)
-	}
-	err = c.spawnTx(ctx)
-	if err != nil {
-		return new(byzcoin.ClientTransaction), nil, xerrors.Errorf("could not add transaction to ledger: %w", err)
-	}
-	for i := range ctx.Instructions {
-		keys[i] = ctx.Instructions[i].DeriveID("")
-	}
-	return &ctx, keys, nil
-}
-
 //SpawnQuery spawns a query instance
 func (c *Client) SpawnQuery(qu Query) (byzcoin.InstanceID, error) {
 	return c.createInstance(qu)
@@ -342,7 +269,7 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 	//instIDs := make([]byzcoin.InstanceID, len(queries))
 
 	// Get the project darc
-	project := c.getProjectFromOneQuery(query)
+	project := c.getProjectDarcFromOneQuery(query)
 	darcID := c.AllDarcIDs[project]
 
 	// If the query has just been submitted, spawn a query instance;
@@ -390,11 +317,11 @@ func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQ
 	log.Info("[INFO] Spawning the deferred query ")
 
 	if len(req.QueryID) == 0 {
-		return nil, errors.New("query ID required")
+		return nil, xerrors.New("query ID required")
 	}
 
 	if len(req.ClientID) == 0 {
-		return nil, errors.New("ClientID required")
+		return nil, xerrors.New("ClientID required")
 	}
 
 	req.QueryStatus = "Submitted"
@@ -405,20 +332,16 @@ func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQ
 //createDeferredInstance spawns a query that
 func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
 
-	// var proposedTransaction byzcoin.ClientTransaction
-	// Get the project darc
 	query := Query{}
 	query.ID = req.QueryID
 	query.Status = req.QueryStatus
-	project := c.getProjectFromOneQuery(query)
-	darcID := c.AllDarcIDs[project]
-	req.DarcID = darcID
+
 	// If the query has just been submitted, spawn a query instance;
 	// otherwise, invoke an update to change its status
 	// TODO: check proof instead of status to make this more stable and
 	// reliable (the latter may not be very efficient)
 	proposedInstr := byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(darcID),
+		InstanceID: byzcoin.NewInstanceID(req.DarcID),
 		Spawn: &byzcoin.Spawn{
 			ContractID: ContractName,
 			Args: byzcoin.Arguments{
@@ -438,7 +361,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 		return nil, err
 	}
 
-	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, darcID)
+	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, req.DarcID)
 	if err != nil {
 		return nil, xerrors.Errorf("could not spawn instance: %w", err)
 	}
@@ -771,7 +694,7 @@ func (c *Client) AddAdminDarc(name string) error {
 }
 
 // GetQuery asks the service to retrieve a query from the ledger by its key.
-func (c *Client) GetQuery(key []byte) (*Query, error) {
+func (c *Client) GetQuery(key []byte) (*QueryData, error) {
 	reply, err := c.Bcl.GetProof(key)
 	if err != nil {
 		return nil, err
@@ -786,7 +709,7 @@ func (c *Client) GetQuery(key []byte) (*Query, error) {
 	if !bytes.Equal(k, key) {
 		return nil, errors.New("wrong key")
 	}
-	q := Query{}
+	q := QueryData{}
 	err = protobuf.Decode(v0, &q)
 	if err != nil {
 		return nil, err
@@ -937,7 +860,7 @@ func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc
 // SearchRequest for additional details about how the filter is interpreted.
 // The ID and Instance fields of the SearchRequest will be filled in from c.
 func (c *Client) Search(req *SearchRequest) (*SearchReply, error) {
-	req.ID = c.Bcl.ID
+	req.BlockID = c.Bcl.ID
 
 	reply := &SearchReply{}
 	if err := c.onetcl.SendProtobuf(c.Bcl.Roster.List[0], req, reply); err != nil {
@@ -977,7 +900,7 @@ func (c *Client) getActionFromQuery(qu []Query) []string {
 }
 
 // GetProjectFromOneQuery exports the project to which query is directed
-func (c *Client) getProjectFromOneQuery(query Query) string {
+func (c *Client) getProjectDarcFromOneQuery(query Query) string {
 	project := strings.Split(query.ID, ":")[1]
 	return project
 

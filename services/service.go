@@ -8,9 +8,9 @@ import (
 
 	"github.com/medchain/protocols"
 	"go.dedis.ch/cothority/v3/byzcoin"
+	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
-	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
 
@@ -79,7 +79,7 @@ func NewService(c *onet.Context) (onet.Service, error) {
 	}
 
 	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery, s.HandleSignDeferredTx,
-		s.HandlePropagateID, s.HandleGetSharedData); err != nil {
+		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery); err != nil {
 		return nil, fmt.Errorf("couldn't register messages: %+v", err)
 	}
 
@@ -104,19 +104,22 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	}
 
 	// if this server is the one receiving the request from the client
-	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), " received an AddDeferredQueryRequest for query:", req.QueryID)
+	log.Info("[INFO]: ", s.ServerIdentity().String(), " received an AddDeferredQueryRequest for query:", req.QueryID)
 
 	stateTrie, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
 	if err != nil {
 		return reply, err
 	}
-
-	_, err = stateTrie.GetProof([]byte(req.QueryID))
+	darcID, err := getQueryByID(stateTrie, req.QueryInstID.Slice())
 	if err != nil {
-		return nil, err
+		return reply, xerrors.Errorf("could not get spawned query from skipchain: %v", err)
+	}
+	log.Info("[INFO] Spawned query darc ID: ", req.DarcID)
+	if !req.DarcID.Equal(darcID) {
+		return reply, xerrors.Errorf("error in getting spawned query from skipchain: %v", err)
 	}
 
-	//TODO: add more checks
+	//TODO: maybe add more checks
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
 
@@ -133,7 +136,7 @@ func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferre
 	}
 
 	// if this server is the one receiving the request from the client
-	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query:", req.QueryInstID)
+	log.Info("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query:", req.QueryInstID)
 
 	//TODO: 1. add more checks to see if enough number of signatures are received. If that is the case, exec the query here
 	// 2. retrieve status here from skipchain to get more reliable results
@@ -142,23 +145,6 @@ func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferre
 	reply.QueryStatus = req.QueryStatus
 
 	return reply, nil
-}
-
-func emptyInstID(id byzcoin.InstanceID) error {
-	if id.String() == "" {
-		return fmt.Errorf("instance id is empty")
-	}
-	return nil
-}
-
-func checkStatus(status string) error {
-	if len(status) == 0 {
-		return fmt.Errorf("empty query status")
-	}
-	if status != "Submitted" {
-		return fmt.Errorf("wrong query status")
-	}
-	return nil
 }
 
 // HandlePropagateID propagates the instance ID of the query
@@ -183,16 +169,84 @@ func (s *Service) HandleGetSharedData(req *GetSharedDataRequest) (*GetSharedData
 	return &GetSharedDataReply{s.Storage.SharedInstanceIDs}, nil
 }
 
-func getQueryByID(view byzcoin.ReadOnlyStateTrie, eid []byte) (*Query, error) {
-	v0, _, _, _, err := view.GetValues(eid)
+// HandleAuthorizeQuery handles request to authorize a query
+func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
+	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
+
+	reply := &AuthorizeQueryReply{}
+	reply.OK = false
+	// sanitize params
+	if err := emptyInstID(req.QueryInstID); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+	if err := checkStatusAuth(req.QueryStatus); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+
+	v, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
 	if err != nil {
 		return nil, err
 	}
-	var q Query
-	if err := protobuf.Decode(v0, &q); err != nil {
+	darcID, err := getQueryByID(v, req.QueryInstID.Slice())
+	if err != nil {
+		return nil, xerrors.Errorf("could not get query from skipchain: %v", err)
+	}
+
+	log.Info("[INFO] Authorize query darc ID: ", req.DarcID)
+
+	if !req.DarcID.Equal(darcID) {
+		return nil, xerrors.Errorf("error in getting query from skipchain: %v", err)
+	}
+
+	err = checkStatusAuth(req.QueryStatus)
+	if err != nil {
 		return nil, err
 	}
-	return &q, nil
+	reply.OK = true
+	return reply, nil
+
+}
+
+func emptyInstID(id byzcoin.InstanceID) error {
+	if id.String() == "" {
+		return fmt.Errorf("instance id is empty")
+	}
+	return nil
+}
+
+func checkStatus(status string) error {
+	if len(status) == 0 {
+		return fmt.Errorf("empty query status")
+	}
+	if status != "Submitted" {
+		return fmt.Errorf("wrong query status")
+	}
+	return nil
+}
+
+func checkStatusAuth(status string) error {
+	if len(status) == 0 {
+		return fmt.Errorf("empty query status")
+	}
+	if status == "Authorized" || status == "Rejected" {
+		return fmt.Errorf("invalid query status received from skipchain")
+	}
+	return nil
+}
+
+func getQueryByID(view byzcoin.ReadOnlyStateTrie, instID []byte) (darc.ID, error) {
+	_, _, _, darcID, err := view.GetValues(instID)
+	if err != nil {
+		return nil, err
+	}
+	// qdata := QueryData{}
+	// if err := protobuf.Decode(v0, &qdata); err != nil {
+	// 	return nil, err
+	// }
+
+	log.Info("[INFO] getQueryByID returned Darc ID: ", darcID)
+
+	return darcID, nil
 }
 
 // Saves s.Storage in the node

@@ -23,7 +23,8 @@ func init() {
 		&SignDeferredTxRequest{}, &SignDeferredTxReply{},
 		&PropagateIDRequest{}, &PropagateIDReply{},
 		&GetSharedDataRequest{}, &GetSharedDataReply{},
-		//ExecuteDeferredTxRequest{}, ExecuteDeferredTxReply{},
+		&ExecuteDeferredTxRequest{}, &ExecuteDeferredTxReply{},
+		&AuthorizeQueryRequest{}, &AuthorizeQueryReply{},
 	)
 
 }
@@ -111,7 +112,7 @@ type SignDeferredTxReply struct {
 // UnixNano() method in package time.
 type SearchRequest struct {
 	Instance byzcoin.InstanceID
-	ID       skipchain.SkipBlockID
+	BlockID  skipchain.SkipBlockID
 	// Return queries where Query.Status == Status, if Status != "".
 	Status string
 	// Return queries where When is > From.
@@ -148,4 +149,33 @@ type GetSharedDataRequest struct {
 // GetSharedDataReply is the reply to GetSharedDataRequest
 type GetSharedDataReply struct {
 	QueryInstIDs []byzcoin.InstanceID
+}
+
+// AuthorizeQueryRequest implements the request to authorize the query
+type AuthorizeQueryRequest struct {
+	QueryID     string
+	QueryStatus string
+	QueryInstID byzcoin.InstanceID
+	BlockID     skipchain.SkipBlockID
+	DarcID      darc.ID
+}
+
+// AuthorizeQueryReply is the reply to AuthorizeQeryRequest
+type AuthorizeQueryReply struct {
+	QueryInstID byzcoin.InstanceID
+	OK          bool
+}
+
+// ExecuteDeferredTxRequest iplements the reques to exec the deferred query tx
+type ExecuteDeferredTxRequest struct {
+	ClientID    string
+	QueryStatus string
+	QueryInstID byzcoin.InstanceID
+}
+
+// ExecuteDeferredTxReply the reply to ExecuteDeferredTxRequest
+type ExecuteDeferredTxReply struct {
+	QueryStatus string
+	QueryInstID byzcoin.InstanceID
+	OK          bool
 }
