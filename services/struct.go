@@ -95,6 +95,7 @@ type VerifyStatusReply struct {
 type SignDeferredTxRequest struct {
 	// TODO: is the id of the user also needed?
 	ClientID    string
+	Keys        darc.Signer
 	QueryStatus string
 	QueryInstID byzcoin.InstanceID
 }

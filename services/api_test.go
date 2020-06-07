@@ -399,6 +399,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
 	req2 := &SignDeferredTxRequest{}
+	req2.Keys = cl.Signers[0]
 	req2.ClientID = cl.ClientID
 	req2.QueryInstID = req1.QueryInstID
 	resp2, err := cl.AddSignatureToDeferredQuery(req2)
@@ -409,16 +410,21 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 4. Execute the query transaction
 	// ------------------------------------------------------------------------
-	err = cl.ExecDefferedQuery(req1.QueryInstID)
+	req3 := &ExecuteDeferredTxRequest{}
+	req3.ClientID = cl.ClientID
+	req3.QueryInstID = req1.QueryInstID
+	req3.QueryStatus = req1.QueryStatus
+	resp3, err := cl.ExecDefferedQuery(req3)
 	require.NoError(t, err)
-	require.Equal(t, resp2.QueryInstID, req2.QueryInstID)
-	require.Equal(t, resp2.QueryInstID, req1.QueryInstID)
-	require.Equal(t, resp1.QueryInstID, resp2.QueryInstID)
+	require.True(t, resp3.OK)
+	require.Equal(t, resp2.QueryInstID, req3.QueryInstID)
+	require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
+	require.Equal(t, resp1.QueryInstID, resp3.QueryInstID)
 
-	iIDStr := resp2.QueryInstID.String()
+	iIDStr := resp3.QueryInstID.String()
 	iIDBuf, err := hex.DecodeString(iIDStr)
 	require.NoError(t, err)
-	require.Equal(t, resp2.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
+	require.Equal(t, resp3.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
 
 	// ------------------------------------------------------------------------
 	// 5. Check Authorizations
@@ -426,15 +432,15 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	err = cl.GetDarcRules(req1.QueryInstID)
 	require.NoError(t, err)
 
-	req3 := &AuthorizeQueryRequest{}
-	req3.QueryID = query.ID
-	req3.QueryInstID = req1.QueryInstID
-	req3.DarcID = cl.AllDarcs["A"].GetBaseID()
-	resp3, err := cl.AuthorizeQuery(req3)
+	req4 := &AuthorizeQueryRequest{}
+	req4.QueryID = query.ID
+	req4.QueryInstID = req1.QueryInstID
+	req4.DarcID = cl.AllDarcs["A"].GetBaseID()
+	resp4, err := cl.AuthorizeQuery(req4)
 	require.Nil(t, err)
-	require.True(t, resp3.OK)
-	require.Equal(t, 32, len(resp3.QueryInstID))
-	require.NotEqual(t, req1.QueryInstID, resp3.QueryInstID)
+	require.True(t, resp4.OK)
+	require.Equal(t, 32, len(resp4.QueryInstID))
+	require.NotEqual(t, req1.QueryInstID, resp4.QueryInstID)
 	cl.Bcl.WaitPropagation(5)
 
 	// Check consistency and # of queries.
@@ -564,6 +570,7 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
 	req2 := &SignDeferredTxRequest{}
+	req2.Keys = cl.Signers[0]
 	req2.ClientID = cl.ClientID
 	req2.QueryInstID = req1.QueryInstID
 	resp2, err := cl.AddSignatureToDeferredQuery(req2)
@@ -574,16 +581,21 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 4. Execute the query transaction
 	// ------------------------------------------------------------------------
-	err = cl.ExecDefferedQuery(req1.QueryInstID)
+	req3 := &ExecuteDeferredTxRequest{}
+	req3.ClientID = cl.ClientID
+	req3.QueryInstID = req1.QueryInstID
+	req3.QueryStatus = req1.QueryStatus
+	resp3, err := cl.ExecDefferedQuery(req3)
 	require.NoError(t, err)
-	require.Equal(t, resp2.QueryInstID, req2.QueryInstID)
-	require.Equal(t, resp2.QueryInstID, req1.QueryInstID)
-	require.Equal(t, resp1.QueryInstID, resp2.QueryInstID)
+	require.True(t, resp3.OK)
+	require.Equal(t, resp2.QueryInstID, req3.QueryInstID)
+	require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
+	require.Equal(t, resp1.QueryInstID, resp3.QueryInstID)
 
-	iIDStr := resp2.QueryInstID.String()
+	iIDStr := resp3.QueryInstID.String()
 	iIDBuf, err := hex.DecodeString(iIDStr)
 	require.NoError(t, err)
-	require.Equal(t, resp2.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
+	require.Equal(t, resp3.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
 
 	// ------------------------------------------------------------------------
 	// 5. Check Authorizations
@@ -591,15 +603,15 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	err = cl.GetDarcRules(req1.QueryInstID)
 	require.NoError(t, err)
 
-	req3 := &AuthorizeQueryRequest{}
-	req3.QueryID = query.ID
-	req3.QueryInstID = req1.QueryInstID
-	req3.DarcID = cl.AllDarcs["B"].GetBaseID()
-	resp3, err := cl.AuthorizeQuery(req3)
+	req4 := &AuthorizeQueryRequest{}
+	req4.QueryID = query.ID
+	req4.QueryInstID = req1.QueryInstID
+	req4.DarcID = cl.AllDarcs["B"].GetBaseID()
+	resp4, err := cl.AuthorizeQuery(req4)
 	require.Nil(t, err)
-	require.True(t, resp3.OK)
-	require.Equal(t, 32, len(resp3.QueryInstID))
-	require.NotEqual(t, req1.QueryInstID, resp3.QueryInstID)
+	require.True(t, resp4.OK)
+	require.Equal(t, 32, len(resp4.QueryInstID))
+	require.NotEqual(t, req1.QueryInstID, resp4.QueryInstID)
 	cl.Bcl.WaitPropagation(5)
 
 	// Check consistency and # of queries.
@@ -620,6 +632,201 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
 	instaID, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID+"_auth")
+	require.Nil(t, err)
+	_, err = cl.GetQuery(instaID.Slice())
+	require.Nil(t, err)
+
+}
+
+func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
+
+	log.Info("[INFO] Starting the service")
+	s, _, cl := newSer(t)
+	require.Equal(t, s.owner, cl.Signers[0])
+	leader := s.services[0]
+	defer s.close()
+
+	log.Info("[INFO] Starting ByzCoin Client")
+	err := cl.Create()
+	require.Nil(t, err)
+
+	// ------------------------------------------------------------------------
+	// 1. Add Project A Darc
+	// ------------------------------------------------------------------------
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
+	actionsA := "spawn:medchain,invoke:medchain.update,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:medchain.count_global_obfuscated,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,_name:deferred"
+
+	// all signers need to sing
+	exprA := expression.InitAndExpr(cl.Signers[0].Identity().String())
+	cl.AllDarcs["A"], _ = cl.CreateDarc("Project A darc", rulesA, actionsA, exprA)
+
+	// Add _name to Darc rule so that we can name the instances using contract_name
+	cl.AllDarcs["A"].Rules.AddRule("_name:"+ContractName, exprA)
+	cl.AllDarcs["A"].Rules.AddRule("spawn:naming", exprA)
+
+	// Verify the darc is correct
+	require.Nil(t, cl.AllDarcs["A"].Verify(true))
+
+	aDarcBuf, err := cl.AllDarcs["A"].ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, cl.AllDarcs["A"].Equal(aDarcCopy))
+
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: aDarcBuf,
+				},
+			},
+		},
+		SignerIdentities: []darc.Identity{cl.Signers[0].Identity()},
+		SignerCounter:    cl.IncrementCtrs(),
+	})
+	require.Nil(t, err)
+
+	err = ctx.FillSignersAndSignWith(cl.Signers...)
+	require.Nil(t, err)
+
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	cl.AllDarcIDs["A"] = cl.AllDarcs["A"].GetBaseID()
+
+	// ------------------------------------------------------------------------
+	// 2. Spwan query instances of MedChain contract
+	// ------------------------------------------------------------------------
+
+	req1 := &AddDeferredQueryRequest{}
+	query := NewQuery("wsdf65k80h:A:patient_list", " ")
+	req1.QueryID = query.ID
+	req1.ClientID = cl.ClientID
+	req1.DarcID = cl.AllDarcs["A"].GetBaseID()
+	resp1, err := cl.SpawnDeferredQuery(req1)
+	require.NoError(t, err)
+	require.NotNil(t, resp1)
+	require.NotNil(t, req1.QueryInstID)
+	require.True(t, resp1.OK)
+	require.Equal(t, "Submitted", req1.QueryStatus)
+
+	result, err := cl.Bcl.GetDeferredDataAfter(resp1.QueryInstID, cl.Bcl.Latest)
+	require.Nil(t, err)
+	// Default MaxNumExecution should be 1
+	require.Equal(t, result.MaxNumExecution, uint64(1))
+	require.NotEmpty(t, result.InstructionHashes)
+
+	cl.Bcl.WaitPropagation(1)
+
+	// Check consistency and # of queries.
+	for i := 0; i < 10; i++ {
+		leader.waitForBlock(cl.Bcl.ID)
+	}
+
+	//Fetch the index, and check it.
+	idx := checkProof(t, cl, leader.omni, req1.QueryInstID.Slice(), cl.Bcl.ID)
+	qu := QueryData{}
+	err = protobuf.Decode(idx, &qu)
+	require.NoError(t, err)
+
+	dd, err := cl.Bcl.GetDeferredData(req1.QueryInstID)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), dd.MaxNumExecution)
+
+	// ------------------------------------------------------------------------
+	// 3. Add signature (i.e, add proof) to the deferred query instance
+	// ------------------------------------------------------------------------
+	req2 := &SignDeferredTxRequest{}
+	req2.Keys = cl.Signers[0]
+	req2.ClientID = cl.ClientID
+	req2.QueryInstID = req1.QueryInstID
+	resp2, err := cl.AddSignatureToDeferredQuery(req2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2)
+	require.True(t, resp2.OK)
+
+	// ------------------------------------------------------------------------
+	// 4. Create new Signer and add signature (i.e, add proof) to the deferred query instance.
+	// ------------------------------------------------------------------------
+	newSigner := darc.NewSignerEd25519(nil, nil)
+	cl.Signers = append(cl.Signers, newSigner)
+	cl.signerCtrs = append(cl.signerCtrs, 0)
+	log.Info("[INFO] The length of Signers", len(cl.Signers))
+	log.Info("[INFO] The length of signer counters", len(cl.signerCtrs))
+	req3 := &SignDeferredTxRequest{}
+	req3.Keys = cl.Signers[1]
+	req3.ClientID = cl.ClientID
+	req3.QueryInstID = req1.QueryInstID
+	resp3, err := cl.AddSignatureToDeferredQuery(req3)
+	require.NoError(t, err)
+	require.NotNil(t, resp3)
+	require.True(t, resp3.OK)
+
+	// ------------------------------------------------------------------------
+	// 5. Execute the query transaction. This one should fail as one of the
+	//    instruction is signed by an unauthorized signer.
+	// ------------------------------------------------------------------------
+
+	// TODO: pass signature to all api functions
+	req4 := &ExecuteDeferredTxRequest{}
+	req4.ClientID = cl.ClientID
+	req4.QueryInstID = req1.QueryInstID
+	req4.QueryStatus = req1.QueryStatus
+	resp4, err := cl.ExecDefferedQuery(req4)
+	require.NoError(t, err)
+	require.True(t, resp4.OK)
+	require.Equal(t, resp3.QueryInstID, req4.QueryInstID)
+	require.Equal(t, resp4.QueryInstID, req4.QueryInstID)
+	require.Equal(t, resp1.QueryInstID, resp4.QueryInstID)
+
+	iIDStr := resp4.QueryInstID.String()
+	iIDBuf, err := hex.DecodeString(iIDStr)
+	require.NoError(t, err)
+	require.Equal(t, resp2.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
+
+	// ------------------------------------------------------------------------
+	// 6. Check Authorizations
+	// ------------------------------------------------------------------------
+	err = cl.GetDarcRules(req1.QueryInstID)
+	require.NoError(t, err)
+
+	req5 := &AuthorizeQueryRequest{}
+	req5.QueryID = query.ID
+	req5.QueryInstID = req1.QueryInstID
+	req5.DarcID = cl.AllDarcs["A"].GetBaseID()
+	resp5, err := cl.AuthorizeQuery(req5)
+	require.Nil(t, err)
+	require.True(t, resp5.OK)
+	require.Equal(t, 32, len(resp5.QueryInstID))
+	require.NotEqual(t, req1.QueryInstID, resp5.QueryInstID)
+	cl.Bcl.WaitPropagation(5)
+
+	// Check consistency and # of queries.
+	for i := 0; i < 10; i++ {
+		leader.waitForBlock(cl.Bcl.ID)
+	}
+
+	// //Fetch the index, and check it.
+	// idx = checkProof(t, cl, leader.omni, resp3.QueryInstID.Slice(), cl.Bcl.ID)
+	// qdata := QueryData{}
+	// err = protobuf.Decode(idx, &qdata)
+	// require.Nil(t, err)
+	// for _, s := range qdata.Storage {
+	// 	require.Equal(t, query.ID+"_auth", s.ID)
+	// 	require.Equal(t, "Authorized", s.Status)
+	// }
+
+	// Use the client API to get the query back
+	// Resolve instance takes much time to run
+	instaID, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID+"_auth")
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
@@ -1031,7 +1238,6 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	require.NoError(t, err)
 
 	cl.GMsg = s.req
-	// cl.DarcID = s.genDarc.GetBaseID()
 	cl.Signers = []darc.Signer{s.owner}
 	cl.GenDarc = s.genDarc
 	log.Lvl1("[INFO] Created the services")

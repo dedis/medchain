@@ -79,7 +79,7 @@ func NewService(c *onet.Context) (onet.Service, error) {
 	}
 
 	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery, s.HandleSignDeferredTx,
-		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery); err != nil {
+		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery, s.HandleExecuteDeferredTx); err != nil {
 		return nil, fmt.Errorf("couldn't register messages: %+v", err)
 	}
 
@@ -136,10 +136,29 @@ func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferre
 	}
 
 	// if this server is the one receiving the request from the client
-	log.Info("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query:", req.QueryInstID)
+	log.Info("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query with instance ID:", req.QueryInstID)
 
 	//TODO: 1. add more checks to see if enough number of signatures are received. If that is the case, exec the query here
 	// 2. retrieve status here from skipchain to get more reliable results
+	reply.OK = true
+	reply.QueryInstID = req.QueryInstID
+	reply.QueryStatus = req.QueryStatus
+
+	return reply, nil
+}
+
+// HandleExecuteDeferredTx handles requests to add signature to a deferred query
+func (s *Service) HandleExecuteDeferredTx(req *ExecuteDeferredTxRequest) (*ExecuteDeferredTxReply, error) {
+	reply := &ExecuteDeferredTxReply{}
+	reply.OK = false
+	// sanitize params
+	if err := emptyInstID(req.QueryInstID); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+
+	// if this server is the one receiving the request from the client
+	log.Info("[INFO]: ", s.ServerIdentity().String(), " received a ExecuteDeferredTxRequest for query with instance ID:", req.QueryInstID)
+
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
 	reply.QueryStatus = req.QueryStatus

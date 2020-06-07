@@ -111,8 +111,13 @@ func (c *Client) AuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryRepl
 		return nil, xerrors.New("query ID required")
 	}
 
+	if len(req.QueryInstID) == 0 {
+		return nil, xerrors.New("query instance ID required")
+	}
+
 	req.QueryStatus = "Submitted"
-	log.Info("[INFO] Spawning the deferred query ")
+	log.Info("[INFO] Checking the authorizations for the query with instance ID: ", req.QueryInstID)
+	log.Info("[INFO] Checking the authorizations for the query with query ID: ", req.QueryID)
 	return c.createQueryAndWait(req)
 }
 
@@ -441,6 +446,9 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
 	log.Info("[INFO] Add signature to the query transaction")
 
+	if req.Keys.Type() == -1 {
+		return nil, errors.New("client keys are required")
+	}
 	if len(req.ClientID) == 0 {
 		return nil, errors.New("ClientID required")
 	}
@@ -454,13 +462,13 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 		return nil, xerrors.Errorf("failed to get deffered instance from skipchain: %w", err)
 	}
 	rootHash := result.InstructionHashes
-	signer := c.Signers[0]
-	identity := signer.Identity() // TODO: Sign with private key of client
+	// signer := c.Signers[0]
+	identity := req.Keys.Identity() // TODO: Sign with private key of client
 	identityBuf, err := protobuf.Encode(&identity)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get the user identity: %w", err)
 	}
-	signature, err := signer.Sign(rootHash[0]) // == index
+	signature, err := req.Keys.Sign(rootHash[0]) // == index
 	if err != nil {
 		return nil, xerrors.Errorf("could not sign the deffered query: %w", err)
 	}
@@ -509,10 +517,21 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 }
 
 // ExecDefferedQuery executes the query that has received enough signatures
-func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
+func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDeferredTxReply, error) {
 	log.Info("[INFO] Execute the query transaction")
+	if len(req.ClientID) == 0 {
+		return nil, xerrors.New("ClientID required")
+	}
+	if req.QueryStatus != "Submitted" {
+		return nil, xerrors.New("invalid query status")
+	}
+
+	if len(req.QueryInstID) == 0 {
+		return nil, xerrors.New("query instance ID required")
+	}
+
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: instID,
+		InstanceID: req.QueryInstID,
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractDeferredID,
 			Command:    "execProposedTx",
@@ -520,9 +539,20 @@ func (c *Client) ExecDefferedQuery(instID byzcoin.InstanceID) error {
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return xerrors.Errorf("failed to execute transaction: %w", err)
+		return nil, xerrors.Errorf("failed to execute transaction: %w", err)
 	}
-	return c.spawnTx(ctx)
+
+	err = c.spawnTx(ctx)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to execute transaction: %w", err)
+	}
+
+	reply := &ExecuteDeferredTxReply{}
+	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get ExecuteDeferredTxReply from service: %w", err)
+	}
+	return reply, nil
 }
 
 // GetDarcRules returns the rules for signers of a query transaction in the project darc
