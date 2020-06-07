@@ -8,6 +8,7 @@ import (
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
+	"go.dedis.ch/cothority/v3/byzcoin/contracts"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/onet/v3"
@@ -30,6 +31,9 @@ var adminActions = map[darc.Action]uint{
 	"invoke:deferred.addProof":       1,
 	"invoke:deferred.execProposedTx": 1,
 	"spawn:darc":                     0,
+	"spawn:value":                    0,
+	"invoke:value.update":            0,
+	"_name:value":                    0,
 }
 
 func NewClient(bcl *byzcoin.Client) (*Client, error) {
@@ -98,16 +102,189 @@ func (cl *Client) SpawnNewAdminDarc() (*darc.Darc, error) {
 
 }
 
+func (cl *Client) SpawnAdminsList(adid darc.ID) (byzcoin.InstanceID, error) {
+	list := AdminsList{[]string{cl.AuthKey().Identity().String()}}
+	buf, err := protobuf.Encode(&list)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Marshalling: %w", err)
+	}
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(adid),
+		Spawn: &byzcoin.Spawn{
+			ContractID: contracts.ContractValueID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "value",
+					Value: buf,
+				},
+			},
+		},
+		// SignerIdentities: []darc.Identity{superAdmin.Identity()},
+		SignerCounter: []uint64{cl.signerCounter},
+	})
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the deffered transaction: %w", err)
+	}
+	err = cl.spawnTransaction(ctx)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding transaction to the ledger: %w", err)
+	}
+	return ctx.Instructions[0].DeriveID(""), nil
+
+}
+
+func (cl *Client) AttachAdminsList(id byzcoin.InstanceID) error {
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NamingInstanceID,
+		Invoke: &byzcoin.Invoke{
+			ContractID: byzcoin.ContractNamingID,
+			Command:    "add",
+			Args: byzcoin.Arguments{
+				{
+					Name:  "instanceID",
+					Value: id.Slice(),
+				},
+				{
+					Name:  "name",
+					Value: []byte("adminsList"),
+				},
+			},
+		},
+		SignerCounter: []uint64{cl.signerCounter},
+	})
+	if err != nil {
+		return xerrors.Errorf("Creating the transaction: %w", err)
+	}
+	return cl.spawnTransaction(ctx)
+}
+
+func (cl *Client) addAdminToList(adid darc.ID, id string) (byzcoin.Instruction, []string, error) {
+	listId, err := cl.Bcl.ResolveInstanceID(adid, "adminsList")
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Resolving the instance id of value contract instance: %w", err)
+	}
+	list, err := cl.GetAdminsList(listId)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Getting admins list: %w", err)
+	}
+	err = Add(&list.List, id)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Adding admin to admins list: %w", err)
+	}
+	buf, err := protobuf.Encode(&list)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Marshalling: %w", err)
+	}
+	inst := byzcoin.Instruction{
+		InstanceID: listId,
+		Invoke: &byzcoin.Invoke{
+			ContractID: contracts.ContractValueID,
+			Command:    "update",
+			Args: byzcoin.Arguments{
+				{
+					Name:  "value",
+					Value: buf,
+				},
+			},
+		},
+	}
+	return inst, list.List, nil
+
+}
+func (cl *Client) removeAdminFromList(adid darc.ID, id string) (byzcoin.Instruction, []string, error) {
+	listId, err := cl.Bcl.ResolveInstanceID(adid, "adminsList")
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Resolving the instance id of value contract instance: %w", err)
+	}
+	list, err := cl.GetAdminsList(listId)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Getting admins list: %w", err)
+	}
+	err = Remove(&list.List, id)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Removing admin from admins list: %w", err)
+	}
+	buf, err := protobuf.Encode(&list)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Marshalling: %w", err)
+	}
+	inst := byzcoin.Instruction{
+		InstanceID: listId,
+		Invoke: &byzcoin.Invoke{
+			ContractID: contracts.ContractValueID,
+			Command:    "update",
+			Args: byzcoin.Arguments{
+				{
+					Name:  "value",
+					Value: buf,
+				},
+			},
+		},
+	}
+	return inst, list.List, nil
+
+}
+func (cl *Client) updateAdminKeyInList(adid darc.ID, oldId, newId string) (byzcoin.Instruction, []string, error) {
+	listId, err := cl.Bcl.ResolveInstanceID(adid, "adminsList")
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Resolving the instance id of value contract instance: %w", err)
+	}
+	list, err := cl.GetAdminsList(listId)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Getting admins list: %w", err)
+	}
+	err = Update(&list.List, oldId, newId)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Removing admin from admins list: %w", err)
+	}
+	buf, err := protobuf.Encode(&list)
+	if err != nil {
+		return byzcoin.Instruction{}, []string{}, xerrors.Errorf("Marshalling: %w", err)
+	}
+	inst := byzcoin.Instruction{
+		InstanceID: listId,
+		Invoke: &byzcoin.Invoke{
+			ContractID: contracts.ContractValueID,
+			Command:    "update",
+			Args: byzcoin.Arguments{
+				{
+					Name:  "value",
+					Value: buf,
+				},
+			},
+		},
+	}
+	return inst, list.List, nil
+
+}
+func (cl *Client) GetAdminsList(listId byzcoin.InstanceID) (AdminsList, error) {
+	pr, err := cl.Bcl.GetProof(listId.Slice())
+	if err != nil {
+		return AdminsList{}, xerrors.Errorf("Resolving the proof of the value contract instance: %w", err)
+	}
+	v0, _, _, err := pr.Proof.Get(listId.Slice())
+	if err != nil {
+		return AdminsList{}, xerrors.Errorf("Getting the proof of value contract: %w", err)
+	}
+	list := AdminsList{}
+	err = protobuf.Decode(v0, &list)
+	if err != nil {
+		return AdminsList{}, xerrors.Errorf("Encoding: %w", err)
+	}
+	return list, nil
+}
+
 // TODO will need to use the method to create threshold multisig rules when implemented
 func createMultisigRuleExpression(al []string) expression.Expr {
 	return expression.InitAndExpr(al...) // For now everyone needs to sign
 }
 
+//TODO redo spawning with actionsList
 func (cl *Client) createAdminDarc() (*darc.Darc, error) {
 	description := "Admin darc guards medchain project darcs"
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	adminDarc := darc.NewDarc(rules, []byte(description))
-	adminDarcActions := "invoke:darc.evolve,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc"
+	adminDarcActions := "invoke:darc.evolve,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,spawn:value,_name:value,invoke:value.update"
 	adminDarcExpr := createMultisigRuleExpression([]string{cl.adminkeys.Identity().String()})
 	err := AddRuleToDarc(adminDarc, adminDarcActions, adminDarcExpr)
 	return adminDarc, err
@@ -135,15 +312,19 @@ func (cl *Client) AddAdminToAdminDarc(adid darc.ID, newAdmin string) (byzcoin.In
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Getting the admin darc from chain: %w", err)
 	}
-	exp := adminDarc.Rules.GetEvolutionExpr()
-	slc := strings.Split(string(exp), "&")
-	for i := range slc {
-		slc[i] = strings.TrimSpace(slc[i])
+
+	listInst, slc, err := cl.addAdminToList(adid, newAdmin)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding admin to list: %w", err)
 	}
-	slc = append(slc, newAdmin)
-	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
+	adminInst, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
+	}
+
+	proposedTransaction, err := cl.Bcl.CreateTransaction(listInst, adminInst)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
 
 	return cl.addDeferredTransaction(proposedTransaction, adid)
@@ -154,19 +335,20 @@ func (cl *Client) RemoveAdminFromAdminDarc(adid darc.ID, adminId string) (byzcoi
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Getting the admin darc from chain: %w", err)
 	}
-	exp := adminDarc.Rules.GetEvolutionExpr()
-	slc := strings.Split(string(exp), "&")
-	for i := range slc {
-		slc[i] = strings.TrimSpace(slc[i])
+
+	listInst, slc, err := cl.removeAdminFromList(adid, adminId)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Removing admin from list: %w", err)
 	}
-	idx := IndexOf(adminId, slc)
-	if idx == -1 {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("The adminID doesn't exist in the admin darc")
-	}
-	slc = append(slc[:idx], slc[idx+1:]...)
-	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
+
+	adminInst, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
+	}
+
+	proposedTransaction, err := cl.Bcl.CreateTransaction(listInst, adminInst)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
 	return cl.addDeferredTransaction(proposedTransaction, adid)
 }
@@ -176,19 +358,20 @@ func (cl *Client) ModifyAdminKeysFromAdminDarc(adid darc.ID, oldkey, newkey stri
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Getting the admin darc from chain: %w", err)
 	}
-	exp := adminDarc.Rules.GetEvolutionExpr()
-	slc := strings.Split(string(exp), "&")
-	for i := range slc {
-		slc[i] = strings.TrimSpace(slc[i])
+
+	listInst, slc, err := cl.updateAdminKeyInList(adid, oldkey, newkey)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Removing admin from list: %w", err)
 	}
-	idx := IndexOf(oldkey, slc)
-	if idx == -1 {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("The adminID doesn't exist in the admin darc")
-	}
-	slc[idx] = newkey
-	proposedTransaction, err := cl.evolveAdminDarc(slc, adminDarc)
+
+	adminInst, err := cl.evolveAdminDarc(slc, adminDarc)
 	if err != nil {
 		return *new(byzcoin.InstanceID), xerrors.Errorf("Evolving the admin darc: %w", err)
+	}
+
+	proposedTransaction, err := cl.Bcl.CreateTransaction(listInst, adminInst)
+	if err != nil {
+		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
 	return cl.addDeferredTransaction(proposedTransaction, adid)
 }
@@ -212,23 +395,23 @@ func (cl *Client) updateAdminRules(evolvedAdminDarc *darc.Darc, newAdminExpr []e
 	return nil
 }
 
-func (cl *Client) evolveAdminDarc(slc []string, olddarc *darc.Darc) (byzcoin.ClientTransaction, error) {
+func (cl *Client) evolveAdminDarc(slc []string, olddarc *darc.Darc) (byzcoin.Instruction, error) {
 	newdarc := olddarc.Copy()
 	newAdminExpr := []expression.Expr{createMultisigRuleExpression(slc), expression.InitOrExpr(slc...)}
 	err := cl.updateAdminRules(newdarc, newAdminExpr)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("Updating admin rules: %w", err)
+		return byzcoin.Instruction{}, xerrors.Errorf("Updating admin rules: %w", err)
 	}
 	err = newdarc.EvolveFrom(olddarc)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("Evolving the admin darc: %w", err)
+		return byzcoin.Instruction{}, xerrors.Errorf("Evolving the admin darc: %w", err)
 	}
 	_, darc2Buf, err := newdarc.MakeEvolveRequest(cl.AuthKey())
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("Creating the evolution request: %w", err)
+		return byzcoin.Instruction{}, xerrors.Errorf("Creating the evolution request: %w", err)
 	}
 
-	proposedTransaction, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
+	proposedTransaction := byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(olddarc.GetBaseID()),
 		Invoke: &byzcoin.Invoke{
 			ContractID: byzcoin.ContractDarcID,
@@ -238,9 +421,6 @@ func (cl *Client) evolveAdminDarc(slc []string, olddarc *darc.Darc) (byzcoin.Cli
 				Value: darc2Buf,
 			}},
 		},
-	})
-	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("Creating the transaction: %w", err)
 	}
 	return proposedTransaction, nil
 }
@@ -270,6 +450,7 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 	}
 	return ctx.Instructions[0].DeriveID(""), err
 }
+
 func (cl *Client) SynchronizeDefferedInstanceIDs() error {
 	defferedIDs, err := cl.FetchNewDefferedInstanceIDs()
 	if err != nil {
@@ -304,7 +485,7 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx ui
 	if err != nil {
 		return xerrors.Errorf("Encoding the identity of signer: %w", err)
 	}
-	signature, err := cl.AuthKey().Sign(rootHash[0]) // == index
+	signature, err := cl.AuthKey().Sign(rootHash[instIdx]) // == index
 	if err != nil {
 		return xerrors.Errorf("Signing the deffered transaction: %w", err)
 	}
@@ -437,7 +618,6 @@ func (cl *Client) CreateAccessRight(pdarc, adid darc.ID) (byzcoin.InstanceID, er
 	return id, nil
 }
 
-//TODO the _name contract doesn't implement VerifyDeferredData -> PR ?
 func (cl *Client) AttachAccessRightToProject(arID byzcoin.InstanceID) error {
 	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
@@ -539,7 +719,6 @@ func (cl *Client) AddQuerierToProject(pdid, adid darc.ID, qid, access string) (b
 					Value: []byte(access),
 				}},
 		},
-		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
 		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
@@ -567,7 +746,6 @@ func (cl *Client) RemoveQuerierFromProject(pdid, adid darc.ID, qid string) (byzc
 			},
 			},
 		},
-		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
 		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
@@ -598,7 +776,6 @@ func (cl *Client) ModifyQuerierAccessRightsForProject(pdid, adid darc.ID, qid, a
 					Value: []byte(access),
 				}},
 		},
-		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
 		return byzcoin.InstanceID{}, xerrors.Errorf("Creating the transaction: %w", err)
@@ -677,7 +854,6 @@ func (cl *Client) spawnTransaction(ctx byzcoin.ClientTransaction) error {
 
 func AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) error {
 	actions := strings.Split(action, ",")
-
 	for i := 0; i < len(actions); i++ {
 		dAction := darc.Action(actions[i])
 		err := userDarc.Rules.AddRule(dAction, expr)

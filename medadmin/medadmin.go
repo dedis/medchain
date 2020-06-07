@@ -14,7 +14,6 @@ import (
 	cli "github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
-	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/clicontracts"
 	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
@@ -112,6 +111,36 @@ func spawn(c *cli.Context) error {
 	}
 	fmt.Println("New admininistration darc spawned :")
 	fmt.Println(darc)
+	fmt.Println("Admin darc base id:", darc.GetIdentityString())
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
+}
+
+func getAdminList(c *cli.Context) error {
+	cl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+
+	adidstring := c.String("adid")
+	if adidstring == "" {
+		return xerrors.New("--adid flag is required")
+	}
+
+	adid, err := lib.StringToDarcID(adidstring)
+	if err != nil {
+		return xerrors.Errorf("failed to parse darc: %v", err)
+	}
+
+	listId, err := cl.Bcl.ResolveInstanceID(adid, "adminsList")
+	if err != nil {
+		return xerrors.Errorf("Resolving the instance id of value contract instance: %w", err)
+	}
+	list, err := cl.GetAdminsList(listId)
+	if err != nil {
+		return xerrors.Errorf("Getting admins list: %w", err)
+	}
+	fmt.Println("The list of admin identities in the admin darc:")
+	fmt.Println(list.List)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -121,6 +150,55 @@ func create(c *cli.Context) error {
 	fmt.Println(keys.Identity().String())
 	err := bcadminlib.SaveKey(keys)
 	return err
+}
+
+func createList(c *cli.Context) error {
+	cl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+	adidstring := c.String("adid")
+	if adidstring == "" {
+		return xerrors.New("--adid flag is required")
+	}
+
+	adid, err := lib.StringToDarcID(adidstring)
+	if err != nil {
+		return xerrors.Errorf("failed to parse darc: %v", err)
+	}
+
+	cl.SyncSignerCounter()
+	id, err := cl.SpawnAdminsList(adid)
+	if err != nil {
+		return xerrors.Errorf("spawning a admins list: %w", err)
+	}
+	fmt.Println("Admins list spawned with id:")
+	fmt.Println(id)
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
+}
+
+func attachList(c *cli.Context) error {
+	cl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+	instID := c.String("id")
+	if instID == "" {
+		return xerrors.New("--id flag is required")
+	}
+	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
+	id := byzcoin.NewInstanceID(instIDBuf)
+	cl.SyncSignerCounter()
+
+	err = cl.AttachAdminsList(id)
+	if err != nil {
+		return xerrors.Errorf("Attaching the admins list instance id to the admin darc: %w", err)
+	}
+	fmt.Println("Successfully attached admins list to admin darc with name resolution : adminsList")
+	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
 func addAdmin(c *cli.Context) error {
@@ -147,7 +225,7 @@ func addAdmin(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
 	fmt.Println(deferredId)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -176,7 +254,7 @@ func removeAdmin(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -209,7 +287,7 @@ func modifyAdminKey(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -238,11 +316,11 @@ func deferredSign(c *cli.Context) error {
 	if instID == "" {
 		return xerrors.New("--id flag is required")
 	}
-	txidx := c.String("txidx")
-	if txidx == "" {
-		return xerrors.New("--id flag is required")
+	instidx := c.String("instidx")
+	if instidx == "" {
+		return xerrors.New("--instidx flag is required")
 	}
-	idx, err := strconv.ParseUint(txidx, 10, 64)
+	idx, err := strconv.ParseUint(instidx, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -396,7 +474,7 @@ func attach(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Successfully attached accessright contract instance to project darc")
+	fmt.Println("Successfully attached accessright contract instance to project darc with name resolution AR")
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
 
@@ -602,5 +680,21 @@ func showAccess(c *cli.Context) error {
 }
 
 func deferredGet(c *cli.Context) error {
-	return clicontracts.DeferredGet(c)
+	cl, err := getClient(c, true)
+	if err != nil {
+		return err
+	}
+	instID := c.String("id")
+	if instID == "" {
+		return xerrors.New("--id flag is required")
+	}
+	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
+	id := byzcoin.NewInstanceID(instIDBuf)
+	tx, err := cl.Bcl.GetDeferredData(id)
+	fmt.Println("Transaction", id, ":")
+	fmt.Println(tx.ProposedTransaction)
+	return nil
 }

@@ -4,48 +4,114 @@ import cli "github.com/urfave/cli"
 
 var cmds = cli.Commands{
 	{
-		Name:    "spawn",
-		Usage:   "Spawn a new admin darc",
-		Aliases: []string{"s"},
-		Action:  spawn,
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "keys",
-				Usage: "the ed25519 private key that will sign the create query transaction",
-			},
-			cli.StringFlag{
-				Name:   "bc",
-				EnvVar: "BC",
-				Usage:  "the ByzCoin config",
-			},
-		},
-	},
-	{
 		Name:  "admin",
-		Usage: "Manage admins in admin darc",
+		Usage: "Manage the admin darc",
 		Subcommands: cli.Commands{
 			{
-				Name:    "create",
-				Usage:   "Create a new admin",
-				Aliases: []string{"c"},
-				Action:  create,
+				Name:   "get",
+				Usage:  "Get the list of all admins in admin darc",
+				Action: getAdminList,
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "keys",
+						Usage: "the ed25519 private key that will sign the create query transaction",
+					},
+					cli.StringFlag{
+						Name:   "bc",
+						EnvVar: "BC",
+						Usage:  "the ByzCoin config (default is $BC)",
+					},
+					cli.StringFlag{
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
+					},
+				},
+			},
+			{
+				Name:  "create",
+				Usage: "Create a new admin",
+				Subcommands: cli.Commands{
+					{
+						Name:   "darc",
+						Usage:  "Spawn a new admin darc",
+						Action: spawn,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:  "keys",
+								Usage: "the ed25519 private key that will sign the create query transaction",
+							},
+							cli.StringFlag{
+								Name:   "bc",
+								EnvVar: "BC",
+								Usage:  "the ByzCoin config (default is $BC)",
+							},
+						},
+					},
+					{
+						Name:   "admin",
+						Usage:  "Create a new admin identity",
+						Action: create,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:   "bc",
+								EnvVar: "BC",
+								Usage:  "the ByzCoin config (default is $BC)",
+							},
+						},
+					},
+					{
+						Name:   "list",
+						Usage:  "Create the adminsList (list that contains all admins public identities)",
+						Action: createList,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:   "bc",
+								EnvVar: "BC",
+								Usage:  "the ByzCoin config (default is $BC)",
+							},
+							cli.StringFlag{
+								Name:   "adid",
+								EnvVar: "adid",
+								Usage:  "the admin darc id (default is $adid)",
+							},
+							cli.StringFlag{
+								Name:  "keys",
+								Usage: "the ed25519 private key that will sign the create query transaction",
+							},
+						},
+					},
+				},
+			},
+			{
+				Name:   "attach",
+				Usage:  "Attach the admins list to admin darc",
+				Action: attachList,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
+					},
+					cli.StringFlag{
+						Name:  "keys",
+						Usage: "the ed25519 private key that will sign the create query transaction",
+					},
+					cli.StringFlag{
+						Name:  "id",
+						Usage: "the instance id of the value contract",
 					},
 				},
 			},
 			{
 				Name:   "add",
-				Usage:  "Add a new admin to the admin darc",
+				Usage:  "Add a new admin to the admin darc and admins list",
 				Action: addAdmin,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -56,20 +122,21 @@ var cmds = cli.Commands{
 						Usage: "the new admin identity string",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 				},
 			},
 			{
 				Name:   "remove",
-				Usage:  "Remove an admin from the admin darc",
+				Usage:  "Remove an admin from the admin darc and from the admins list",
 				Action: removeAdmin,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -80,20 +147,21 @@ var cmds = cli.Commands{
 						Usage: "the admin identity string",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 				},
 			},
 			{
 				Name:   "modify",
-				Usage:  "Modify the admin identity in the admin darc",
+				Usage:  "Modify the admin identity in the admin darc and admins list",
 				Action: modifyAdminKey,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -108,8 +176,9 @@ var cmds = cli.Commands{
 						Usage: "the new admin identity string",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 				},
 			},
@@ -127,7 +196,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -143,7 +212,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -155,6 +224,7 @@ var cmds = cli.Commands{
 					},
 					cli.StringFlag{
 						Name:  "txidx",
+						Value: "0",
 						Usage: "the index of the instruction to sign",
 					},
 				},
@@ -167,11 +237,15 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "id",
 						Usage: "the instance id of the deffered transaction",
+					},
+					cli.StringFlag{
+						Name:  "keys",
+						Usage: "the ed25519 private key that will sign the create query transaction",
 					},
 				},
 			},
@@ -183,7 +257,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -203,7 +277,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -222,50 +296,58 @@ var cmds = cli.Commands{
 		Usage: "Manage project darcs and access rights",
 		Subcommands: cli.Commands{
 			{
-				Name:   "create",
-				Usage:  "Create a new project",
-				Action: projectCreate,
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:   "bc",
-						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+				Name:  "create",
+				Usage: "Create a new project structure",
+				Subcommands: cli.Commands{
+					{
+						Name:   "darc",
+						Usage:  "Create a new project darc",
+						Action: projectCreate,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:   "bc",
+								EnvVar: "BC",
+								Usage:  "the ByzCoin config (default is $BC)",
+							},
+							cli.StringFlag{
+								Name:  "keys",
+								Usage: "the ed25519 private key that will sign the create query transaction",
+							},
+							cli.StringFlag{
+								Name:   "adid",
+								EnvVar: "adid",
+								Usage:  "the admin darc id (default is $adid)",
+							},
+							cli.StringFlag{
+								Name:  "pname",
+								Usage: "the project name",
+							},
+						},
 					},
-					cli.StringFlag{
-						Name:  "keys",
-						Usage: "the ed25519 private key that will sign the create query transaction",
-					},
-					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
-					},
-					cli.StringFlag{
-						Name:  "pname",
-						Usage: "the project name",
-					},
-				},
-			},
-			{
-				Name:   "accessright",
-				Usage:  "Create a new accessright contract instance",
-				Action: projectCreateAccessRight,
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:   "bc",
-						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
-					},
-					cli.StringFlag{
-						Name:  "keys",
-						Usage: "the ed25519 private key that will sign the create query transaction",
-					},
-					cli.StringFlag{
-						Name:  "pdid",
-						Usage: "the project darc id",
-					},
-					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+					{
+						Name:   "accessright",
+						Usage:  "Create a new accessright contract instance",
+						Action: projectCreateAccessRight,
+						Flags: []cli.Flag{
+							cli.StringFlag{
+								Name:   "bc",
+								EnvVar: "BC",
+								Usage:  "the ByzCoin config (default is $BC)",
+							},
+							cli.StringFlag{
+								Name:  "keys",
+								Usage: "the ed25519 private key that will sign the create query transaction",
+							},
+							cli.StringFlag{
+								Name:  "pdid",
+								Usage: "the project darc id",
+							},
+							cli.StringFlag{
+								Name:   "adid",
+								EnvVar: "adid",
+								Usage:  "the admin darc id (default is $adid)",
+							},
+						},
 					},
 				},
 			},
@@ -277,7 +359,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -297,7 +379,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -308,8 +390,9 @@ var cmds = cli.Commands{
 						Usage: "the project darc id",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 					cli.StringFlag{
 						Name:  "qid",
@@ -329,7 +412,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -340,8 +423,9 @@ var cmds = cli.Commands{
 						Usage: "the project darc id",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 					cli.StringFlag{
 						Name:  "qid",
@@ -357,7 +441,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -368,8 +452,9 @@ var cmds = cli.Commands{
 						Usage: "the project darc id",
 					},
 					cli.StringFlag{
-						Name:  "adid",
-						Usage: "the admin darc id",
+						Name:   "adid",
+						EnvVar: "adid",
+						Usage:  "the admin darc id (default is $adid)",
 					},
 					cli.StringFlag{
 						Name:  "qid",
@@ -389,7 +474,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",
@@ -417,7 +502,7 @@ var cmds = cli.Commands{
 					cli.StringFlag{
 						Name:   "bc",
 						EnvVar: "BC",
-						Usage:  "the ByzCoin config",
+						Usage:  "the ByzCoin config (default is $BC)",
 					},
 					cli.StringFlag{
 						Name:  "keys",

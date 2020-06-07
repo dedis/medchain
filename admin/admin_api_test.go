@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -34,10 +33,23 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractNamingID,
+		},
+		SignerCounter: []uint64{1},
+	})
+	require.NoError(t, err)
+	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
+	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
+	require.NoError(t, err)
+
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	require.Equal(t, superAdmin, admcl.AuthKey())
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -51,6 +63,13 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, gDarc.GetID()) // Verify that the darc is really in the global state
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
 	// ------------------------------------------------------------------------
@@ -59,7 +78,7 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -67,6 +86,8 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -90,11 +111,15 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction but threshold of signature not reached")
 	err = admcl.ExecDefferedTx(id)
 	require.Error(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -118,11 +143,17 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
 	err = admcl3.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl3.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
 	err = admcl3.ExecDefferedTx(id)
@@ -150,10 +181,23 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractNamingID,
+		},
+		SignerCounter: []uint64{1},
+	})
+	require.NoError(t, err)
+	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
+	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
+	require.NoError(t, err)
+
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	require.Equal(t, superAdmin, admcl.AuthKey())
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -167,6 +211,13 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, gDarc.GetID()) // Verify that the darc is really in the global state
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
 	// ------------------------------------------------------------------------
@@ -175,7 +226,7 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -183,6 +234,8 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -208,8 +261,12 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -230,11 +287,17 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
 	err = admcl3.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl3.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0) // For now the multisignature rule state that every admin sign for sensitive operations (in other rules admin shouldn't sign to be removed)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
 	err = admcl3.ExecDefferedTx(id)
@@ -262,10 +325,23 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractNamingID,
+		},
+		SignerCounter: []uint64{1},
+	})
+	require.NoError(t, err)
+	require.NoError(t, spawnNamingTx.FillSignersAndSignWith(superAdmin))
+	_, err = bcl.AddTransactionAndWait(spawnNamingTx, 10)
+	require.NoError(t, err)
+
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
-	require.Equal(t, superAdmin, admcl.AuthKey())
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -279,6 +355,13 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, gDarc.GetID()) // Verify that the darc is really in the global state
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	// ------------------------------------------------------------------------
 	// 2. Add a new admin to the admin darc
 	// ------------------------------------------------------------------------
@@ -287,7 +370,7 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err := admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -295,6 +378,8 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -318,8 +403,12 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -377,6 +466,13 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, adminDarc.GetBaseID())
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	// ------------------------------------------------------------------------
 	// 2. Create a new project named project A
 	// ------------------------------------------------------------------------
@@ -392,7 +488,7 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	require.Nil(t, err)
 
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
-	id, err := admcl.CreateAccessRight(pdarcID, adminDarc.GetBaseID())
+	id, err = admcl.CreateAccessRight(pdarcID, adminDarc.GetBaseID())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -467,14 +563,23 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, adid)
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	log.Lvl1("[INFO] Create new admin client (admcl2)")
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err := admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
 	require.NoError(t, err)
 	err = admcl.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
@@ -576,9 +681,13 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
@@ -673,14 +782,23 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, adid)
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	log.Lvl1("[INFO] Create new admin client (admcl2)")
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err := admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
 	require.NoError(t, err)
 	err = admcl.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 	err = admcl.ExecDefferedTx(id)
 	require.NoError(t, err)
@@ -712,7 +830,6 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
-	fmt.Println("Current map :", admcl2.pendingDefferedTx)
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
 	id, err = admcl.CreateAccessRight(pdarcID, adid)
 	require.NoError(t, err)
@@ -789,9 +906,13 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
+	err = admcl.AddSignatureToDefferedTx(id, 1)
+	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	require.NoError(t, err)
+	err = admcl2.AddSignatureToDefferedTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
@@ -886,6 +1007,13 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	_, err = lib.GetDarcByID(admcl.Bcl, adid)
 	require.NoError(t, err)
 
+	id, err := admcl.SpawnAdminsList(adminDarc.GetBaseID())
+	require.NoError(t, err)
+	err = admcl.AttachAdminsList(id)
+	require.NoError(t, err)
+	err = local.WaitDone(genesisMsg.BlockInterval)
+	require.Nil(t, err)
+
 	// ------------------------------------------------------------------------
 	// 2. Create a new project named project A
 	// ------------------------------------------------------------------------
@@ -901,7 +1029,7 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	require.Nil(t, err)
 
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
-	id, err := admcl.CreateAccessRight(pdarcID, adid)
+	id, err = admcl.CreateAccessRight(pdarcID, adid)
 	require.NoError(t, err)
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)

@@ -35,3 +35,8 @@ type DefferedID struct {
 type DefferedIDReply struct {
 	OK bool
 }
+
+// AdminsList store the list of admins identities in the admin darc
+type AdminsList struct {
+	List []string
+}
