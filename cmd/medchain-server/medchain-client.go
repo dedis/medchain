@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -36,45 +37,82 @@ type bcConfig struct {
 	ByzCoinID skipchain.SkipBlockID
 }
 
+func create(c *cli.Context) error {
+	// Here is what this function does:
+	//   1. Starts MedChain client
+	//   2. Gets DarcID of genesis darc that has invoke rules for deferred, medchain, etc contracs
+	//   3. Creates MedChain client
+
+	// ---
+	// 1. Start MedChain client
+	// ---
+	log.Info("[INFO] Creating the MedChain CLI client:")
+	mccl, err := getClient(c)
+	if err != nil {
+		return xerrors.Errorf("[INFO] failed to get medchain client:", err)
+	}
+	// ---
+	// 2. GetsDarcID of genesis darc that has invoke rules for deferred, medchain, etc contracs
+	// ---
+	darcArg := c.String("darc")
+	if darcArg == "" {
+		log.Info("[INFO] GenDarcID was not given, fetching th elatest version of GenDarc from ByzCoin")
+		genDarc, err := mccl.Bcl.GetGenDarc()
+		if err != nil {
+			return err
+		}
+		mccl.GenDarcID = genDarc.GetBaseID()
+	} else {
+		log.Info("[INFO] Retrieving GenDarcID by ID provided:", darcArg)
+		darcBuf, err := bcadminlib.StringToDarcID(darcArg)
+		if err != nil {
+			return err
+		}
+		mccl.GenDarcID = darc.ID(darcBuf)
+	}
+	// ---
+	// 3. Creates MedChain client
+	// ---
+	err = mccl.Create()
+	if err != nil {
+		return err
+	}
+	log.Info("[INFO] Created MedChain with genesis darc ID:", mccl.GenDarcID)
+	log.Info("[INFO] Created MedChain with naming instance ID:", mccl.GenDarcID)
+	return bcadminlib.WaitPropagation(c, mccl.Bcl)
+}
+
 func submitQuery(c *cli.Context) error {
 	// Here is what this function does:
-	//   1. Reads Byzcoin config to get config and Byzcoin client
+	//   1. Gets MedChain client
 	//   2. Gets DarcID and rerives it from bzycoin
 	//   3. Gets the proposed query
-	//   4. Gets cleint ID
-	//   5. Fires a spawn instruction for the deferred contract
+	//   4. Fires a spawn instruction for the deferred contract
 	//	 6. Gets the response back from MedChain service
 	//	 7. Broadcasts instanceID to all MedChain nodes
 	//   8. Writes query instanceID to file
 
 	// ---
-	// 1. Read Byzcoin config to get config and Byzcoin client
+	// 1. Get MedChain client
 	// ---
 	log.Info("[INFO] Starting query submission")
-	log.Info("[INFO] Reading byzcoin config file")
-
-	bcArg := c.String("bc")
-	if bcArg == "" {
-		return xerrors.New("--bc flag is required")
-	}
-	_, bcl, err := bcadminlib.LoadConfig(bcArg) //TODO: also return cfg
+	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("failed to read byzcoin config: %v", err)
+		return xerrors.Errorf("[INFO] failed to get medchain client:", err)
 	}
 	// ---
-	// 2. Get DarcID and rerives it from bzycoin
+	// 2. Get DarcID and retrieve it from bzycoin
 	// ---
-
 	// TODO: Broadcast all darc ID after the are created to all nodes, rea them from file
 	// This implementation relies on the user to provide the right darc ID for the corresponding
 	// project
 	log.Info("[INFO] Reading Darc ID")
-	darcIDArg := c.String("darcid")
+	darcIDArg := c.String("darc")
 	if darcIDArg == "" {
-		return xerrors.New("--darcid flag is required")
+		return xerrors.New("--darc flag is required")
 	}
-	log.Info("[INFO] Getting Darc by ID")
-	projectDarc, err := bcadminlib.GetDarcByString(bcl, darcIDArg)
+	log.Info("[INFO] Getting Darc by ID:", darcIDArg)
+	projectDarc, err := bcadminlib.GetDarcByString(mccl.Bcl, darcIDArg)
 	if err != nil {
 		return xerrors.Errorf("failed to get project darc: %v", err)
 	}
@@ -93,96 +131,34 @@ func submitQuery(c *cli.Context) error {
 
 	if len(qq) != 3 {
 		return xerrors.New("invalid query entered")
-
 	}
 	projectName := qq[1]
+	mccl.AllDarcs[string(projectName)] = projectDarc
+	mccl.AllDarcIDs[string(projectName)] = projectDarc.GetBaseID()
 
 	// ---
-	//  4. Get client ID
+	// 4. Fire a spawn instruction for the deferred contract
+	// 5. Get the response back from MedChain service
+	// 6. Broadcast instanceID to all MedChain nodes
 	// ---
-	log.Info("[INFO] Reading client ID")
-	cidArg := c.String("cid")
-	if cidArg == "" {
-		return xerrors.New("--cid flag is required")
-	}
-
-	// ---
-	// 5. Fire a spawn instruction for the deferred contract
-	// ---
-
-	log.Lvl1("[INFO] Reading medchain group definition")
-
-	groupTomlPath := c.String("file")
-	if groupTomlPath == "" {
-		return xerrors.New("--file flag is required")
-	}
-
-	var list []*network.ServerIdentity
-	var si *network.ServerIdentity
-
-	address := c.String("address")
-	if address != "" {
-		// Contact desired server
-		log.Info("[INFO] contacting server at", address)
-		addr := network.Address(address)
-		if !strings.HasPrefix(address, "tls://") {
-			addr = network.NewAddress(network.TLS, address)
-		}
-		si := network.NewServerIdentity(nil, addr)
-		if si.Address.Port() == "" {
-			return errors.New("port not found, must provide addr:port")
-		}
-		list = append(list, si)
-	} else {
-
-		roster, err := readGroup(groupTomlPath)
-		if err != nil {
-			return errors.New("couldn't read file: " + err.Error())
-		}
-		list = roster.List
-		log.Info("[INFO] Roster list is", list)
-	}
-	log.Info("[INFO] Roster is ", list)
-	log.Info("[INFO] Sending request to", si)
-
-	client, err := s.NewClient(bcl, si, cidArg)
-	if err != nil {
-		return xerrors.Errorf("failed to init client: %v", err)
-	}
-
-	err = client.Create()
-	if err != nil {
-		return xerrors.Errorf("failed to create client: %v", err)
-	}
-	client.AllDarcIDs[string(projectName)] = projectDarc
-	client.AllDarcIDs[string(projectName)] = projectDarc.GetBaseID()
 	req := &s.AddDeferredQueryRequest{}
 	req.QueryID = proposedQuery.ID
-
-	// ---
-	// 3. Get the response back from MedChain service
-	// 4. Broadcast instanceID to all MedChain nodes
-	// ---
-	reply, err := client.SpawnDeferredQuery(req)
+	reply, err := mccl.SpawnDeferredQuery(req)
 	if err != nil {
 		return xerrors.Errorf("failed to spawn query instance: %v", err)
 	}
-
 	if reply.OK != true {
 		return xerrors.Errorf("service failed to spawn query instance: %v", err)
 	}
-	client.Bcl.WaitPropagation(1)
+	mccl.Bcl.WaitPropagation(1)
 
 	// ---
-	// 5.  Write query instance ID to file
+	// 7.  Write query instance ID to file
 	// ---
 	instIDfilePath := c.String("idfile")
 	if instIDfilePath == "" {
-		err := fmt.Errorf("arguments not OK")
-		log.Error(err)
-		return cli.NewExitError(err, 3)
+		return xerrors.New("--idfile flag is required")
 	}
-	// TODO: write query ID and Instance ID
 	dir, _ := path.Split(instIDfilePath)
 	pathToWrite := dir + instIDfilePath
 	fWrite, err := os.Create(pathToWrite)
@@ -201,20 +177,28 @@ func submitQuery(c *cli.Context) error {
 
 func addSignatureToDeferredQuery(c *cli.Context) error {
 	// Here is what this function does:
-	//   1. Read instanceID of query to be signed from file from flag
-	//   2. Fires a spawn instruction for the deferred contract
-	//	 3. Gets the response back from MedChain service
-	//   4. Write query instanceID to file
+	//   1. Starts MedChain client
+	//   2. Reads instanceID of query to be signed from file from flag
+	//   3. Sign proposed transaction
+	//	 4. Gets the response back from MedChain service
 
 	// ---
-	// 1. Read instanceID of query to be signed from file from flag
+	// 1. Start MedChain client
+	// ---
+	log.Info("[INFO] Creating the MedChain CLI client:")
+	mccl, err := getClient(c)
+	if err != nil {
+		return xerrors.Errorf("[INFO] failed to get medchain client:", err)
+	}
+	// ---
+	// 2. Read instanceID of query to be signed from file from flag
 	// ---
 	log.Lvl1("[INFO] Starting adding signature to deferred query")
 
-	iIDStr := c.String("iid")
+	iIDStr := c.String("instid")
 	if iIDStr == "" {
 
-		return xerrors.New("--iid flag is required")
+		return xerrors.New("--instid flag is required")
 	}
 	iIDBuf, err := hex.DecodeString(iIDStr)
 	if err != nil {
@@ -222,97 +206,27 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 	}
 	iid := byzcoin.NewInstanceID(iIDBuf)
 
-	bcArg := c.String("bc")
-	if bcArg == "" {
-		return xerrors.New("--bc flag is required")
-	}
+	log.Info("[INFO] Sending request to", mccl.EntryPoint.String()) //TODO: exact server address -> done
 
-	cfg, bcl, err := bcadminlib.LoadConfig(bcArg)
-	if err != nil {
-		return err
-	}
-
-	dstr := c.String("darc") //TODO: Read darc from file? admin?
-	if dstr == "" {
-		dstr = cfg.AdminDarc.GetIdentityString()
-	}
-
-	projectDarc, err := bcadminlib.GetDarcByString(bcl, dstr)
-	if err != nil {
-		return err
-	}
-	clientID := c.String("clientid") //TODO: Read ClientID from other sources?
-	if clientID == "" {
-		err := fmt.Errorf("arguments not OK")
-		log.Error(err)
-		return cli.NewExitError(err, 3)
-	}
-
-	log.Info("[INFO] Reading medchain group definition")
-
-	groupTomlPath := c.String("file")
-	if groupTomlPath == "" {
-		err := fmt.Errorf("arguments not OK")
-		log.Error(err)
-		return cli.NewExitError(err, 3)
-	}
-
-	var list []*network.ServerIdentity
-	var si *network.ServerIdentity
-
-	address := c.String("address")
-	if address != "" {
-		// Contact desired server
-		log.Info("[INFO] contacting server at", address)
-		addr := network.Address(address)
-		if !strings.HasPrefix(address, "tls://") {
-			addr = network.NewAddress(network.TLS, address)
-		}
-		si := network.NewServerIdentity(nil, addr)
-		if si.Address.Port() == "" {
-			return errors.New("port not found, must provide addr:port")
-		}
-		list = append(list, si)
-	} else {
-
-		roster, err := readGroup(groupTomlPath)
-		if err != nil {
-			return errors.New("couldn't read file: " + err.Error())
-		}
-		list = roster.List
-		log.Info("[INFO] Roster list is", list)
-	}
-
-	log.Info("[INFO] Sending request to", si.String()) //TODO: exact server address -> done
-	name := projectDarc.Description
-	client, err := s.NewClient(bcl, si, clientID)
-	if err != nil {
-		return xerrors.Errorf("failed to init client: %v", err)
-	}
-
-	err = client.Create()
-	if err != nil {
-		return xerrors.Errorf("failed to create client: %v", err)
-	}
-
-	client.AllDarcIDs[string(name)] = projectDarc.GetBaseID()
-	// client.DarcID = projectDarc.GetBaseID()
-
+	// ---
+	// 3. Sign proposed transaction
+	// ---
 	req := &s.SignDeferredTxRequest{}
-	req.ClientID = clientID
+	req.ClientID = mccl.ClientID
+	req.Keys = mccl.Signers[0]
 	req.QueryInstID = iid
-	reply, err := client.AddSignatureToDeferredQuery(req)
+	reply, err := mccl.AddSignatureToDeferredQuery(req)
 	if err != nil {
 		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
 	}
 
 	// ---
-	// 3. Get the response back from MedChain service
+	// 4. Get the response back from MedChain service
 	// ---
 	if reply.OK != true {
 		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
 	}
-	client.Bcl.WaitPropagation(1)
+	mccl.Bcl.WaitPropagation(1)
 
 	return nil
 }
@@ -325,14 +239,22 @@ func verifyStatus(c *cli.Context) error {
 	//   4. Writes query instanceID to file
 
 	// ---
-	// 1. 1. Reads instanceID of query to check its status on the chain
+	// 1. Start MedChain client
 	// ---
-	log.Lvl1("[INFO] Starting to retrieve query status")
+	log.Info("[INFO] Creating the MedChain CLI client:")
+	mccl, err := getClient(c)
+	if err != nil {
+		return xerrors.Errorf("[INFO] failed to get medchain client:", err)
+	}
+	// ---
+	// 2. Read instanceID of query to be signed from file from flag
+	// ---
+	log.Lvl1("[INFO] Starting adding signature to deferred query")
 
-	iIDStr := c.String("iid")
+	iIDStr := c.String("instid")
 	if iIDStr == "" {
 
-		return xerrors.New("--iid flag is required")
+		return xerrors.New("--instid flag is required")
 	}
 	iIDBuf, err := hex.DecodeString(iIDStr)
 	if err != nil {
@@ -340,98 +262,8 @@ func verifyStatus(c *cli.Context) error {
 	}
 	iid := byzcoin.NewInstanceID(iIDBuf)
 
-	bcArg := c.String("bc")
-	if bcArg == "" {
-		return xerrors.New("--bc flag is required")
-	}
+	log.Info("[INFO] Sending request to", mccl.EntryPoint.String())
 
-	cfg, bcl, err := bcadminlib.LoadConfig(bcArg)
-	if err != nil {
-		return err
-	}
-
-	dstr := c.String("darc") //TODO: Read darc from file? admin?
-	if dstr == "" {
-		dstr = cfg.AdminDarc.GetIdentityString()
-	}
-
-	projectDarc, err := bcadminlib.GetDarcByString(bcl, dstr)
-	if err != nil {
-		return err
-	}
-	clientID := c.String("clientid") //TODO: Read ClientID from other sources?
-	if clientID == "" {
-		err := fmt.Errorf("arguments not OK")
-		log.Error(err)
-		return cli.NewExitError(err, 3)
-	}
-
-	log.Info("[INFO] Reading medchain group definition")
-
-	groupTomlPath := c.String("file")
-	if groupTomlPath == "" {
-		err := fmt.Errorf("arguments not OK")
-		log.Error(err)
-		return cli.NewExitError(err, 3)
-	}
-
-	var list []*network.ServerIdentity
-	var si *network.ServerIdentity
-
-	address := c.String("address")
-	if address != "" {
-		// Contact desired server
-		log.Info("[INFO] contacting server at", address)
-		addr := network.Address(address)
-		if !strings.HasPrefix(address, "tls://") {
-			addr = network.NewAddress(network.TLS, address)
-		}
-		si := network.NewServerIdentity(nil, addr)
-		if si.Address.Port() == "" {
-			return errors.New("port not found, must provide addr:port")
-		}
-		list = append(list, si)
-	} else {
-
-		roster, err := readGroup(groupTomlPath)
-		if err != nil {
-			return errors.New("couldn't read file: " + err.Error())
-		}
-		list = roster.List
-		log.Info("[INFO] Roster list is", list)
-	}
-
-	log.Info("[INFO] Sending request to", si.String()) //TODO: double-check server address??
-	name := projectDarc.Description
-	client, err := s.NewClient(bcl, si, clientID)
-	if err != nil {
-		return xerrors.Errorf("failed to init client: %v", err)
-	}
-
-	err = client.Create()
-	if err != nil {
-		return xerrors.Errorf("failed to create client: %v", err)
-	}
-
-	client.AllDarcIDs[string(name)] = projectDarc.GetBaseID() //TODo: what about other darcs?
-
-	req := &s.SignDeferredTxRequest{}
-	req.ClientID = clientID
-	req.QueryInstID = iid
-	reply, err := client.AddSignatureToDeferredQuery(req)
-	if err != nil {
-		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
-	}
-
-	// ---
-	// 3. Get the response back from MedChain service
-	// ---
-	if reply.OK != true {
-		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
-	}
-	client.Bcl.WaitPropagation(1)
-
-	return nil
 }
 func readGroupArgs(c *cli.Context, pos int) *app.Group {
 	if c.NArg() <= pos {
@@ -475,14 +307,24 @@ func readGroup(tomlFileName string) (*onet.Roster, error) {
 // getClient will create a new MedChain.Client, given the input
 // available in the commandline. If priv is false, then it will not
 // look for a private key and set up the signers.
-func getClient(c *cli.Context, priv bool) (*s.Client, error) {
+func getClient(c *cli.Context) (*s.Client, error) {
+	// Here is what this function does:
+	//   1. Reads Byzcoin config to get config and Byzcoin client
+	//   2. Gets cleint ID
+	//   3. Reads group file
+	//   4. Gets the identity of server to contact to
+	//   5. Init MedChain client
+	//   6. Get the private key from the cmdline
 
+	// ---
+	// 1. Read Byzcoin config to get config and Byzcoin client
+	// ---
 	log.Info("[INFO] Getting MedChain CLI client")
+	log.Info("[INFO] Reading ByzCoin config file")
 	bc := c.String("bc")
 	if bc == "" {
 		return nil, xerrors.Errorf("--bc flag is required to create the client")
 	}
-
 	cfgBuf, err := ioutil.ReadFile(bc)
 	if err != nil {
 		return nil, err
@@ -494,12 +336,18 @@ func getClient(c *cli.Context, priv bool) (*s.Client, error) {
 		return nil, xerrors.Errorf("failed to get byzcoin config: %v", err)
 	}
 
+	// ---
+	// 2. Get cleint ID
+	// ---
 	log.Info("[INFO] Reading client ID")
 	cidArg := c.String("cid")
 	if cidArg == "" {
 		return nil, xerrors.New("--cid flag is required")
 	}
 
+	// ---
+	// 3. Read group file
+	// ---
 	groupTomlPath := c.String("file")
 	if groupTomlPath == "" {
 		return nil, xerrors.New("--file flag is required")
@@ -508,6 +356,9 @@ func getClient(c *cli.Context, priv bool) (*s.Client, error) {
 	var list []*network.ServerIdentity
 	var si *network.ServerIdentity
 
+	// ---
+	// 4. Gets the identity of server to contact to
+	// ---
 	address := c.String("address")
 	if address != "" {
 		// Contact desired server
@@ -533,6 +384,9 @@ func getClient(c *cli.Context, priv bool) (*s.Client, error) {
 	log.Info("[INFO] Roster is ", list)
 	log.Info("[INFO] Sending request to", si)
 
+	// ---
+	// 5. Init MedChain client
+	// ---
 	client, err := s.NewClient(byzcoin.NewClient(cfg.ByzCoinID, cfg.Roster), si, cidArg)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to init client: %v", err)
@@ -542,7 +396,9 @@ func getClient(c *cli.Context, priv bool) (*s.Client, error) {
 	client.AllDarcs = make(map[string]*darc.Darc)
 	client.AllDarcIDs = make(map[string]darc.ID)
 
-	// get the private key from the cmdline.
+	// ---
+	// 6. Get the private key from the cmdline
+	// ---
 	sstr := c.String("key")
 	if sstr == "" {
 		return nil, errors.New("--key is required")
@@ -554,4 +410,41 @@ func getClient(c *cli.Context, priv bool) (*s.Client, error) {
 	client.Signers = []darc.Signer{*signer}
 
 	return client, nil
+}
+
+func createkey(c *cli.Context) error {
+	if f := c.String("print"); f != "" {
+		sig, err := bcadminlib.LoadSigner(f)
+		if err != nil {
+			return errors.New("couldn't load signer: " + err.Error())
+		}
+		log.Infof("Private: %s\nPublic: %s", sig.Ed25519.Secret, sig.Ed25519.Point)
+		return nil
+	}
+	newSigner := darc.NewSignerEd25519(nil, nil)
+	err := bcadminlib.SaveKey(newSigner)
+	if err != nil {
+		return err
+	}
+
+	var fo io.Writer
+
+	save := c.String("save")
+	if save == "" {
+		fo = os.Stdout
+	} else {
+		file, err := os.Create(save)
+		if err != nil {
+			return err
+		}
+		fo = file
+		defer func() {
+			err := file.Close()
+			if err != nil {
+				log.Error(err)
+			}
+		}()
+	}
+	_, err = fmt.Fprintln(fo, newSigner.Identity().String())
+	return err
 }

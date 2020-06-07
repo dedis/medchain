@@ -36,17 +36,23 @@ const (
 	optionGroupInstanceIDFile      = "idfile"
 	optionGroupInstanceIDFileShort = "idf"
 
-	optionClientID      = "clientid"
+	optionClientID      = "client"
 	optionClientIDShort = "cid"
 
 	optionInstanceID      = "instid"
 	optionInstanceIDShort = "iid"
 
-	optionDarcID      = "darcid"
+	optionDarcID      = "darc"
 	optionDarcIDShort = "did"
+
+	optionQueryID      = "queryid"
+	optionQueryIDShort = "qid"
 
 	optionServerAddress      = "address"
 	optionServerAddressShort = "adrs"
+
+	optionKey      = "key"
+	optionKeyShort = "k"
 
 	// setup options
 	optionServerBinding      = "serverBinding"
@@ -110,11 +116,15 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  optionClientID + ", " + optionClientIDShort,
-			Usage: "Client ID",
+			Usage: "ID of the client interacting with MedChain server",
 		},
 		cli.StringFlag{
 			Name:  optionServerAddress + ", " + optionServerAddressShort,
-			Usage: "Address of server to use",
+			Usage: "Address of server to contact",
+		},
+		cli.StringFlag{
+			Name:  optionKey + ", " + optionKeyShort,
+			Usage: "The ed25519 private key that will sign the transactions",
 		},
 	}
 
@@ -156,30 +166,50 @@ func main() {
 		// BEGIN CLIENT: Create a MedChain CLI Client ----------
 		{
 			Name:    "create",
-			Aliases: []string{"s"},
+			Aliases: []string{"c"},
 			Usage:   "Create a MedChain CLI Client",
 			Action:  create,
-			Flags:   clientFlags,
+			Flags: append(clientFlags,
+				cli.StringFlag{
+					Name:  optionDarcID + ", " + optionDarcIDShort,
+					Usage: "The DarcID that has the spawn:medchain rule (default is the genesis DarcID) ",
+				}),
 		},
-		// CLIENT END: SUBMIT DEFERRED QUERY ------------
+		// CLIENT END: Create a MedChain CLI Client ------------
 
 		// BEGIN CLIENT: SUBMIT DEFERRED QUERY ----------
 		{
 			Name:    "query",
-			Aliases: []string{"s"},
+			Aliases: []string{"q"},
 			Usage:   "Submit a query for authorization",
 			Action:  submitQuery,
-			Flags:   clientFlags,
+			Flags: append(clientFlags,
+				cli.StringFlag{
+					Name:  optionQueryIDShort + ", " + optionQueryIDShort,
+					Usage: "The ID of query as token:project_name:action ",
+				}),
 		},
 		// CLIENT END: SUBMIT DEFERRED QUERY ------------
 
 		// BEGIN CLIENT:  SIGN PROPOSED QUERY ----------
 		{
 			Name:    "sign",
-			Aliases: []string{"d"},
+			Aliases: []string{"s"},
 			Usage:   "Add signature to a proposed query",
 			Action:  addSignatureToDeferredQuery,
-			Flags:   clientFlags,
+			Flags: append(clientFlags,
+				cli.StringFlag{
+					Name:  optionDarcID + ", " + optionDarcIDShort,
+					Usage: "The DarcID of project darc governing the query ",
+				},
+				cli.StringFlag{
+					Name:  optionQueryIDShort + ", " + optionQueryIDShort,
+					Usage: "The ID of query as token:project_name:action ",
+				},
+				cli.StringFlag{
+					Name:  optionInstanceID + ", " + optionInstanceIDShort,
+					Usage: "The instance ID of query to add signature to ",
+				}),
 		},
 		// CLIENT END: SIGN PROPOSED QUERY ------------
 
