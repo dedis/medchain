@@ -97,7 +97,7 @@ func (c *Client) Create() error {
 	log.Info("[INFO] (API) Spawning the instance of naming contract")
 	err = c.spawnTx(namingTx)
 	if err != nil {
-		xerrors.Errorf("Could not add naming contract instace to the ledger: %w", err)
+		xerrors.Errorf("Could not add naming contract instace to the ledger: %v", err)
 	}
 
 	log.Info("[INFO] (API) contract_name instance was added to the ledger")
@@ -136,11 +136,11 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 
 	ctx, _, err := c.prepareTx(query, req.DarcID, req.QueryInstID)
 	if err != nil {
-		return nil, xerrors.Errorf("could not create transaction: %w", err)
+		return nil, xerrors.Errorf("could not create transaction: %v", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return nil, xerrors.Errorf("could not add transaction to ledger: %w", err)
+		return nil, xerrors.Errorf("could not add transaction to ledger: %v", err)
 	}
 	req.BlockID = c.Bcl.ID
 	newInstID := ctx.Instructions[0].DeriveID("")
@@ -159,7 +159,7 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 	reply := &AuthorizeQueryReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get AuthorizeQeryReply from service: %w", err)
+		return nil, xerrors.Errorf("could not get AuthorizeQeryReply from service: %v", err)
 	}
 	reply.QueryInstID = newInstID
 	log.Info("[INFO] (AuthorizeQuery) InstanceID received from service is:", reply.QueryInstID)
@@ -301,11 +301,11 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 		return *new(byzcoin.InstanceID), err
 	}
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create transaction: %v", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add transaction to ledger: %v", err)
 	}
 	instID := ctx.Instructions[0].DeriveID("")
 
@@ -313,7 +313,7 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 	// make retrievals easier
 	err = c.nameInstance(instID, darcID, query.ID)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not name the instance: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not name the instance: %v", err)
 	}
 
 	return instID, nil
@@ -370,20 +370,20 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 
 	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, req.DarcID)
 	if err != nil {
-		return nil, xerrors.Errorf("could not spawn instance: %w", err)
+		return nil, xerrors.Errorf("could not spawn instance: %v", err)
 	}
 	req.BlockID = c.Bcl.ID
 	reply := &AddDeferredQueryReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %w", err)
+		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %v", err)
 	}
 	// Broadcast the instance ID to all nodes and save it
 	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
 	sharingReply := &PropagateIDReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, sharingReq, sharingReply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %w", err)
+		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %v", err)
 	}
 
 	return reply, nil
@@ -423,11 +423,11 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 		SignerCounter: c.signerCtrs,
 	})
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create deferred transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create deferred transaction: %v", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %v", err)
 	}
 	instID := ctx.Instructions[0].DeriveID("")
 
@@ -461,18 +461,18 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 
 	result, err := c.Bcl.GetDeferredData(req.QueryInstID)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get deffered instance from skipchain: %w", err)
+		return nil, xerrors.Errorf("failed to get deffered instance from skipchain: %v", err)
 	}
 	rootHash := result.InstructionHashes
 	// signer := c.Signers[0]
 	identity := req.Keys.Identity() // TODO: Sign with private key of client
 	identityBuf, err := protobuf.Encode(&identity)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get the user identity: %w", err)
+		return nil, xerrors.Errorf("could not get the user identity: %v", err)
 	}
 	signature, err := req.Keys.Sign(rootHash[0]) // == index
 	if err != nil {
-		return nil, xerrors.Errorf("could not sign the deffered query: %w", err)
+		return nil, xerrors.Errorf("could not sign the deffered query: %v", err)
 	}
 
 	index := uint32(0) // The index of the instruction to sign in the transaction
@@ -502,18 +502,18 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create the transaction: %w", err)
+		return nil, xerrors.Errorf("failed to create the transaction: %v", err)
 	}
 
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to sign the deferred transaction: %w", err)
+		return nil, xerrors.Errorf("failed to sign the deferred transaction: %v", err)
 	}
 
 	reply := &SignDeferredTxReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get reply from service: %w", err)
+		return nil, xerrors.Errorf("could not get reply from service: %v", err)
 	}
 	return reply, nil
 }
@@ -541,18 +541,18 @@ func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDefer
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("failed to execute transaction: %w", err)
+		return nil, xerrors.Errorf("failed to execute transaction: %v", err)
 	}
 
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to execute transaction: %w", err)
+		return nil, xerrors.Errorf("failed to execute transaction: %v", err)
 	}
 
 	reply := &ExecuteDeferredTxReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get ExecuteDeferredTxReply from service: %w", err)
+		return nil, xerrors.Errorf("could not get ExecuteDeferredTxReply from service: %v", err)
 	}
 	return reply, nil
 }
@@ -580,7 +580,7 @@ func (c *Client) GetDarcRules(instID byzcoin.InstanceID) error {
 func (c *Client) AddSignerToDarc(darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer) error {
 	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
 	if err != nil {
-		return xerrors.Errorf("retrieving darc : %w", err)
+		return xerrors.Errorf("retrieving darc : %v", err)
 	}
 	exp := projectDarc.Rules.GetEvolutionExpr()
 	rulestring := strings.Split(string(exp), "&")
@@ -591,7 +591,7 @@ func (c *Client) AddSignerToDarc(darcID darc.ID, darcActions []darc.Action, newS
 
 	ctx, err := c.EvolveProjectDarc(rulestring, projectDarc, darcActions)
 	if err != nil {
-		return xerrors.Errorf("Evolving the admin darc: %w", err)
+		return xerrors.Errorf("Evolving the admin darc: %v", err)
 	}
 
 	return c.spawnTx(ctx)
@@ -714,11 +714,11 @@ func (c *Client) AddAdminDarc(name string) error {
 		SignerCounter:    c.IncrementCtrs(),
 	})
 	if err != nil {
-		return xerrors.Errorf("Could not create transaction: %w", err)
+		return xerrors.Errorf("Could not create transaction: %v", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		xerrors.Errorf("Could not add transaction to ledger: %w", err)
+		xerrors.Errorf("Could not add transaction to ledger: %v", err)
 	}
 	c.AllDarcIDs[name] = c.AllDarcs[name].GetBaseID()
 
@@ -840,15 +840,15 @@ func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActio
 	newExpr := []expression.Expr{expression.InitAndExpr(rules...), expression.InitOrExpr(rules...)}
 	err := c.UpdateDarcSignerRule(newdarc, darcActions, newExpr)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("updating darc signer rules: %w", err)
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("updating darc signer rules: %v", err)
 	}
 	err = newdarc.EvolveFrom(olddarc)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %w", err)
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %v", err)
 	}
 	_, darc2Buf, err := newdarc.MakeEvolveRequest(c.Signers...)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %w", err)
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %v", err)
 	}
 
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
@@ -863,7 +863,7 @@ func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActio
 		},
 	})
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("creating the transaction: %w", err)
+		return byzcoin.ClientTransaction{}, xerrors.Errorf("creating the transaction: %v", err)
 	}
 	return ctx, nil
 }
@@ -872,17 +872,17 @@ func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActio
 func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr) error {
 	err := evolvedDarc.Rules.UpdateEvolution(newSignerExpr[0])
 	if err != nil {
-		return xerrors.Errorf("updating _evolve rule in darc: %w", err)
+		return xerrors.Errorf("updating _evolve rule in darc: %v", err)
 	}
 	err = evolvedDarc.Rules.UpdateSign(newSignerExpr[0])
 	if err != nil {
-		return xerrors.Errorf("updating the _sign rule in darc: %w", err)
+		return xerrors.Errorf("updating the _sign rule in darc: %v", err)
 	}
 
 	for k, v := range darcActions {
 		err = evolvedDarc.Rules.UpdateRule(v, newSignerExpr[k])
 		if err != nil {
-			return xerrors.Errorf("updating the %s expression in darc: %w", v, err)
+			return xerrors.Errorf("updating the %s expression in darc: %v", v, err)
 		}
 	}
 	return nil
@@ -966,11 +966,11 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return xerrors.Errorf("Could not create transaction: %w", err)
+		return xerrors.Errorf("Could not create transaction: %v", err)
 	}
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return xerrors.Errorf("Could not add transaction to ledger: %w", err)
+		return xerrors.Errorf("Could not add transaction to ledger: %v", err)
 	}
 	log.Info("[INFO] (Naming Contract) Query was added to the ledger")
 
@@ -988,11 +988,11 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 func (c *Client) spawnTx(ctx byzcoin.ClientTransaction) error {
 	err := ctx.FillSignersAndSignWith(c.Signers...)
 	if err != nil {
-		return xerrors.Errorf("Signing: %w", err)
+		return xerrors.Errorf("Signing: v", err)
 	}
 	_, err = c.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
-		return xerrors.Errorf("Adding transaction to the ledger: %w", err)
+		return xerrors.Errorf("Adding transaction to the ledger: %v", err)
 	}
 	return nil
 }
