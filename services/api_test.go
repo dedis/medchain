@@ -1237,9 +1237,9 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	cl, err := NewClient(bcl, serverID, "1")
 	require.NoError(t, err)
 
-	cl.GMsg = s.req
+	// cl.GMsg = s.req
 	cl.Signers = []darc.Signer{s.owner}
-	cl.GenDarc = s.genDarc
+	cl.GenDarcID = s.genDarc.GetBaseID()
 	log.Lvl1("[INFO] Created the services")
 	return s, bcl, cl
 }

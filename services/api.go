@@ -35,18 +35,18 @@ type Client struct {
 	sccl       *skipchain.Client
 	Bcl        *byzcoin.Client
 	ClientID   string
-	entryPoint *network.ServerIdentity
+	EntryPoint *network.ServerIdentity
 	public     kyber.Point
 	private    kyber.Scalar
 	// Signers are the Darc signers that will sign transactions sent with this client.
 	Signers []darc.Signer
 	// Instance ID of naming contract
 	NamingInstance byzcoin.InstanceID
-	GenDarc        *darc.Darc
+	GenDarcID      darc.ID
 	// // Map projects to their darcs
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
-	GMsg       *byzcoin.CreateGenesisBlock
+	// GMsg       *byzcoin.CreateGenesisBlock
 	signerCtrs []uint64
 }
 
@@ -63,7 +63,7 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 		onetcl:     onet.NewClient(cothority.Suite, ServiceName),
 		sccl:       skipchain.NewClient(),
 		ClientID:   clientID,
-		entryPoint: entryPoint,
+		EntryPoint: entryPoint,
 		public:     keys.Public,
 		private:    keys.Private,
 		signerCtrs: nil,
@@ -73,6 +73,8 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 // Create creates a new medchain by spawning an instance of Naming contract. After
 // this method is executed, c.NamingInstance will be correctly set.
 func (c *Client) Create() error {
+
+	log.Info("[INFO] (API) Creating the MedChain client:")
 	if c.signerCtrs == nil {
 		c.RefreshSignerCounters()
 	}
@@ -82,7 +84,7 @@ func (c *Client) Create() error {
 	// Spawn an instance of naming contract
 	namingTx, err := c.Bcl.CreateTransaction(
 		byzcoin.Instruction{
-			InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
+			InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
 			Spawn: &byzcoin.Spawn{
 				ContractID: byzcoin.ContractNamingID,
 			},
@@ -92,13 +94,13 @@ func (c *Client) Create() error {
 	if err != nil {
 		return err
 	}
-
+	log.Info("[INFO] (API) Spawning the instance of naming contract")
 	err = c.spawnTx(namingTx)
 	if err != nil {
 		xerrors.Errorf("Could not add naming contract instace to the ledger: %w", err)
 	}
 
-	log.Info("[INFO] (Create) Contract_name instance was added to the ledger")
+	log.Info("[INFO] (API) contract_name instance was added to the ledger")
 
 	return nil
 }
@@ -155,7 +157,7 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 	// update
 	req.QueryInstID = newInstID
 	reply := &AuthorizeQueryReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get AuthorizeQeryReply from service: %w", err)
 	}
@@ -372,14 +374,14 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	}
 	req.BlockID = c.Bcl.ID
 	reply := &AddDeferredQueryReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %w", err)
 	}
 	// Broadcast the instance ID to all nodes and save it
 	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
 	sharingReply := &PropagateIDReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, sharingReq, sharingReply)
+	err = c.onetcl.SendProtobuf(c.EntryPoint, sharingReq, sharingReply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %w", err)
 	}
@@ -509,7 +511,7 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	}
 
 	reply := &SignDeferredTxReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get reply from service: %w", err)
 	}
@@ -548,7 +550,7 @@ func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDefer
 	}
 
 	reply := &ExecuteDeferredTxReply{}
-	err = c.onetcl.SendProtobuf(c.entryPoint, req, reply)
+	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
 		return nil, xerrors.Errorf("could not get ExecuteDeferredTxReply from service: %w", err)
 	}
@@ -598,7 +600,7 @@ func (c *Client) AddSignerToDarc(darcID darc.ID, darcActions []darc.Action, newS
 // VerifStatus retrieves the status of the query from skipchain
 func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, error) {
 	reply := &VerifyStatusReply{}
-	if err := c.onetcl.SendProtobuf(c.entryPoint, req, reply); err != nil {
+	if err := c.onetcl.SendProtobuf(c.EntryPoint, req, reply); err != nil {
 		return nil, err
 	}
 	return reply, nil
@@ -653,7 +655,7 @@ func (c *Client) AddProjectDarc(name string) error {
 		return err
 	}
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
+		InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
 			Args: byzcoin.Arguments{
@@ -698,7 +700,7 @@ func (c *Client) AddAdminDarc(name string) error {
 		return err
 	}
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
+		InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
 			Args: byzcoin.Arguments{
@@ -902,7 +904,7 @@ func (c *Client) Search(req *SearchRequest) (*SearchReply, error) {
 // GetSharedData retreives the new Instance ID saved at nodes
 func (c *Client) GetSharedData() (*GetSharedDataReply, error) {
 	rep := &GetSharedDataReply{}
-	err := c.onetcl.SendProtobuf(c.entryPoint, &GetSharedDataRequest{}, &rep)
+	err := c.onetcl.SendProtobuf(c.EntryPoint, &GetSharedDataRequest{}, &rep)
 	if err != nil {
 		return &GetSharedDataReply{}, xerrors.Errorf("could not send the GetSharedDataRequest request to the service : %v", err)
 	}
