@@ -58,7 +58,7 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 	if bcl == nil {
 		return nil, errors.New("Byzcoin client is required")
 	}
-	return &Client{
+	cl := &Client{
 		Bcl:        bcl,
 		onetcl:     onet.NewClient(cothority.Suite, ServiceName),
 		sccl:       skipchain.NewClient(),
@@ -67,7 +67,15 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 		public:     keys.Public,
 		private:    keys.Private,
 		signerCtrs: nil,
-	}, nil
+	}
+	cl.Signers = []darc.Signer{darc.NewSignerEd25519(cl.public, cl.private)}
+	gDarc, err := bcl.GetGenDarc()
+
+	if err != nil {
+		return nil, xerrors.Errorf("error in getting genesis darc from skipchain: %v", err)
+	}
+	cl.GenDarcID = gDarc.GetBaseID()
+	return cl, nil
 }
 
 // Create creates a new medchain by spawning an instance of Naming contract. After
@@ -117,7 +125,7 @@ func (c *Client) AuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryRepl
 		return nil, xerrors.New("query instance ID required")
 	}
 
-	req.QueryStatus = "Submitted"
+	req.QueryStatus = []byte("Submitted")
 	log.Info("[INFO] Checking the authorizations for the query with instance ID: ", req.QueryInstID)
 	log.Info("[INFO] Checking the authorizations for the query with query ID: ", req.QueryID)
 	return c.createQueryAndWait(req)
@@ -190,9 +198,6 @@ func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceI
 				Name:  query.ID,
 				Value: []byte("Rejected"),
 			}
-			// This action will not be rejected by Darc and thus query rejection will be recorded
-			// in the ledger
-			action = "update"
 			log.Info("[INFO] (Invoke) Query was REJECTED")
 		}
 	}
@@ -203,17 +208,7 @@ func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceI
 		}
 		action = c.getActionFromOneQuery(query)
 		log.Info("[INFO] (Invoke) Query was AUTHORIZED")
-
 	}
-
-	// // Get the instance ID of the query instance using its name
-	// // For the sake of performance, one should try to avoidusing
-	// // ResolveInstance() to get the instance ID using its name.
-	// replyID, err := c.Bcl.ResolveInstanceID(darcID, query.ID)
-	// if err != nil {
-	// 	fmt.Println("debug6")
-	// 	return nil, nil, err
-	// }
 
 	// We spawn a new conract instance with the SAME instance ID after the authorization since it is not possible to update
 	// the status of a query spawned as a deferred contract (deferred contract only supports addproof and exec)
@@ -271,10 +266,6 @@ func (c *Client) SpawnQuery(qu Query) (byzcoin.InstanceID, error) {
 //CreateInstance spawns a query
 func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 
-	//keys := make([]byzcoin.InstanceID, len(queries))
-	//instrs := make([]byzcoin.Instruction, len(queries))
-	//instIDs := make([]byzcoin.InstanceID, len(queries))
-
 	// Get the project darc
 	project := c.getProjectDarcFromOneQuery(query)
 	darcID := c.AllDarcIDs[project]
@@ -331,7 +322,7 @@ func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQ
 		return nil, xerrors.New("ClientID required")
 	}
 
-	req.QueryStatus = "Submitted"
+	req.QueryStatus = []byte("Submitted")
 	log.Info("[INFO] Spawning the deferred query ")
 	return c.createDeferredInstance(req)
 }
@@ -343,10 +334,6 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	query.ID = req.QueryID
 	query.Status = req.QueryStatus
 
-	// If the query has just been submitted, spawn a query instance;
-	// otherwise, invoke an update to change its status
-	// TODO: check proof instead of status to make this more stable and
-	// reliable (the latter may not be very efficient)
 	proposedInstr := byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(req.DarcID),
 		Spawn: &byzcoin.Spawn{
@@ -447,7 +434,8 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
 	log.Info("[INFO] Add signature to the query transaction")
-
+	log.Info("[INFO] (AddSignatureToDeferredQuery) length of signers", len(c.Signers))
+	log.Info("[INFO] (AddSignatureToDeferredQuery) coutners", (c.signerCtrs))
 	if req.Keys.Type() == -1 {
 		return nil, errors.New("client keys are required")
 	}
@@ -504,7 +492,8 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create the transaction: %v", err)
 	}
-
+	log.Info("[INFO] (AddSignatureToDeferredQuery) length of signers", len(c.Signers))
+	log.Info("[INFO] (AddSignatureToDeferredQuery) coutners", (c.signerCtrs))
 	err = c.spawnTx(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to sign the deferred transaction: %v", err)
@@ -524,7 +513,7 @@ func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDefer
 	if len(req.ClientID) == 0 {
 		return nil, xerrors.New("ClientID required")
 	}
-	if req.QueryStatus != "Submitted" {
+	if string(req.QueryStatus) != "Submitted" {
 		return nil, xerrors.New("invalid query status")
 	}
 
@@ -576,27 +565,6 @@ func (c *Client) GetDarcRules(instID byzcoin.InstanceID) error {
 	return nil
 }
 
-// AddSignerToDarc adds new signer to project darc
-func (c *Client) AddSignerToDarc(darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer) error {
-	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
-	if err != nil {
-		return xerrors.Errorf("retrieving darc : %v", err)
-	}
-	exp := projectDarc.Rules.GetEvolutionExpr()
-	rulestring := strings.Split(string(exp), "&")
-	for i := range rulestring {
-		rulestring[i] = strings.TrimSpace(rulestring[i])
-	}
-	// c.Signers = append(c.Signers, newSigner)
-
-	ctx, err := c.EvolveProjectDarc(rulestring, projectDarc, darcActions)
-	if err != nil {
-		return xerrors.Errorf("Evolving the admin darc: %v", err)
-	}
-
-	return c.spawnTx(ctx)
-}
-
 // VerifStatus retrieves the status of the query from skipchain
 func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, error) {
 	reply := &VerifyStatusReply{}
@@ -604,6 +572,42 @@ func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, erro
 		return nil, err
 	}
 	return reply, nil
+}
+
+// AddSignerToDarc adds new signer to project darc
+// TODO: make this a defferred tx (not important for this part of project;
+// it is important for th eadmin part)
+func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer, typeOfExpr int) error {
+
+	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
+	if err != nil {
+		return xerrors.Errorf("retrieving darc : %v", err)
+	}
+	exp := projectDarc.Rules.GetEvolutionExpr()
+	signerIDs := strings.Split(string(exp), "&")
+	for i := range signerIDs {
+		signerIDs[i] = strings.TrimSpace(signerIDs[i])
+	}
+	signerIDs = append(signerIDs, newSigner.Identity().String())
+	log.Info("[INFO] (AddSignerToDarc) signerIDs:", signerIDs)
+
+	ctx, newDarcID, err := c.EvolveProjectDarc(signerIDs, projectDarc, darcActions, typeOfExpr)
+	if err != nil {
+		return xerrors.Errorf("error in evolving the project darc: %v", err)
+	}
+	err = c.spawnTx(ctx)
+	if err != nil {
+		return xerrors.Errorf("error in evolving the project darc: %v", err)
+	}
+	// update the darc and darc ID of cilent
+	newDarc, err := lib.GetDarcByID(c.Bcl, newDarcID)
+	if err != nil {
+		return xerrors.Errorf("retrieving evolved darc : %v", err)
+	}
+	c.AllDarcIDs[name] = newDarcID
+	c.AllDarcs[name] = newDarc
+	log.Info("[INFO] Evolved darc is:", newDarc.String())
+	return nil
 }
 
 // CreateNewSigner creates private and public key pairs
@@ -635,9 +639,10 @@ func (c *Client) UpdateDarcActionRule(userDarc *darc.Darc, action string, expr e
 }
 
 // CreateDarc is used to create a new darc
-func (c *Client) CreateDarc(name string, rules darc.Rules, actions string, exprs expression.Expr) (*darc.Darc, error) {
+func (c *Client) CreateDarc(name string, rules darc.Rules, actionsAnd string, actionsOr string, exprsAnd expression.Expr, exprsOr expression.Expr) (*darc.Darc, error) {
 	projectDarc := darc.NewDarc(rules, []byte(name))
-	projectDarc = c.AddRuleToDarc(projectDarc, actions, exprs)
+	projectDarc = c.AddRuleToDarc(projectDarc, actionsAnd, exprsAnd)
+	projectDarc = c.AddRuleToDarc(projectDarc, actionsOr, exprsOr)
 	return projectDarc, nil
 }
 
@@ -834,21 +839,22 @@ func (c *Client) StreamQueriesFrom(handler StreamHandler, id []byte) error {
 }
 
 // EvolveProjectDarc is used to evolve a darc
-func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActions []darc.Action) (byzcoin.ClientTransaction, error) {
-
+func (c *Client) EvolveProjectDarc(signerIDs []string, olddarc *darc.Darc, darcActions []darc.Action, typeOfExpr int) (byzcoin.ClientTransaction, darc.ID, error) {
+	log.Info("[INFO] (EvolveProjectDarc) signerIDs:", signerIDs)
 	newdarc := olddarc.Copy()
-	newExpr := []expression.Expr{expression.InitAndExpr(rules...), expression.InitOrExpr(rules...)}
-	err := c.UpdateDarcSignerRule(newdarc, darcActions, newExpr)
+	newExpr := []expression.Expr{expression.InitAndExpr(signerIDs...), expression.InitOrExpr(signerIDs...)}
+
+	err := c.UpdateDarcSignerRule(newdarc, darcActions, newExpr, typeOfExpr)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("updating darc signer rules: %v", err)
+		return byzcoin.ClientTransaction{}, nil, xerrors.Errorf("updating darc signer rules: %v", err)
 	}
 	err = newdarc.EvolveFrom(olddarc)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %v", err)
+		return byzcoin.ClientTransaction{}, nil, xerrors.Errorf("evolving the project darc signer rule: %v", err)
 	}
 	_, darc2Buf, err := newdarc.MakeEvolveRequest(c.Signers...)
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("evolving the project darc signer rule: %v", err)
+		return byzcoin.ClientTransaction{}, nil, xerrors.Errorf("evolving the project darc signer rule: %v", err)
 	}
 
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
@@ -861,15 +867,16 @@ func (c *Client) EvolveProjectDarc(rules []string, olddarc *darc.Darc, darcActio
 				Value: darc2Buf,
 			}},
 		},
+		SignerCounter: c.IncrementCtrs(),
 	})
 	if err != nil {
-		return byzcoin.ClientTransaction{}, xerrors.Errorf("creating the transaction: %v", err)
+		return byzcoin.ClientTransaction{}, nil, xerrors.Errorf("creating the transaction: %v", err)
 	}
-	return ctx, nil
+	return ctx, newdarc.GetBaseID(), nil
 }
 
 // UpdateDarcSignerRule updates the rules in project darc
-func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr) error {
+func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr, typeOfExpr int) error {
 	err := evolvedDarc.Rules.UpdateEvolution(newSignerExpr[0])
 	if err != nil {
 		return xerrors.Errorf("updating _evolve rule in darc: %v", err)
@@ -879,10 +886,13 @@ func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc
 		return xerrors.Errorf("updating the _sign rule in darc: %v", err)
 	}
 
-	for k, v := range darcActions {
-		err = evolvedDarc.Rules.UpdateRule(v, newSignerExpr[k])
+	for _, action := range darcActions {
+		if len(action) == 0 {
+			return xerrors.Errorf("error in updating the project darc:action '%v' does not exist", action)
+		}
+		err = evolvedDarc.Rules.UpdateRule(action, newSignerExpr[typeOfExpr])
 		if err != nil {
-			return xerrors.Errorf("updating the %s expression in darc: %v", v, err)
+			return xerrors.Errorf("updating the %s expression in darc: %v", action, err)
 		}
 	}
 	return nil
@@ -909,6 +919,21 @@ func (c *Client) GetSharedData() (*GetSharedDataReply, error) {
 		return &GetSharedDataReply{}, xerrors.Errorf("could not send the GetSharedDataRequest request to the service : %v", err)
 	}
 	return rep, nil
+}
+
+func (c *Client) getDarcActions(actions string) ([]darc.Action, error) {
+	if len(actions) == 0 {
+		return nil, xerrors.Errorf("error in getting actions: invalid actions", actions)
+	}
+	actoinsList := strings.Split(string(actions), ",")
+	darcActions := make([]darc.Action, len(actoinsList))
+	for i, action := range actoinsList {
+		if len(action) == 0 {
+			return nil, xerrors.Errorf("error in getting actions: action %v does not exist", action)
+		}
+		darcActions[i] = darc.Action(action)
+	}
+	return darcActions, nil
 }
 
 // GetProjectFromQuery exports the projects to which queries are directed
@@ -974,25 +999,27 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	}
 	log.Info("[INFO] (Naming Contract) Query was added to the ledger")
 
-	// // This sanity check heavily reduces the performance
-	// replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
-	// if err != nil {
-	// 	return err
-	// }
-	// if replyID != instID {
-	// 	return err
-	// }
+	// This sanity check heavily reduces the performance
+	replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
+	if err != nil {
+		return err
+	}
+	if replyID != instID {
+		return err
+	}
 	return nil
 }
 
 func (c *Client) spawnTx(ctx byzcoin.ClientTransaction) error {
+	log.Info("[INFO] (spawnTx) length of signers", len(c.Signers))
+	log.Info("[INFO] (spawnTx) coutners", (c.signerCtrs))
 	err := ctx.FillSignersAndSignWith(c.Signers...)
 	if err != nil {
-		return xerrors.Errorf("Signing: v", err)
+		return xerrors.Errorf("error in signing the tx: %v", err)
 	}
 	_, err = c.Bcl.AddTransactionAndWait(ctx, 10)
 	if err != nil {
-		return xerrors.Errorf("Adding transaction to the ledger: %v", err)
+		return xerrors.Errorf("error in adding transaction to the ledger: %v", err)
 	}
 	return nil
 }

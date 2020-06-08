@@ -38,7 +38,7 @@ const (
 type AddQueryRequest struct {
 	ClientID    string
 	QueryID     string
-	QueryStatus string
+	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	BlockID     skipchain.SkipBlockID
 }
@@ -54,7 +54,7 @@ type AddQueryReply struct {
 type AddDeferredQueryRequest struct {
 	ClientID    string
 	QueryID     string
-	QueryStatus string
+	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	BlockID     skipchain.SkipBlockID
 	DarcID      darc.ID
@@ -87,7 +87,7 @@ type VerifyStatusRequest struct {
 // VerifyStatusReply is the reply to VerifyStatusRequest
 type VerifyStatusReply struct {
 	ClientID    string
-	QueryStatus string
+	QueryStatus []byte
 	OK          bool
 }
 
@@ -101,7 +101,6 @@ type SignDeferredTxRequest struct {
 
 // SignDeferredTxReply is the reply to SignDeferredTxRequest
 type SignDeferredTxReply struct {
-	QueryStatus string
 	QueryInstID byzcoin.InstanceID
 	OK          bool
 }
@@ -114,7 +113,7 @@ type SearchRequest struct {
 	Instance byzcoin.InstanceID
 	BlockID  skipchain.SkipBlockID
 	// Return queries where Query.Status == Status, if Status != "".
-	Status string
+	Status []byte
 	// Return queries where When is > From.
 	From int64
 	// Return queries where When is <= To.
@@ -154,7 +153,7 @@ type GetSharedDataReply struct {
 // AuthorizeQueryRequest implements the request to authorize the query
 type AuthorizeQueryRequest struct {
 	QueryID     string
-	QueryStatus string
+	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	BlockID     skipchain.SkipBlockID
 	DarcID      darc.ID
@@ -169,13 +168,13 @@ type AuthorizeQueryReply struct {
 // ExecuteDeferredTxRequest iplements the reques to exec the deferred query tx
 type ExecuteDeferredTxRequest struct {
 	ClientID    string
-	QueryStatus string
+	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 }
 
 // ExecuteDeferredTxReply the reply to ExecuteDeferredTxRequest
 type ExecuteDeferredTxReply struct {
-	QueryStatus string
+	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	OK          bool
 }

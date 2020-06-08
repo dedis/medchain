@@ -52,7 +52,7 @@ func (c *medchainContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Ins
 	// Put the data received in the inst.Spawn.Args into our QueryData structure.
 	cs := &c.QueryData
 	for _, kv := range inst.Spawn.Args {
-		cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
+		cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
 	}
 
 	// Encode the data into our QueryDataStorage structure that holds all the key-value pairs
@@ -234,12 +234,12 @@ func (cs *QueryData) Update(args byzcoin.Arguments) {
 					cs.Storage = append(cs.Storage[0:i], cs.Storage[i+1:]...)
 					break
 				}
-				cs.Storage[i].Status = string(kv.Value)
+				cs.Storage[i].Status = kv.Value
 			}
 
 		}
 		if !updated {
-			cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
+			cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
 		}
 	}
 }
@@ -253,7 +253,7 @@ func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
 		for _, stored := range cs.Storage {
 			if stored.ID == kv.Name {
 				found = true
-				if stored.Status == "Authorized" {
+				if string(stored.Status) == "Authorized" {
 					return nil
 				}
 				return xerrors.Errorf("query %s has status %s and has not been authorized", stored.ID, stored.Status)

@@ -114,7 +114,7 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	if err != nil {
 		return reply, xerrors.Errorf("could not get spawned query from skipchain: %v", err)
 	}
-	log.Info("[INFO] Spawned query darc ID: ", req.DarcID)
+	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
 	if !req.DarcID.Equal(darcID) {
 		return reply, xerrors.Errorf("error in getting spawned query from skipchain: %v", err)
 	}
@@ -142,7 +142,6 @@ func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferre
 	// 2. retrieve status here from skipchain to get more reliable results
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
-	reply.QueryStatus = req.QueryStatus
 
 	return reply, nil
 }
