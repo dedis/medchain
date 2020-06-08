@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 
 	s "github.com/medchain/services"
+	cli "github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
@@ -24,7 +25,6 @@ import (
 	"go.dedis.ch/onet/v3/network"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
-	cli "gopkg.in/urfave/cli.v1"
 )
 
 type config struct {
@@ -175,12 +175,13 @@ func submitQuery(c *cli.Context) error {
 	return nil
 }
 
-func addSignatureToDeferredQuery(c *cli.Context) error {
+func addSignature(c *cli.Context) error {
 	// Here is what this function does:
 	//   1. Starts MedChain client
 	//   2. Reads instanceID of query to be signed from file from flag
 	//   3. Sign proposed transaction
 	//	 4. Gets the response back from MedChain service
+	//   5. Reads the return back and prints it
 
 	// ---
 	// 1. Start MedChain client
@@ -217,17 +218,41 @@ func addSignatureToDeferredQuery(c *cli.Context) error {
 	req.QueryInstID = iid
 	reply, err := mccl.AddSignatureToDeferredQuery(req)
 	if err != nil {
-		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
+		return xerrors.Errorf("failed to add signature to query instance %v: %v", req.QueryInstID.String(), err)
 	}
 
 	// ---
 	// 4. Get the response back from MedChain service
 	// ---
 	if reply.OK != true {
-		return xerrors.Errorf("failed to add signature to query instance %w: %v", req.QueryInstID.String(), err)
+		return xerrors.Errorf("failed to add signature to query instance %v: %v", req.QueryInstID.String(), err)
 	}
-	mccl.Bcl.WaitPropagation(1)
+	// mccl.Bcl.WaitPropagation(1)
 
+	// ---
+	// 5. Read the return back and prints it
+	// ---
+	err = bcadminlib.WaitPropagation(c, mccl.Bcl)
+	if err != nil {
+		return xerrors.Errorf("waiting on propagation failed: %+v", err)
+	}
+	pr, err := mccl.Bcl.GetProofFromLatest(iIDBuf)
+	if err != nil {
+		return xerrors.Errorf("couldn't get proof for admin-darc: %+v", err)
+	}
+
+	_, resultBuf, _, _, err := pr.Proof.KeyValue()
+	if err != nil {
+		return xerrors.Errorf("couldn't get value out of proof: %+v", err)
+	}
+
+	result := byzcoin.DeferredData{}
+	err = protobuf.Decode(resultBuf, &result)
+	if err != nil {
+		return xerrors.Errorf("couldn't decode the result: %+v", err)
+	}
+
+	log.Infof("Here is the deferred data: \n%s", result)
 	return nil
 }
 
@@ -263,7 +288,7 @@ func verifyStatus(c *cli.Context) error {
 	iid := byzcoin.NewInstanceID(iIDBuf)
 
 	log.Info("[INFO] Sending request to", mccl.EntryPoint.String())
-
+	return nil
 }
 func readGroupArgs(c *cli.Context, pos int) *app.Group {
 	if c.NArg() <= pos {
