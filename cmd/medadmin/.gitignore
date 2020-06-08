@@ -1,0 +1,10 @@
+*.db
+*.cfg
+co1
+co2
+co3
+log
+conode
+Dockerfile-dev
+*.toml
+medadmin
