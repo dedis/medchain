@@ -79,7 +79,7 @@ path/to/medchain/cmd/medadmin/build$ ./run_nodes
 
 Open a new shell.
 	
-spawn a new byzcoin chain:
+Spawn a new byzcoin chain:
 
 ```
 path/to/medchain/cmd/medadmin$ make spawn
@@ -109,7 +109,7 @@ path/to/medchain/cmd/medadmin$ bcadmin -c build info
 
 **ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99** : is the id of the super admin (the very first admin spawn with the byzcoin chain). 
 
-*for ease of use, you can store it in an environment variable*:
+*For ease of use, you can store it in an environment variable*:
 
     path/to/medchain/cmd/medadmin$ export admin1=ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99
 
@@ -152,6 +152,7 @@ For ease of use of the CLI commands store the admin darc id into an environment 
     path/to/medchain/cmd/medadmin$ export adid=darc:3b4750793029dbfd493f943bb3729a5a54a4de9d3db25b4e446c04df090b6ca3
 
 Spawn the administrators' list.
+
 *This list is used to keep a record of all known administrators currently registered inside the administration darc. This list is useful to create multi-signature rules*
 
 ```
@@ -161,6 +162,7 @@ Admins list spawned with id:
 ``` 
 
 Attach the instance id of the value contract that holds the admin's list to the admin darc:
+
 *This name resolution is then used by the API to get values of the contract without providing the instance id.*
 
 ```
@@ -174,8 +176,82 @@ Successfully attached admins list to admin darc with name resolution : adminsLis
 
 ### How to manage admins in the admin darc
 
-add / remove / modify 
+> Every admin operations needs to be signed to satisfy the multi-signature scheme defined (for now the rule state that every admin needs to sign)
 
+#### Add/Remove/Modify an admin identity in the admin darc
+
+Create a new admin identity:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build admin create admin
+New admin identity key pair created :
+ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87
+```
+
+*For ease of use, you can store it in an environment variable*:
+
+    path/to/medchain/cmd/medadmin$ export admin2=ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87
+
+Spawn a deferred transactionn to add the admin2 in the admin darc and the admin list:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  admin add --keys $admin1 --identity $admin2
+Deffered transaction (2 instructions) spawned with ID:
+7c93c25c950c9627c64389186d3e986cda7018950f1016dcbcc4e40ef2b56c5a
+```
+
+Admin1 needs to sign two instructions in the transaction:
+
+*One instruction change the admin darc to include the new admin, the other add the admin in the admin list store in a value contract bind to the admin darc*
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin1 --id 7c93c25c950c9627c64389186d3e986cda7018950f1016dcbcc4e40ef2b56c5a --instidx 0
+Succesfully added signature to deferred transaction
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin1 --id 7c93c25c950c9627c64389186d3e986cda7018950f1016dcbcc4e40ef2b56c5a --instidx 1
+Succesfully added signature to deferred transaction
+```
+
+Admin1 needs to execute the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred exec --keys $admin1 --id 7c93c25c950c9627c64389186d3e986cda7018950f1016dcbcc4e40ef2b56c5a
+Succesfully executed the deferred transaction
+```
+
+To see the new admin darc, you can use the bcadmin CLI:
+
+```
+path/to/medchain/cmd/medadmin$ bcadmin -c build darc show --darc $adid
+- Darc:
+-- Description: "Admin darc guards medchain project darcs"
+-- BaseID: darc:3b4750793029dbfd493f943bb3729a5a54a4de9d3db25b4e446c04df090b6ca3
+-- PrevID: darc:3b4750793029dbfd493f943bb3729a5a54a4de9d3db25b4e446c04df090b6ca3
+-- Version: 1
+-- Rules:
+--- _evolve - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- _sign - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- invoke:darc.evolve - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- spawn:deferred - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 | ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- invoke:deferred.addProof - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 | ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- invoke:deferred.execProposedTx - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 | ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- spawn:darc - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- spawn:value - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- _name:value - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+--- invoke:value.update - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"
+-- Signatures:
+```
+
+> All sensitive operations needs to comply with the multisignature rule chosen (for now every admin needs to sign) e.g : **_sign - "ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 & ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87"**, both admins needs to sign any operation delegated to the darc
+
+To get the list of all admins identitites registered in the admin darc:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build admin get --keys $admin1
+The list of admin identities in the admin darc:
+[ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99 ed25519:10a7f32004d03a252ddcc36d9bdcffe807cc5db911c0cef138b8d3f3b7beac87]
+```
+
+> `add`, `remove`, `modify` operations follow the same workflow
 -------
 
 ### How to manage projects
