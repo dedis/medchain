@@ -2,6 +2,22 @@
 
 Medadmin is the Medchain administration CLI used to manage the admin darc, manage deferred transactions and manage projects.
 
+- [Medadmin : Medchain administration CLI](#medadmin---medchain-administration-cli)
+  * [CLI calls](#cli-calls)
+    + [Admin](#admin)
+    + [Deferred](#deferred)
+    + [project](#project)
+  * [Set up a Byzcoin chain](#set-up-a-byzcoin-chain)
+    + [Deploy the chain](#deploy-the-chain)
+    + [Setup the Medchain administration darc](#setup-the-medchain-administration-darc)
+    + [How to manage admins in the admin darc](#how-to-manage-admins-in-the-admin-darc)
+      - [Add/Remove/Modify an admin identity in the admin darc](#add-remove-modify-an-admin-identity-in-the-admin-darc)
+    + [How to manage projects](#how-to-manage-projects)
+      - [Setup a project: projectA](#setup-a-project--projecta)
+      - [Manage access rights for projectA](#manage-access-rights-for-projecta)
+
+
+
 ## CLI calls
 
 ### Admin
