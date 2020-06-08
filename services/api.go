@@ -68,6 +68,7 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 		private:    keys.Private,
 		signerCtrs: nil,
 	}
+
 	cl.Signers = []darc.Signer{darc.NewSignerEd25519(cl.public, cl.private)}
 	gDarc, err := bcl.GetGenDarc()
 
@@ -75,6 +76,7 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 		return nil, xerrors.Errorf("error in getting genesis darc from skipchain: %v", err)
 	}
 	cl.GenDarcID = gDarc.GetBaseID()
+	log.Info("[INFO] (NewClient) Genesis darc:", gDarc.String())
 	return cl, nil
 }
 
@@ -111,6 +113,134 @@ func (c *Client) Create() error {
 	log.Info("[INFO] (API) contract_name instance was added to the ledger")
 
 	return nil
+}
+
+//SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
+func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	log.Info("[INFO] Spawning the deferred query ")
+
+	if len(req.QueryID) == 0 {
+		return nil, xerrors.New("query ID required")
+	}
+
+	if len(req.ClientID) == 0 {
+		return nil, xerrors.New("ClientID required")
+	}
+
+	req.QueryStatus = []byte("Submitted")
+	log.Info("[INFO] Spawning the deferred query ")
+	return c.createDeferredInstance(req)
+}
+
+//createDeferredInstance spawns a query that
+func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
+	log.Info("[INFO] Spawning the deferred query with ID: ", req.QueryID)
+	log.Info("[INFO] Spawning the deferred query with Status: ", req.QueryStatus)
+	log.Info("[INFO] Spawning the deferred query with Status: ", string(req.QueryStatus))
+	log.Info("[INFO] Spawning the deferred query with Darc ID: ", req.DarcID)
+	query := Query{}
+	query.ID = req.QueryID
+	query.Status = req.QueryStatus
+	// Perfomr darc sanity check
+	_, err := lib.GetDarcByID(c.Bcl, req.DarcID)
+	if err != nil {
+		return nil, xerrors.Errorf(" error in retrieving darc : %v", err)
+	}
+	log.Info("[INFO] Spawning the deferred query with decoded query: ", query)
+	proposedInstr := byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(req.DarcID),
+		Spawn: &byzcoin.Spawn{
+			ContractID: ContractName,
+			Args: byzcoin.Arguments{
+				{
+					Name:  req.QueryID,
+					Value: []byte(req.QueryStatus),
+				},
+			},
+		},
+		SignerCounter: c.IncrementCtrs(),
+	}
+
+	// create deferred instance
+	proposedTransaction, err := c.Bcl.CreateTransaction(proposedInstr)
+	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
+	if err != nil {
+		return nil, err
+	}
+
+	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, req.DarcID)
+	if err != nil {
+		return nil, xerrors.Errorf("could not spawn instance: %v", err)
+	}
+	req.BlockID = c.Bcl.ID
+	reply := &AddDeferredQueryReply{}
+	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %v", err)
+	}
+	log.Info("[INFO] Successfully spawned the deferred query and now propating the instance ID: ", req.QueryInstID)
+
+	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
+	sharingReply := &PropagateIDReply{}
+	err = c.onetcl.SendProtobuf(c.EntryPoint, sharingReq, sharingReply)
+	if err != nil {
+		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %v", err)
+	}
+
+	return reply, nil
+}
+
+// SpawnDeferredInstance spwans a deferred instance
+func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byte, darcID darc.ID) (byzcoin.InstanceID, error) {
+
+	// TODO: make this an env var
+	expireBlockIndexInt := uint64(6000)
+	expireBlockIndexBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
+
+	numExecutionInt := uint64(3)
+	numExecutionBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(numExecutionBuf, numExecutionInt)
+
+	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(darcID),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDeferredID,
+			Args: []byzcoin.Argument{
+				{
+					Name:  "proposedTransaction",
+					Value: proposedTransactionBuf,
+				},
+				{
+					Name:  "expireBlockIndex",
+					Value: expireBlockIndexBuf,
+				},
+				{
+					Name:  "numExecution",
+					Value: numExecutionBuf,
+				},
+			},
+		},
+		SignerCounter: c.signerCtrs,
+	})
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create deferred transaction: %v", err)
+	}
+	err = c.spawnTx(ctx)
+	if err != nil {
+		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %v", err)
+	}
+	instID := ctx.Instructions[0].DeriveID("")
+
+	// Name the instance of the query with as its key using contract_name to
+	// make retrievals easier
+	err = c.nameInstance(instID, darcID, query.ID)
+	if err != nil {
+		return *new(byzcoin.InstanceID), err
+	}
+	log.Info("[INFO] Deferred Query instance was named ")
+
+	return instID, err
 }
 
 // AuthorizeQuery checks authorizations of the query
@@ -153,10 +283,12 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 	req.BlockID = c.Bcl.ID
 	newInstID := ctx.Instructions[0].DeriveID("")
 	log.Info("[INFO] (AuthorizeQuery) Query was added to the ledger")
+	log.Info("[INFO] (AuthorizeQuery) old instance ID was:", req.QueryInstID)
+	log.Info("[INFO] (AuthorizeQuery) new instance ID is:", newInstID)
 
 	// Name the instance of the query with as its key using contract_name to
 	// make retrievals easier
-	err = c.nameInstance(newInstID, req.DarcID, query.ID+"_auth")
+	err = c.nameInstance(newInstID, c.GenDarcID, query.ID+"_auth")
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +299,7 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 	reply := &AuthorizeQueryReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
 	if err != nil {
-		return nil, xerrors.Errorf("could not get AuthorizeQeryReply from service: %v", err)
+		return nil, xerrors.Errorf("could not get AuthorizeQueryReply from service: %v", err)
 	}
 	reply.QueryInstID = newInstID
 	log.Info("[INFO] (AuthorizeQuery) InstanceID received from service is:", reply.QueryInstID)
@@ -210,10 +342,8 @@ func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceI
 		log.Info("[INFO] (Invoke) Query was AUTHORIZED")
 	}
 
-	// We spawn a new conract instance with the SAME instance ID after the authorization since it is not possible to update
-	// the status of a query spawned as a deferred contract (deferred contract only supports addproof and exec)
 	instr := byzcoin.Instruction{
-		InstanceID: instID,
+		InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
 		Spawn: &byzcoin.Spawn{
 			ContractID: ContractName,
 			Args:       []byzcoin.Argument{args},
@@ -308,125 +438,6 @@ func (c *Client) createInstance(query Query) (byzcoin.InstanceID, error) {
 	}
 
 	return instID, nil
-}
-
-//SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
-func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
-	log.Info("[INFO] Spawning the deferred query ")
-
-	if len(req.QueryID) == 0 {
-		return nil, xerrors.New("query ID required")
-	}
-
-	if len(req.ClientID) == 0 {
-		return nil, xerrors.New("ClientID required")
-	}
-
-	req.QueryStatus = []byte("Submitted")
-	log.Info("[INFO] Spawning the deferred query ")
-	return c.createDeferredInstance(req)
-}
-
-//createDeferredInstance spawns a query that
-func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
-
-	query := Query{}
-	query.ID = req.QueryID
-	query.Status = req.QueryStatus
-
-	proposedInstr := byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(req.DarcID),
-		Spawn: &byzcoin.Spawn{
-			ContractID: ContractName,
-			Args: byzcoin.Arguments{
-				{
-					Name:  req.QueryID,
-					Value: []byte(req.QueryStatus),
-				},
-			},
-		},
-		SignerCounter: c.IncrementCtrs(),
-	}
-
-	// create deferred instance
-	proposedTransaction, err := c.Bcl.CreateTransaction(proposedInstr)
-	proposedTransactionBuf, err := protobuf.Encode(&proposedTransaction)
-	if err != nil {
-		return nil, err
-	}
-
-	req.QueryInstID, err = c.spawnDeferredInstance(query, proposedTransactionBuf, req.DarcID)
-	if err != nil {
-		return nil, xerrors.Errorf("could not spawn instance: %v", err)
-	}
-	req.BlockID = c.Bcl.ID
-	reply := &AddDeferredQueryReply{}
-	err = c.onetcl.SendProtobuf(c.EntryPoint, req, reply)
-	if err != nil {
-		return nil, xerrors.Errorf("could not get AddDeferredQueryReply from service: %v", err)
-	}
-	// Broadcast the instance ID to all nodes and save it
-	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
-	sharingReply := &PropagateIDReply{}
-	err = c.onetcl.SendProtobuf(c.EntryPoint, sharingReq, sharingReply)
-	if err != nil {
-		return nil, xerrors.Errorf("could not get PropagateIDReply from service: %v", err)
-	}
-
-	return reply, nil
-}
-
-// SpawnDeferredInstance spwans a deferred instance
-func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byte, darcID darc.ID) (byzcoin.InstanceID, error) {
-
-	// TODO: make this an env var
-	expireBlockIndexInt := uint64(6000)
-	expireBlockIndexBuf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(expireBlockIndexBuf, expireBlockIndexInt)
-
-	numExecutionInt := uint64(3)
-	numExecutionBuf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(numExecutionBuf, numExecutionInt)
-
-	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(darcID),
-		Spawn: &byzcoin.Spawn{
-			ContractID: byzcoin.ContractDeferredID,
-			Args: []byzcoin.Argument{
-				{
-					Name:  "proposedTransaction",
-					Value: proposedTransactionBuf,
-				},
-				{
-					Name:  "expireBlockIndex",
-					Value: expireBlockIndexBuf,
-				},
-				{
-					Name:  "numExecution",
-					Value: numExecutionBuf,
-				},
-			},
-		},
-		SignerCounter: c.signerCtrs,
-	})
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not create deferred transaction: %v", err)
-	}
-	err = c.spawnTx(ctx)
-	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %v", err)
-	}
-	instID := ctx.Instructions[0].DeriveID("")
-
-	// Name the instance of the query with as its key using contract_name to
-	// make retrievals easier
-	err = c.nameInstance(instID, darcID, query.ID)
-	if err != nil {
-		return *new(byzcoin.InstanceID), err
-	}
-	log.Info("[INFO] Deferred Query instance was named ")
-
-	return instID, err
 }
 
 // AddSignatureToDeferredQuery allows MedChain user to sign a deferred query
@@ -557,6 +568,9 @@ func (c *Client) GetDarcRules(instID byzcoin.InstanceID) error {
 	proof := pr.Proof
 	_, _, _, darcID, err := proof.KeyValue()
 	darc, err := lib.GetDarcByID(c.Bcl, darcID)
+	if err != nil {
+		return xerrors.Errorf(" error in retrieving darc : %v", err)
+	}
 	rules := darc.Rules.List
 	for i := range rules {
 		fmt.Println(rules[i].String())
@@ -581,7 +595,7 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 
 	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
 	if err != nil {
-		return xerrors.Errorf("retrieving darc : %v", err)
+		return xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
 	exp := projectDarc.Rules.GetEvolutionExpr()
 	signerIDs := strings.Split(string(exp), "&")
@@ -602,7 +616,7 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 	// update the darc and darc ID of cilent
 	newDarc, err := lib.GetDarcByID(c.Bcl, newDarcID)
 	if err != nil {
-		return xerrors.Errorf("retrieving evolved darc : %v", err)
+		return xerrors.Errorf("error in retrieving evolved darc : %v", err)
 	}
 	c.AllDarcIDs[name] = newDarcID
 	c.AllDarcs[name] = newDarc
@@ -617,14 +631,14 @@ func (c *Client) CreateNewSigner(public kyber.Point, private kyber.Scalar) darc.
 }
 
 // AddRuleToDarc adds action rules to the given darc
-func (c *Client) AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) *darc.Darc {
+func (c *Client) AddRuleToDarc(userDarc *darc.Darc, action string, expr expression.Expr) (*darc.Darc, error) {
 	actions := strings.Split(action, ",")
 
 	for i := 0; i < len(actions); i++ {
 		dAction := darc.Action(actions[i])
 		userDarc.Rules.AddRule(dAction, expr)
 	}
-	return userDarc
+	return userDarc, nil
 }
 
 // UpdateDarcActionRule update action rules of the given darc
@@ -641,8 +655,14 @@ func (c *Client) UpdateDarcActionRule(userDarc *darc.Darc, action string, expr e
 // CreateDarc is used to create a new darc
 func (c *Client) CreateDarc(name string, rules darc.Rules, actionsAnd string, actionsOr string, exprsAnd expression.Expr, exprsOr expression.Expr) (*darc.Darc, error) {
 	projectDarc := darc.NewDarc(rules, []byte(name))
-	projectDarc = c.AddRuleToDarc(projectDarc, actionsAnd, exprsAnd)
-	projectDarc = c.AddRuleToDarc(projectDarc, actionsOr, exprsOr)
+	projectDarc, err := c.AddRuleToDarc(projectDarc, actionsAnd, exprsAnd)
+	if err != nil {
+		return nil, xerrors.Errorf(" error in creating darc : %v", err)
+	}
+	projectDarc, err = c.AddRuleToDarc(projectDarc, actionsOr, exprsOr)
+	if err != nil {
+		return nil, xerrors.Errorf(" error in creating darc : %v", err)
+	}
 	return projectDarc, nil
 }
 
@@ -971,7 +991,7 @@ func (c *Client) getActionFromOneQuery(query Query) string {
 
 //NameInstance uses contract_name to name a contract instance
 func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name string) error {
-
+	log.Info("[INFO] (API) nameInstance")
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
 		Invoke: &byzcoin.Invoke{

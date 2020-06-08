@@ -11,6 +11,7 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
 
@@ -99,7 +100,7 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	if err := emptyInstID(req.QueryInstID); err != nil {
 		return reply, xerrors.Errorf("%+v", err)
 	}
-	if err := checkStatus(req.QueryStatus); err != nil {
+	if err := checkStatus(string(req.QueryStatus)); err != nil {
 		return reply, xerrors.Errorf("%+v", err)
 	}
 
@@ -110,10 +111,19 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 	if err != nil {
 		return reply, err
 	}
-	darcID, err := getQueryByID(stateTrie, req.QueryInstID.Slice())
+	v, darcID, err := getQueryByID(stateTrie, req.QueryInstID.Slice())
 	if err != nil {
 		return reply, xerrors.Errorf("could not get spawned query from skipchain: %v", err)
 	}
+
+	dd := byzcoin.DeferredData{}
+	err = protobuf.Decode(v, &dd)
+	if err != nil {
+		return nil, xerrors.Errorf("error in decoding the data: %v", err)
+	}
+
+	log.Info("[INFO] (HandleSpawnDeferredQuery) Decoded deferred query data: ", dd)
+
 	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
 	if !req.DarcID.Equal(darcID) {
 		return reply, xerrors.Errorf("error in getting spawned query from skipchain: %v", err)
@@ -197,26 +207,37 @@ func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQu
 	if err := emptyInstID(req.QueryInstID); err != nil {
 		return reply, xerrors.Errorf("%+v", err)
 	}
-	if err := checkStatusAuth(req.QueryStatus); err != nil {
+	if err := checkStatusAuth(string(req.QueryStatus)); err != nil {
 		return reply, xerrors.Errorf("%+v", err)
 	}
 
-	v, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
+	rst, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
 	if err != nil {
 		return nil, err
 	}
-	darcID, err := getQueryByID(v, req.QueryInstID.Slice())
+	v, _, err := getQueryByID(rst, req.QueryInstID.Slice())
 	if err != nil {
 		return nil, xerrors.Errorf("could not get query from skipchain: %v", err)
 	}
-
-	log.Info("[INFO] Authorize query darc ID: ", req.DarcID)
-
-	if !req.DarcID.Equal(darcID) {
-		return nil, xerrors.Errorf("error in getting query from skipchain: %v", err)
+	qdata := QueryData{}
+	err = protobuf.Decode(v, &qdata)
+	if err != nil {
+		return nil, xerrors.Errorf("error in decoding the data: %v", err)
 	}
 
-	err = checkStatusAuth(req.QueryStatus)
+	log.Info("[INFO] (HandleAuthorizeQuery) Decoded query data: ", qdata)
+	log.Info("[INFO] (HandleAuthorizeQuery) Authorize query darc ID: ", req.DarcID)
+
+	for _, data := range qdata.Storage {
+		if data.ID != req.QueryID {
+			return nil, xerrors.New("incorrect query ID retrieved")
+		}
+		if string(data.Status) != "Authorized" && string(data.Status) != "Rejected" {
+			return nil, xerrors.New("invalid query status retrieved")
+		}
+	}
+
+	err = checkStatusAuth(string(req.QueryStatus))
 	if err != nil {
 		return nil, err
 	}
@@ -252,19 +273,12 @@ func checkStatusAuth(status string) error {
 	return nil
 }
 
-func getQueryByID(view byzcoin.ReadOnlyStateTrie, instID []byte) (darc.ID, error) {
-	_, _, _, darcID, err := view.GetValues(instID)
+func getQueryByID(view byzcoin.ReadOnlyStateTrie, instID []byte) ([]byte, darc.ID, error) {
+	v, _, _, darcID, err := view.GetValues(instID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// qdata := QueryData{}
-	// if err := protobuf.Decode(v0, &qdata); err != nil {
-	// 	return nil, err
-	// }
-
-	log.Info("[INFO] getQueryByID returned Darc ID: ", darcID)
-
-	return darcID, nil
+	return v, darcID, nil
 }
 
 // Saves s.Storage in the node
