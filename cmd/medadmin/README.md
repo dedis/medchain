@@ -52,7 +52,7 @@ The project command manages the project access rights.
 | `add`       | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id, `access` : the access rights of the querier | Add a new querier to the project. Returns the instance id of the deferred transaction.                                                 |
 | `remove`    | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id                                              | Removes the querier from the project. Returns the instance id of the deferred transaction.                                             |
 | `modify`    | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id, `access` : the access rights of the querier | Modify the querier access rights in the project. Returns the instance id of the deferred transaction.                                  |
-| `verify`    | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id, `access` : the access rights of the querier |                                                                                                                                        |
+| `verify`    | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id, `access` : the access rights of the querier | Verify the access rights of a user                                                                                                     |
 | `show`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `pdid` : the project darc id, `adid` : the admin darc id (default is $adid), `qid` : the querier id                                              | Show the access rights of a user                                                                                                       |
 
 `create` :	Create a new project structure (Create project darc, create access right)
@@ -107,7 +107,7 @@ path/to/medchain/cmd/medadmin$ bcadmin -c build info
 - BC: build/bc-afef3830ae372be9d227a10b4b3c87a4661e2ba3a07f1e35002d07a0b5ad6b57.cfg
 ```
 
-**ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99** : is the id of the super admin (the very first admin spawn with the byzcoin chain). 
+**ed25519:d052769a6d7458b49559021a5a1d7ada609db08c470b45cce632040e535dcc99** : is the id of the super admin (the very first admin spawned with the byzcoin chain). 
 
 *For ease of use, you can store it in an environment variable*:
 
@@ -252,15 +252,152 @@ The list of admin identities in the admin darc:
 ```
 
 > `add`, `remove`, `modify` operations follow the same workflow
+
 -------
 
 ### How to manage projects
 
-create project 
 
-add querier 
-remove querier
-modify 
+#### Setup a project: projectA
 
-verify 
-show
+**Spawn the transaction to create a project:**
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project create darc --keys $admin1 --pname projectA
+Deffered transaction spawned with ID:
+18c541cc78bc8a251e6032328d37b87eddb88b7900f3173026ffc8748c3a2909
+Project darc ID:  darc:28c2b8e1130c9494a98bd30cea4900033c1f1a4eab5dbbd07eee81dc08bc1a5d
+```
+
+*The project darc ID will be the instance ID of the darc once the deferred transaction will be executed. For ease of use and clarity, you can store it in an environment variable:*
+
+    export projectA=darc:28c2b8e1130c9494a98bd30cea4900033c1f1a4eab5dbbd07eee81dc08bc1a5d
+
+The deferred transaction needs to receive enough signature from admins to execute the transaction. For the following, we assume that only admin1 and admin2 need to sign.
+
+Admin1 sign the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin1 --id 18c541cc78bc8a251e6032328d37b87eddb88b7900f3173026ffc8748c3a2909
+Succesfully added signature to deferred transaction
+```
+
+Admin2 sign the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin2 --id 18c541cc78bc8a251e6032328d37b87eddb88b7900f3173026ffc8748c3a2909
+Succesfully added signature to deferred transaction
+```
+
+Admin1 execute the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred exec --keys $admin1 --id 18c541cc78bc8a251e6032328d37b87eddb88b7900f3173026ffc8748c3a2909
+Succesfully executed the deferred transaction
+```
+
+--------
+
+**Spawn a new access right contract for projectA:**
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project create accessright  --keys $admin1 --pdid $projectA
+Deffered transaction spawned with ID:
+8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
+```
+
+Admin1 sign the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin1 --id 8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
+Succesfully added signature to deferred transaction
+```
+
+Admin2 sign the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred sign --keys $admin2 --id 8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
+Succesfully added signature to deferred transaction
+```
+
+Admin1 execute the transaction:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build  deferred exec --keys $admin1 --id 8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
+Succesfully executed the deferred transaction
+```
+
+Each time an admin adds a signature to the transaction, the content of the transaction change and therefore the instance id also. Therefore we need to know the id of the contract that has been deployed after the execution of the deferred transaction
+
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build deferred getexecid --id e3cb537ff1f5ec077b762a1828d7293ecd6eb9e7540b9c6ded03dec05cd08fe5 --keys $admin1
+Instance ID after execution:
+92f684a4cb8803bb4dc957d1d1f19b8774ba3ffabdf8508614eb48c6bf58cc30
+```
+
+--------
+
+**We then need to attach this instance of accessright contract to the project darc:**
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project attach --keys $admin1 --id 92f684a4cb8803bb4dc957d1d1f19b8774ba3ffabdf8508614eb48c6bf58cc30
+Successfully attached accessright contract instance to project darc with name resolution AR
+```
+
+Now projectA is correctly setup, and we can interact with queriers and access rights
+
+#### Manage access rights for projectA
+
+Add a querier named **querier1** and give him access to **count_per_site**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project add --keys $admin1 --pdid $projectA --qid querier1 --access count_per_site
+Deffered transaction spawned with ID:
+8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
+```
+
+> All admins sign the transaction [see here](#Add/Remove/Modify-an-admin-identity-in-the-admin-darc) for example of how to sign deferred transaction with the medadmin CLI...
+
+Show the informations about the access right of **querier1** in **projectA**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project show --keys $admin1 --pdid $projectA -qid querier1
+Access status for querier1
+count_per_site
+```
+
+Verify the access rights of **querier1** in **projectA** for operation **count_per_site**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project verify --keys $admin1 --pdid $projectA -qid querier1 --access count_per_site
+Access status for  querier1  for access:  count_per_site
+Granted
+```
+
+Verify the access rights of **querier1** in **projectA** for operation **count_per_site_shuffled**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project verify --keys $admin1 --pdid $projectA -qid querier1 --access count_per_site_shuffled
+Access status for  querier1  for access:  count_per_site_shuffled
+Denied
+```
+
+Modify the access rights of **querier1** and give him access to **count_per_site_shuffled**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project modify --keys $admin1 --pdid $projectA --qid querier1 --access count_per_site:count_per_site_shuffled
+Deffered transaction spawned with ID:
+018cb63dbc439f06cf77c528d84d2480c5014c9fbecd7a08e7c02217e4fdc5cf
+```
+
+> All admins sign the transaction [see here](#Add/Remove/Modify-an-admin-identity-in-the-admin-darc) for example of how to sign deferred transaction with the medadmin CLI...
+
+
+Verify the access rights of **querier1** in **projectA** for operation **count_per_site_shuffled**:
+
+```
+path/to/medchain/cmd/medadmin$ ./medadmin -c build project verify --keys $admin1 --pdid $projectA -qid querier1 --access count_per_site_shuffled
+Access status for  querier1  for access:  count_per_site_shuffled
+Granted
+```
