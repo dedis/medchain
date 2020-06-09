@@ -1068,6 +1068,7 @@ func TestClient_IDSharing(t *testing.T) {
 		)
 		require.Nil(t, err)
 		require.NotEmpty(t, resp.QueryInstIDs)
+		// require.Equal(t, 3, len(resp.QueryInstIDs))
 		log.Info("[INFO] response is", resp.QueryInstIDs)
 		fmt.Println(resp.QueryInstIDs)
 	}
