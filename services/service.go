@@ -240,6 +240,7 @@ func (s *Service) HandleGetSharedData(req *GetSharedDataRequest) (*GetSharedData
 	if err != nil {
 		return nil, xerrors.Errorf("could not load the storage to get shared data: %v", err)
 	}
+	log.Info("[INFO]: Loaded instance IDs ", s.storage.SharedInstanceIDs)
 	return &GetSharedDataReply{s.storage.SharedInstanceIDs}, nil
 }
 

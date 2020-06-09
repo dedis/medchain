@@ -1069,7 +1069,7 @@ func (c *Client) Search(req *SearchRequest) (*SearchReply, error) {
 // GetSharedData retreives the new Instance ID saved at nodes
 func (c *Client) GetSharedData() (*GetSharedDataReply, error) {
 	rep := &GetSharedDataReply{}
-	err := c.onetcl.SendProtobuf(c.EntryPoint, &GetSharedDataRequest{}, &rep)
+	err := c.onetcl.SendProtobuf(c.EntryPoint, &GetSharedDataRequest{}, rep)
 	if err != nil {
 		return rep, xerrors.Errorf("could not send the GetSharedDataRequest to the service : %v", err)
 	}

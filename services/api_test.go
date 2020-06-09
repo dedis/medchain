@@ -798,6 +798,21 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.Equal(t, uint64(1), dd1.MaxNumExecution)
 	require.Empty(t, dd1.ExecResult)
 
+	// Check shared instance id by other clients
+	shareRep, err := cl.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep.QueryInstIDs[0])
+
+	shareRep1, err := cl2.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep1.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep1.QueryInstIDs[0])
+
+	shareRep2, err := cl3.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep2.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep2.QueryInstIDs[0])
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
@@ -961,6 +976,22 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	err = cl.GetDarcRules(resp5.QueryInstID)
 	require.NoError(t, err)
 	log.Infof("[INFO] Darc rules for normal instance ID:%v", resp5.QueryInstID)
+
+	// Check shared instance id by other clients
+	shareRep, err = cl.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep.QueryInstIDs[0])
+
+	shareRep1, err = cl2.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep1.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep1.QueryInstIDs[0])
+
+	shareRep2, err = cl3.GetSharedData()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(shareRep2.QueryInstIDs))
+	require.Equal(t, resp1.QueryInstID, shareRep2.QueryInstIDs[0])
 
 }
 func TestClient_IDSharing(t *testing.T) {
