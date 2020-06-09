@@ -658,7 +658,7 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID+"_auth")
+	instaID, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
