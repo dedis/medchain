@@ -28,35 +28,30 @@ func init() {
 	}
 }
 
-// Service is our template-service
 type Service struct {
-	// We need to embed the ServiceProcessor, so that incoming messages
-	// are correctly handled.
 	*onet.ServiceProcessor
-	ShareData protocols.PropagationFunc
+	ShareData protocols.PropagationFunc // The protocol to broadcast messages to all conodes
 	storage   *storage
 }
 
-// storageID reflects the data we're storing - we could store more
-// than one structure.
 var storageID = []byte("main")
 
-// storage is used to save our data.
+// Storage hold the data locally
 type storage struct {
 	IDs []byzcoin.InstanceID
 	sync.Mutex
 }
 
-// Clock starts a template-protocol and returns the run-time.
-func (s *Service) DefferedID(req *DefferedID) (*DefferedIDReply, error) {
-	_, err := s.ShareData(req.Roster, req, 10*time.Minute)
+// Handle the reception of a DeferredID message
+func (s *Service) DefferedID(req *DeferredID) (*DeferredIDReply, error) {
+	_, err := s.ShareData(req.Roster, req, 10*time.Minute) // broadcast the message to other conodes
 	if err != nil {
 		log.Lvl1(err)
 	}
-	return &DefferedIDReply{true}, nil
+	return &DeferredIDReply{true}, nil
 }
 
-// // Clock starts a template-protocol and returns the run-time.
+// Handle the reception of a GetDefferedIDs request. It return the list of all deferred transactions stored
 func (s *Service) HandleGetDefferedIDs(req *GetDeferredIDs) (*GetDeferredIDsReply, error) {
 	err := s.tryLoad()
 	if err != nil {
@@ -65,7 +60,7 @@ func (s *Service) HandleGetDefferedIDs(req *GetDeferredIDs) (*GetDeferredIDsRepl
 	return &GetDeferredIDsReply{s.storage.IDs}, nil
 }
 
-// saves all data.
+// saves all data from local memory to the local db of the conode
 func (s *Service) save() {
 	s.storage.Lock()
 	defer s.storage.Unlock()
@@ -75,8 +70,7 @@ func (s *Service) save() {
 	}
 }
 
-// Tries to load the configuration and updates the data in the service
-// if it finds a valid config-file.
+// Tries to load the storage from the local db of the conode into memory
 func (s *Service) tryLoad() error {
 	s.storage = &storage{}
 	msg, err := s.Load(storageID)
@@ -102,15 +96,17 @@ func newService(c *onet.Context) (onet.Service, error) {
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
 	var err error
+	// ShareData is the method that broadcast messages to all conodes
 	s.ShareData, err = protocols.NewPropagationFuncTest(s, "ShareData", -1, func(m network.Message) error {
+		// What is done when a node receive a DeferredID message from a conode that broadcast it
 		s.storage.Lock()
-		s.storage.IDs = append(s.storage.IDs, m.(*DefferedID).Id)
+		s.storage.IDs = append(s.storage.IDs, m.(*DeferredID).Id) // store the deferred instance id in the db of the conode
 		s.storage.Unlock()
 		s.save()
 		return nil
 	},
 		func() network.Message {
-			return &DefferedIDReply{true}
+			return &DeferredIDReply{true} // What is sent back to the sender of the DeferredID message
 		})
 
 	if err != nil {

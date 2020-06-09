@@ -68,6 +68,7 @@ func TestAccessRight_Spawn(t *testing.T) {
 	err = protobuf.Decode(v0, &received)
 	require.NoError(t, err)
 	require.Equal(t, val, received) // Check that the AccessRight value is the same in the global state as the spawned one
+	log.Lvl1("[INFO] Access right contract successfully spawned")
 }
 
 func TestAccessRight_Invoke(t *testing.T) {

@@ -445,7 +445,7 @@ func getExecResult(c *cli.Context) error {
 	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 
-	finalID, err := cl.GetAccessRightInstanceID(id, 0)
+	finalID, err := cl.GetContractInstanceID(id, 0)
 	if err != nil {
 		return err
 	}

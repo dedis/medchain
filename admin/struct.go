@@ -9,7 +9,7 @@ import (
 // We need to register all messages so the network knows how to handle them.
 func init() {
 	network.RegisterMessages(
-		DefferedID{}, DefferedIDReply{}, GetDeferredIDs{}, GetDeferredIDsReply{},
+		DeferredID{}, DeferredIDReply{}, GetDeferredIDs{}, GetDeferredIDsReply{},
 	)
 }
 
@@ -18,21 +18,24 @@ const (
 	ErrorParse = iota + 4000
 )
 
+// Request the sending of all deferred instance ids stored locally.
 type GetDeferredIDs struct {
 }
 
+//  Reply to the GetDeferredIDs message. Reply with the list of all deferred instance ids stored locally.
 type GetDeferredIDsReply struct {
 	Ids []byzcoin.InstanceID
 }
 
-// Count will return how many times the protocol has been run.
-type DefferedID struct {
+// Deferred ID is a request to store a new deferred instance id and to broadcast it to other conodes.
+type DeferredID struct {
 	Id     byzcoin.InstanceID
 	Roster *onet.Roster
 }
 
-// CountReply returns the number of protocol-runs
-type DefferedIDReply struct {
+// DeferredID is the reply to DeferredID
+// The reply is true if the query is authorized and false otherwise
+type DeferredIDReply struct {
 	OK bool
 }
 

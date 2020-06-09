@@ -34,6 +34,9 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
 
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
+
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -48,8 +51,8 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
-	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the client
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -78,16 +81,16 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -102,24 +105,24 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	admcl3, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl3 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction but threshold of signature not reached")
 	err = admcl.ExecDefferedTx(id)
 	require.Error(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -134,26 +137,26 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	admcl4, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl4 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl4.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl4.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 1)
+	err = admcl3.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
 	err = admcl3.ExecDefferedTx(id)
@@ -182,6 +185,9 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
 
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
+
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -196,8 +202,8 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 
 	log.Lvl1("[INFO] Create admin client")
 	admcl, err := NewClientWithAuth(bcl, &superAdmin)
-	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 	require.NoError(t, err)
+	admcl.incrementSignerCounter() // We increment the counter as the superadmin keys performed a transaction before creating the clinet
 
 	// ------------------------------------------------------------------------
 	// 1. Spawn admin darc
@@ -226,16 +232,16 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -252,21 +258,21 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	admcl3, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl3 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl3.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -278,26 +284,27 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	log.Lvl1("[INFO] Create deffered tx to remove admcl2 identity")
-	id, err = admcl.RemoveAdminFromAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.RemoveAdminFromAdminDarc(adminDarc.GetBaseID(), admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 1)
+	err = admcl3.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // For now the multisignature rule state that every admin sign for sensitive operations (in other rules admin shouldn't sign to be removed)
+	// For now the multisignature rule state that every admin sign for sensitive operations (in other rules admin shouldn't sign to be removed)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
 	err = admcl3.ExecDefferedTx(id)
@@ -326,6 +333,8 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
 
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -370,16 +379,16 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	admcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adminDarc.GetBaseID(), admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -394,21 +403,21 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	newAdmcl2, err := NewClient(bcl)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Create deffered tx to add admcl3 identity")
-	id, err = admcl.ModifyAdminKeysFromAdminDarc(adminDarc.GetBaseID(), admcl2.AuthKey().Identity().String(), newAdmcl2.AuthKey().Identity().String())
+	id, err = admcl.ModifyAdminKeysFromAdminDarc(adminDarc.GetBaseID(), admcl2.GetKeys().Identity().String(), newAdmcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
 	err = admcl.ExecDefferedTx(id)
@@ -435,6 +444,9 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -513,6 +525,7 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	require.Equal(t, id, arID)
 	log.Lvl1("[INFO] The access right value contract is set")
 }
+
 func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up
@@ -532,6 +545,9 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -575,7 +591,7 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
@@ -671,7 +687,7 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl3 identity")
-	id, err = admcl.AddAdminToAdminDarc(adid, admcl3.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl3.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -732,6 +748,8 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.True(t, authorization)
 }
 
+// This test is the same as the previous test but uses the protocol to broadcast deferred instance ids.
+// The different admin clients don't use the id store locally in the test but get the list of deferred ids.
 func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up
@@ -751,6 +769,9 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -794,7 +815,7 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
-	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.AddSignatureToDefferedTx(id, 0)
 	require.NoError(t, err)
@@ -896,7 +917,7 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Create deffered tx to add admcl3 identity")
-	id, err = admcl.AddAdminToAdminDarc(adid, admcl3.AuthKey().Identity().String())
+	id, err = admcl.AddAdminToAdminDarc(adid, admcl3.GetKeys().Identity().String())
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
@@ -976,6 +997,9 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	genesisMsg.BlockInterval = time.Second / 5
 	bcl, _, err := byzcoin.NewLedger(genesisMsg, false)
 	require.NoError(t, err)
+
+	// The API uses the naming contract to have name resolution for access rights instance ids and the admin list,
+	// therefore we need to spawn the naming contract when setting up the chain
 	spawnNamingTx, err := bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(gDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
@@ -1044,7 +1068,7 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	require.NoError(t, err)
 	arID := ddata.ProposedTransaction.Instructions[0].DeriveID("")
 
-	finalID, err := admcl.GetAccessRightInstanceID(id, 0)
+	finalID, err := admcl.GetContractInstanceID(id, 0)
 	require.NoError(t, err)
 	require.Equal(t, arID, finalID)
 	// bind the accessright instance to the project darc
