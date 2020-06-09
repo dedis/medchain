@@ -523,9 +523,12 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 
 // ExecDefferedQuery executes the query that has received enough signatures
 func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDeferredTxReply, error) {
-	log.Info("[INFO] Execute the query transaction")
+	log.Info("[INFO] (ExecDefferedQuery) Execute the query transaction")
 	if len(req.ClientID) == 0 {
 		return nil, xerrors.New("ClientID required")
+	}
+	if len(req.QueryID) == 0 {
+		return nil, xerrors.New("Query ID required")
 	}
 	if string(req.QueryStatus) != "Submitted" {
 		return nil, xerrors.New("invalid query status")
@@ -557,6 +560,26 @@ func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDefer
 	if err != nil {
 		return nil, xerrors.Errorf("could not get ExecuteDeferredTxReply from service: %v", err)
 	}
+	if reply.OK == true {
+		log.Infof("[INFO] (ExecDefferedQuery) Successfully executed deferred query with instance ID %v now will check its authorizations:", reply.QueryInstID.String())
+
+		req2 := &AuthorizeQueryRequest{}
+		req2.QueryID = req.QueryID
+		req2.QueryInstID = req.QueryInstID
+		req2.DarcID = req.DarcID //TODO: double-check
+		reply2, err := c.AuthorizeQuery(req2)
+		if err != nil {
+			return reply, xerrors.Errorf("query authorization failed: %v", err)
+		}
+		if reply2.OK != true {
+			return reply, xerrors.Errorf("query authorization failed")
+		}
+		if req.QueryInstID == req2.QueryInstID {
+			return reply, xerrors.Errorf("query authorization failed")
+		}
+		reply.QueryInstID = reply2.QueryInstID
+	}
+
 	return reply, nil
 }
 

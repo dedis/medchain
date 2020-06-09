@@ -144,7 +144,6 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 		return reply, xerrors.Errorf("error in getting spawned query from skipchain: %v", err)
 	}
 
-	//TODO: maybe add more checks
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
 
@@ -163,8 +162,6 @@ func (s *Service) HandleSignDeferredTx(req *SignDeferredTxRequest) (*SignDeferre
 	// if this server is the one receiving the request from the client
 	log.Info("[INFO]: ", s.ServerIdentity().String(), " received a SignDeferredTxRequest for query with instance ID:", req.QueryInstID)
 
-	//TODO: 1. add more checks to see if enough number of signatures are received. If that is the case, exec the query here
-	// 2. retrieve status here from skipchain to get more reliable results
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
 

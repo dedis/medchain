@@ -167,8 +167,10 @@ type AuthorizeQueryReply struct {
 // ExecuteDeferredTxRequest iplements the reques to exec the deferred query tx
 type ExecuteDeferredTxRequest struct {
 	ClientID    string
+	QueryID     string
 	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
+	DarcID      darc.ID
 }
 
 // ExecuteDeferredTxReply the reply to ExecuteDeferredTxRequest

@@ -433,21 +433,23 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, dd2.InstructionHashes)
 	require.Equal(t, uint64(1), dd2.MaxNumExecution)
-	require.Empty(t, dd2.ExecResult)
+	require.Nil(t, dd2.ExecResult)
 
 	// ------------------------------------------------------------------------
 	// 4. Execute the query transaction
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
+	req3.DarcID = req1.DarcID
+	req3.QueryID = req1.QueryID
 	req3.QueryInstID = req1.QueryInstID
 	req3.QueryStatus = req1.QueryStatus
 	resp3, err := cl.ExecDefferedQuery(req3)
 	require.NoError(t, err)
 	require.True(t, resp3.OK)
 	require.Equal(t, resp2.QueryInstID, req3.QueryInstID)
-	require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
-	require.Equal(t, resp1.QueryInstID, resp3.QueryInstID)
+	require.NotEqual(t, resp3.QueryInstID, req3.QueryInstID)
+	require.NotEqual(t, resp1.QueryInstID, resp3.QueryInstID)
 
 	iIDStr := resp3.QueryInstID.String()
 	iIDBuf, err := hex.DecodeString(iIDStr)
@@ -462,49 +464,32 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	require.NotEmpty(t, result2.ExecResult)
 	log.Infof("Here is the deferred data after execution: \n%s", result)
 
-	// ------------------------------------------------------------------------
-	// 5. Check Authorizations
-	// ------------------------------------------------------------------------
-	err = cl.GetDarcRules(req1.QueryInstID)
-	require.NoError(t, err)
-
-	req4 := &AuthorizeQueryRequest{}
-	req4.QueryID = query.ID
-	req4.QueryInstID = req1.QueryInstID
-	req4.DarcID = cl.AllDarcs["A"].GetBaseID()
-	resp4, err := cl.AuthorizeQuery(req4)
-	require.Nil(t, err)
-	require.True(t, resp4.OK)
-	require.Equal(t, 32, len(resp4.QueryInstID))
-	require.NotEqual(t, req1.QueryInstID, resp4.QueryInstID)
-	cl.Bcl.WaitPropagation(5)
-
-	instID := checkProof(t, cl, leader.omni, req4.QueryInstID.Slice(), cl.Bcl.ID)
-	qu2 := QueryData{}
+	instID := checkProof(t, cl, leader.omni, req3.QueryInstID.Slice(), cl.Bcl.ID)
+	qu2 := byzcoin.DeferredData{}
 	err = protobuf.Decode(instID, &qu2)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(qu.ProposedTransaction.Instructions))
-	log.Info("[INFO] deferred data retrieved in the end", qu)
-	log.Info("[INFO] deferred data args retrieved in the end", qu.ProposedTransaction.Instructions)
+	require.Equal(t, 1, len(qu2.ProposedTransaction.Instructions))
+	log.Info("[INFO] deferred data retrieved in the end", qu2)
+	log.Info("[INFO] deferred data args retrieved in the end", qu2.ProposedTransaction.Instructions)
 
-	log.Info("[INFO] deffered instance ID", req4.QueryInstID.String())
-	log.Info("[INFO] normal instance ID", resp4.QueryInstID.String())
+	log.Info("[INFO] deffered instance ID", req3.QueryInstID.String())
+	log.Info("[INFO] normal instance ID", resp3.QueryInstID.String())
 
-	instID2 := checkProof(t, cl, leader.omni, resp4.QueryInstID.Slice(), cl.Bcl.ID)
+	instID2 := checkProof(t, cl, leader.omni, resp3.QueryInstID.Slice(), cl.Bcl.ID)
 	qu3 := QueryData{}
 	err = protobuf.Decode(instID2, &qu3)
 	require.NoError(t, err)
 	log.Info("[INFO] Authorized query in the end", qu3)
+	require.Equal(t, []byte("Authorized"), qu3.Storage[0].Status)
 
-	// instID3, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID+"_auth")
-	// require.Nil(t, err)
-	// qu3, err := cl.GetQuery(instID3.Slice())
-	// require.Nil(t, err)
-	// require.Equal(t, 1, len(qu3.Storage))
-	// require.Equal(t, resp4.QueryInstID, instID3)
-	// require.Equal(t, []byte("Authorized"), qu3.Storage[1].Status)
-	// require.Equal(t, "wsdf65k80h:A:patient_list", qu3.Storage[1].ID)
-
+	instID3, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
+	require.Nil(t, err)
+	qu4, err := cl.GetQuery(instID3.Slice())
+	require.Nil(t, err)
+	require.Equal(t, 1, len(qu4.Storage))
+	require.Equal(t, resp3.QueryInstID, instID3)
+	require.Equal(t, []byte("Authorized"), qu4.Storage[0].Status)
+	require.Equal(t, "wsdf65k80h:A:patient_list", qu4.Storage[0].ID)
 }
 
 func TestClient_MedchainDeferredTxReject(t *testing.T) {
@@ -623,43 +608,56 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
+	req3.DarcID = req1.DarcID
+	req3.QueryID = req1.QueryID
 	req3.QueryInstID = req1.QueryInstID
 	req3.QueryStatus = req1.QueryStatus
 	resp3, err := cl.ExecDefferedQuery(req3)
 	require.NoError(t, err)
 	require.True(t, resp3.OK)
 	require.Equal(t, resp2.QueryInstID, req3.QueryInstID)
-	require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
-	require.Equal(t, resp1.QueryInstID, resp3.QueryInstID)
+	require.NotEqual(t, resp3.QueryInstID, req3.QueryInstID)
+	require.NotEqual(t, resp1.QueryInstID, resp3.QueryInstID)
 
 	iIDStr := resp3.QueryInstID.String()
 	iIDBuf, err := hex.DecodeString(iIDStr)
 	require.NoError(t, err)
 	require.Equal(t, resp3.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
 
-	// ------------------------------------------------------------------------
-	// 5. Check Authorizations
-	// ------------------------------------------------------------------------
-	err = cl.GetDarcRules(req1.QueryInstID)
+	result2, err := cl.Bcl.GetDeferredDataAfter(resp1.QueryInstID, cl.Bcl.Latest)
+	require.Nil(t, err)
+	// Default MaxNumExecution should now be decremented to 0
+	require.Equal(t, result2.MaxNumExecution, uint64(0))
+	require.NotEmpty(t, result2.InstructionHashes)
+	require.NotEmpty(t, result2.ExecResult)
+	log.Infof("Here is the deferred data after execution: \n%s", result)
+
+	instID := checkProof(t, cl, leader.omni, req3.QueryInstID.Slice(), cl.Bcl.ID)
+	qu2 := byzcoin.DeferredData{}
+	err = protobuf.Decode(instID, &qu2)
 	require.NoError(t, err)
+	require.Equal(t, 1, len(qu2.ProposedTransaction.Instructions))
+	log.Info("[INFO] deferred data retrieved in the end", qu)
+	log.Info("[INFO] deferred data args retrieved in the end", qu2.ProposedTransaction.Instructions)
 
-	req4 := &AuthorizeQueryRequest{}
-	req4.QueryID = query.ID
-	req4.QueryInstID = req1.QueryInstID
-	req4.DarcID = cl.AllDarcs["B"].GetBaseID()
-	resp4, err := cl.AuthorizeQuery(req4)
-	require.Nil(t, err)
-	require.True(t, resp4.OK)
-	require.Equal(t, 32, len(resp4.QueryInstID))
-	require.NotEqual(t, req1.QueryInstID, resp4.QueryInstID)
-	cl.Bcl.WaitPropagation(5)
+	log.Info("[INFO] deffered instance ID", req3.QueryInstID.String())
+	log.Info("[INFO] normal instance ID", resp3.QueryInstID.String())
 
-	// Use the client API to get the query back
-	// Resolve instance takes much time to run
-	instaID, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
+	instID2 := checkProof(t, cl, leader.omni, resp3.QueryInstID.Slice(), cl.Bcl.ID)
+	qu3 := QueryData{}
+	err = protobuf.Decode(instID2, &qu3)
+	require.NoError(t, err)
+	log.Info("[INFO] Authorized query in the end", qu3)
+	require.Equal(t, []byte("Rejected"), qu3.Storage[0].Status)
+
+	instID3, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
 	require.Nil(t, err)
-	_, err = cl.GetQuery(instaID.Slice())
+	qu4, err := cl.GetQuery(instID3.Slice())
 	require.Nil(t, err)
+	require.Equal(t, 1, len(qu4.Storage))
+	require.Equal(t, resp3.QueryInstID, instID3)
+	require.Equal(t, []byte("Rejected"), qu4.Storage[0].Status)
+	require.Equal(t, "wsdf65k80h:B:patient_list", qu4.Storage[0].ID)
 
 }
 
@@ -847,6 +845,8 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
+	req3.DarcID = req1.DarcID
+	req3.QueryID = req1.QueryID
 	req3.QueryInstID = req1.QueryInstID
 	req3.QueryStatus = req1.QueryStatus
 	resp3, err := cl.ExecDefferedQuery(req3)
@@ -892,7 +892,9 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	// 5. Execute the query transaction. This one should succeed
 	// ------------------------------------------------------------------------
 	req5 := &ExecuteDeferredTxRequest{}
+	req5.DarcID = req1.DarcID
 	req5.ClientID = cl.ClientID
+	req5.QueryID = req1.QueryID
 	req5.QueryInstID = req1.QueryInstID
 	req5.QueryStatus = req1.QueryStatus
 
@@ -903,31 +905,14 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	require.True(t, resp5.OK)
 	require.Equal(t, resp2.QueryInstID, req5.QueryInstID)
 	require.Equal(t, resp4.QueryInstID, req5.QueryInstID)
-	require.Equal(t, resp1.QueryInstID, resp5.QueryInstID)
+	require.NotEqual(t, resp1.QueryInstID, resp5.QueryInstID)
 
-	dd5, err := cl.Bcl.GetDeferredData(resp1.QueryInstID)
-	log.Infof("Here is the deferred data after final execution: \n%s", dd5)
+	dd5, err := cl.Bcl.GetDeferredData(req5.QueryInstID)
+	log.Infof("Here is the data after final execution: \n%s", dd5)
 	require.NoError(t, err)
 	require.NotEmpty(t, dd5.InstructionHashes)
 	require.Equal(t, uint64(0), dd5.MaxNumExecution)
 	require.NotEmpty(t, dd5.ExecResult) //since the tranasction has been executed
-
-	// ------------------------------------------------------------------------
-	// 6. Check Authorizations
-	// ------------------------------------------------------------------------
-	err = cl.GetDarcRules(req1.QueryInstID)
-	require.NoError(t, err)
-
-	req6 := &AuthorizeQueryRequest{}
-	req6.QueryID = query.ID
-	req6.QueryInstID = req1.QueryInstID
-	req6.DarcID = cl.AllDarcs["A"].GetBaseID()
-	resp6, err := cl.AuthorizeQuery(req6)
-	require.Nil(t, err)
-	require.True(t, resp6.OK)
-	require.Equal(t, 32, len(resp5.QueryInstID))
-	require.NotEqual(t, req1.QueryInstID, resp6.QueryInstID)
-	cl.Bcl.WaitPropagation(5)
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
@@ -935,6 +920,24 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
+
+	log.Info("[INFO] deffered instance ID", req5.QueryInstID.String())
+	log.Info("[INFO] normal instance ID", resp5.QueryInstID.String())
+
+	instID2 := checkProof(t, cl, leader.omni, resp5.QueryInstID.Slice(), cl.Bcl.ID)
+	qu3 := QueryData{}
+	err = protobuf.Decode(instID2, &qu3)
+	require.NoError(t, err)
+	log.Info("[INFO] Authorized query in the end", qu3)
+	require.Equal(t, []byte("Rejected"), qu3.Storage[0].Status)
+
+	err = cl.GetDarcRules(req5.QueryInstID)
+	require.NoError(t, err)
+	log.Infof("[INFO] Darc rules for deferred instance ID:%v", resp5.QueryInstID)
+
+	err = cl.GetDarcRules(resp5.QueryInstID)
+	require.NoError(t, err)
+	log.Infof("[INFO] Darc rules for normal instance ID:%v", resp5.QueryInstID)
 
 }
 
@@ -1445,7 +1448,7 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 		local: onet.NewTCPTest(TSuite),
 		owner: darc.NewSignerEd25519(nil, nil),
 	}
-	s.hosts, s.roster, _ = s.local.GenTree(3, true)
+	s.hosts, s.roster, _ = s.local.GenTree(5, true)
 	serverID := s.roster.RandomServerIdentity()
 	for _, sv := range s.local.GetServices(s.hosts, sid) {
 		service := sv.(*Service)
