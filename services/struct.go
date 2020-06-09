@@ -41,12 +41,14 @@ type AddQueryRequest struct {
 	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	BlockID     skipchain.SkipBlockID
+	DarcID      darc.ID
 }
 
 // AddQueryReply is the reply to CreateQueryRequest
 // The reply is true if the query is authorized and false otherwise
 type AddQueryReply struct {
 	QueryInstID byzcoin.InstanceID
+	QueryStatus []byte
 	OK          bool
 }
 
@@ -161,6 +163,7 @@ type AuthorizeQueryRequest struct {
 // AuthorizeQueryReply is the reply to AuthorizeQeryRequest
 type AuthorizeQueryReply struct {
 	QueryInstID byzcoin.InstanceID
+	QueryStatus []byte
 	OK          bool
 }
 
@@ -168,7 +171,6 @@ type AuthorizeQueryReply struct {
 type ExecuteDeferredTxRequest struct {
 	ClientID    string
 	QueryID     string
-	QueryStatus []byte
 	QueryInstID byzcoin.InstanceID
 	DarcID      darc.ID
 }

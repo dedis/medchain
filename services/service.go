@@ -81,7 +81,7 @@ func NewService(c *onet.Context) (onet.Service, error) {
 	}
 
 	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery, s.HandleSignDeferredTx,
-		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery, s.HandleExecuteDeferredTx); err != nil {
+		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery, s.HandleExecuteDeferredTx, s.HandleSpawnQuery); err != nil {
 		return nil, fmt.Errorf("couldn't register handlers: %+v", err)
 	}
 
@@ -146,6 +146,41 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
+	log.Info("[INFO] (HandleSpawnDeferredQuery) reply is:", reply.OK)
+	return reply, nil
+}
+
+// HandleSpawnQuery handles requests to submit (= spawn or add) a query using value cotntract
+func (s *Service) HandleSpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
+	reply := &AddQueryReply{}
+	reply.OK = false
+	// sanitize params
+	if err := emptyInstID(req.QueryInstID); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+	if err := checkStatus(string(req.QueryStatus)); err != nil {
+		return reply, xerrors.Errorf("%+v", err)
+	}
+
+	// if this server is the one receiving the request from the client
+	log.Info("[INFO]: ", s.ServerIdentity().String(), " received an AddQueryRequest for query:", req.QueryID)
+
+	stateTrie, err := s.omni.GetReadOnlyStateTrie(req.BlockID)
+	if err != nil {
+		return reply, err
+	}
+	_, darcID, err := getQueryByID(stateTrie, req.QueryInstID.Slice())
+	if err != nil {
+		return reply, xerrors.Errorf("could not get spawned value contract from skipchain: %v", err)
+	}
+
+	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
+	if !req.DarcID.Equal(darcID) {
+		return reply, xerrors.Errorf("error in getting spawned value contract from skipchain: %v", err)
+	}
+
+	reply.OK = true
+	reply.QueryInstID = req.QueryInstID
 
 	return reply, nil
 }
@@ -182,7 +217,6 @@ func (s *Service) HandleExecuteDeferredTx(req *ExecuteDeferredTxRequest) (*Execu
 
 	reply.OK = true
 	reply.QueryInstID = req.QueryInstID
-	reply.QueryStatus = req.QueryStatus
 
 	return reply, nil
 }
@@ -212,6 +246,7 @@ func (s *Service) HandleGetSharedData(req *GetSharedDataRequest) (*GetSharedData
 // HandleAuthorizeQuery handles request to authorize a query
 func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
 	log.Info("[INFO]: ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
+	log.Info("[INFO]: ( HandleAuthorizeQuery) query status:", string(req.QueryStatus))
 
 	reply := &AuthorizeQueryReply{}
 	reply.OK = false
@@ -227,33 +262,29 @@ func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQu
 	if err != nil {
 		return nil, err
 	}
-	v, _, err := getQueryByID(rst, req.QueryInstID.Slice())
+	_, darcID, err := getQueryByID(rst, req.QueryInstID.Slice())
 	if err != nil {
 		return nil, xerrors.Errorf("could not get query from skipchain: %v", err)
 	}
-	qdata := QueryData{}
-	err = protobuf.Decode(v, &qdata)
-	if err != nil {
+
+	if !darcID.Equal(req.DarcID) {
 		return nil, xerrors.Errorf("error in decoding the data: %v", err)
 	}
 
-	log.Info("[INFO] (HandleAuthorizeQuery) Decoded query data: ", qdata)
 	log.Info("[INFO] (HandleAuthorizeQuery) Authorize query darc ID: ", req.DarcID)
 
-	for _, data := range qdata.Storage {
-		if data.ID != req.QueryID {
-			return nil, xerrors.New("incorrect query ID retrieved")
-		}
-		if string(data.Status) != "Authorized" && string(data.Status) != "Rejected" {
-			return nil, xerrors.New("invalid query status retrieved")
-		}
-	}
+	// for _, data := range qdata.Storage {
+	// 	if data.ID != req.QueryID {
+	// 		return nil, xerrors.New("incorrect query ID retrieved")
+	// 	}
+	// 	if string(data.Status) != "Authorized" && string(data.Status) != "Rejected" {
+	// 		return nil, xerrors.New("invalid query status retrieved")
+	// 	}
+	// }
 
-	err = checkStatusAuth(string(req.QueryStatus))
-	if err != nil {
-		return nil, err
-	}
+	reply.QueryStatus = req.QueryStatus
 	reply.OK = true
+	log.Info("[INFO] (HandleAuthorizeQuery) Query Status: ", string(reply.QueryStatus))
 	return reply, nil
 
 }
@@ -279,7 +310,7 @@ func checkStatusAuth(status string) error {
 	if len(status) == 0 {
 		return fmt.Errorf("empty query status")
 	}
-	if status == "Authorized" || status == "Rejected" {
+	if (status) != "Authorized" && (status) != "Rejected" {
 		return fmt.Errorf("invalid query status received from skipchain")
 	}
 	return nil

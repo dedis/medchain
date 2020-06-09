@@ -190,22 +190,24 @@ func TestVerifyStatus(t *testing.T) {
 	require.Equal(t, []byte("Rejected"), cs.Storage[1].Status)
 
 	// Check the status of query1
-	err := cs.VerifyStatus(byzcoin.Arguments{{
+	status, err := cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query1",
 	}})
 	//The status of query1 is Authorized, so should return nil
 	assert.Nil(t, err)
+	require.Equal(t, ("Authorized"), status)
 
 	// Check the status of query2
-	err = cs.VerifyStatus(byzcoin.Arguments{{
+	status, err = cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query2",
 	}})
 
-	//The status of query2 is not Authorized, so should return some error (i.e., not nil)
-	assert.NotNil(t, err)
+	//The status of query2 is Rejected
+	assert.Nil(t, err)
+	require.Equal(t, ("Rejected"), status)
 
 	// Check the status of query3
-	err = cs.VerifyStatus(byzcoin.Arguments{{
+	status, err = cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query3",
 	}})
 
