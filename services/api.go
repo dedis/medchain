@@ -89,7 +89,6 @@ func (c *Client) Create() error {
 
 	log.Info("[INFO] (API) Creating the MedChain client:")
 	if c.signerCtrs == nil {
-		fmt.Println("here")
 		c.RefreshSignerCounters()
 	}
 	c.AllDarcs = make(map[string]*darc.Darc)
@@ -700,6 +699,7 @@ func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, erro
 func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer, typeStr string) error {
 
 	var typeOfExpr int
+	var exp expression.Expr
 	if typeStr != "&" && typeStr != "|" {
 		return xerrors.Errorf(" invalid rule entered")
 	}
@@ -713,8 +713,14 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 	if err != nil {
 		return xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
-	exp := projectDarc.Rules.GetEvolutionExpr()
-	signerIDs := strings.Split(string(exp), "&")
+	dAction := darc.Action("spawn:deferred")
+	for i, r := range projectDarc.Rules.List {
+		if r.Action == dAction {
+			exp = projectDarc.Rules.List[i].Expr
+		}
+	}
+	log.Info("eeeeeeeeee", string(exp))
+	signerIDs := strings.Split(string(exp), "|")
 	for i := range signerIDs {
 		signerIDs[i] = strings.TrimSpace(signerIDs[i])
 	}

@@ -273,15 +273,6 @@ func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQu
 
 	log.Info("[INFO] (HandleAuthorizeQuery) Authorize query darc ID: ", req.DarcID)
 
-	// for _, data := range qdata.Storage {
-	// 	if data.ID != req.QueryID {
-	// 		return nil, xerrors.New("incorrect query ID retrieved")
-	// 	}
-	// 	if string(data.Status) != "Authorized" && string(data.Status) != "Rejected" {
-	// 		return nil, xerrors.New("invalid query status retrieved")
-	// 	}
-	// }
-
 	reply.QueryStatus = req.QueryStatus
 	reply.OK = true
 	log.Info("[INFO] (HandleAuthorizeQuery) Query Status: ", string(reply.QueryStatus))
