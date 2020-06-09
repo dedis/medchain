@@ -180,7 +180,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	}
 	log.Info("[INFO] Successfully spawned the deferred query and now propating the instance ID: ", req.QueryInstID)
 
-	sharingReq := &PropagateIDRequest{req.QueryInstID, []byte(req.QueryStatus), &c.Bcl.Roster}
+	sharingReq := &PropagateIDRequest{req.QueryInstID, &c.Bcl.Roster}
 	sharingReply := &PropagateIDReply{}
 	err = c.onetcl.SendProtobuf(c.EntryPoint, sharingReq, sharingReply)
 	if err != nil {
@@ -936,7 +936,7 @@ func (c *Client) GetSharedData() (*GetSharedDataReply, error) {
 	rep := &GetSharedDataReply{}
 	err := c.onetcl.SendProtobuf(c.EntryPoint, &GetSharedDataRequest{}, &rep)
 	if err != nil {
-		return &GetSharedDataReply{}, xerrors.Errorf("could not send the GetSharedDataRequest request to the service : %v", err)
+		return rep, xerrors.Errorf("could not send the GetSharedDataRequest to the service : %v", err)
 	}
 	return rep, nil
 }

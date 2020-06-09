@@ -11,6 +11,7 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
+	"go.dedis.ch/onet/v3/network"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
 )
@@ -40,7 +41,7 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	network.RegisterMessage(&storage{})
 	err = byzcoin.RegisterGlobalContract(ContractName, ContractMedchainFromBytes)
 	if err != nil {
 		log.ErrFatal(err)
@@ -54,13 +55,13 @@ type Service struct {
 	*onet.ServiceProcessor
 	omni        *byzcoin.Service
 	PropagateID protocols.PropagationFunc
-	Storage     *Storage
+	storage     *storage
 }
 
 // Storage is saved to disk.
-type Storage struct {
+type storage struct {
 	SharedInstanceIDs []byzcoin.InstanceID
-	storageMutex      sync.Mutex
+	sync.Mutex
 }
 
 // NewService receives the context that holds information about the node it's
@@ -81,12 +82,26 @@ func NewService(c *onet.Context) (onet.Service, error) {
 
 	if err := s.RegisterHandlers(s.HandleSpawnDeferredQuery, s.HandleSignDeferredTx,
 		s.HandlePropagateID, s.HandleGetSharedData, s.HandleAuthorizeQuery, s.HandleExecuteDeferredTx); err != nil {
-		return nil, fmt.Errorf("couldn't register messages: %+v", err)
+		return nil, fmt.Errorf("couldn't register handlers: %+v", err)
 	}
 
-	s.PropagateID, err = protocols.NewPropagationFunc(s, "MedChainPropagate", -1)
+	s.PropagateID, err = protocols.NewPropagationFuncTest(s, "PropagateID", -1, func(m network.Message) error {
+		s.storage.Lock()
+		s.storage.SharedInstanceIDs = append(s.storage.SharedInstanceIDs, m.(*PropagateIDRequest).QueryInstID)
+		s.storage.Unlock()
+		s.save()
+		return nil
+	},
+		func() network.Message {
+			return &PropagateIDReply{true}
+		})
+
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create propagation function: %+v", err)
+	}
+	if err = s.tryLoad(); err != nil {
+		log.Error(err)
+		return nil, err
 	}
 
 	return s, nil
@@ -177,29 +192,29 @@ func (s *Service) HandleExecuteDeferredTx(req *ExecuteDeferredTxRequest) (*Execu
 
 // HandlePropagateID propagates the instance ID of the query
 func (s *Service) HandlePropagateID(req *PropagateIDRequest) (*PropagateIDReply, error) {
-	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), "received a PropagateIDRequest for query", req.QueryInstID)
+	log.Info("[INFO]: ", s.ServerIdentity().String(), "received a PropagateIDRequest for query", req.QueryInstID)
 
 	_, err := s.PropagateID(req.Roster, req, 10*time.Minute)
 	if err != nil {
-		log.Lvl1("could not propagate data", err)
+		log.Info("[INFO] could not propagate data", err)
 	}
 	return &PropagateIDReply{true}, nil
 }
 
 // HandleGetSharedData retrieves all the instace IDs saved in the node
 func (s *Service) HandleGetSharedData(req *GetSharedDataRequest) (*GetSharedDataReply, error) {
-	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), "received a GetSharedDataRequest")
+	log.Info("[INFO]: ", s.ServerIdentity().String(), "received a GetSharedDataRequest")
 
 	err := s.tryLoad()
 	if err != nil {
 		return nil, xerrors.Errorf("could not load the storage to get shared data: %v", err)
 	}
-	return &GetSharedDataReply{s.Storage.SharedInstanceIDs}, nil
+	return &GetSharedDataReply{s.storage.SharedInstanceIDs}, nil
 }
 
 // HandleAuthorizeQuery handles request to authorize a query
 func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
-	log.Lvl1("[INFO]: ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
+	log.Info("[INFO]: ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
 
 	reply := &AuthorizeQueryReply{}
 	reply.OK = false
@@ -283,10 +298,10 @@ func getQueryByID(view byzcoin.ReadOnlyStateTrie, instID []byte) ([]byte, darc.I
 
 // Saves s.Storage in the node
 func (s *Service) save() {
-	s.Storage.storageMutex.Lock()
-	defer s.Storage.storageMutex.Unlock()
-	log.Lvl1("[INFO] Saving service to save the data")
-	err := s.Save(storageKey, s.Storage)
+	s.storage.Lock()
+	defer s.storage.Unlock()
+	log.Info("[INFO] Saving service to save the data")
+	err := s.Save(storageKey, s.storage)
 	if err != nil {
 		log.Error("couldn't save the data:", err)
 	}
@@ -296,6 +311,7 @@ func (s *Service) save() {
 // Tries to load the configuration and updates the data in the service
 // if it finds a valid config-file.
 func (s *Service) tryLoad() error {
+	s.storage = &storage{}
 	msg, err := s.Load(storageKey)
 	if err != nil {
 		return err
@@ -304,7 +320,7 @@ func (s *Service) tryLoad() error {
 		return nil
 	}
 	var ok bool
-	s.Storage, ok = msg.(*Storage)
+	s.storage, ok = msg.(*storage)
 	if !ok {
 		return errors.New("data is of wrong type")
 	}

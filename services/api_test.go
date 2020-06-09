@@ -2,6 +2,7 @@ package medchain
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
@@ -597,11 +598,6 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 
 	cl.Bcl.WaitPropagation(1)
 
-	// Check consistency and # of queries.
-	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.Bcl.ID)
-	}
-
 	//Fetch the index, and check it.
 	idx := checkProof(t, cl, leader.omni, req1.QueryInstID.Slice(), cl.Bcl.ID)
 	qu := QueryData{}
@@ -659,21 +655,6 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	require.Equal(t, 32, len(resp4.QueryInstID))
 	require.NotEqual(t, req1.QueryInstID, resp4.QueryInstID)
 	cl.Bcl.WaitPropagation(5)
-
-	// Check consistency and # of queries.
-	for i := 0; i < 10; i++ {
-		leader.waitForBlock(cl.Bcl.ID)
-	}
-
-	// //Fetch the index, and check it.
-	// idx = checkProof(t, cl, leader.omni, resp3.QueryInstID.Slice(), cl.Bcl.ID)
-	// qdata := QueryData{}
-	// err = protobuf.Decode(idx, &qdata)
-	// require.Nil(t, err)
-	// for _, s := range qdata.Storage {
-	// 	require.Equal(t, query.ID+"_auth", s.ID)
-	// 	require.Equal(t, "Authorized", s.Status)
-	// }
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
@@ -796,17 +777,6 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	require.NoError(t, err)
 	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0], 1)
 	require.NoError(t, err)
-
-	// ------------------------------------------------------------------------
-	// 1.  add new client and add new signer to darc
-	// ------------------------------------------------------------------------
-	// cl3, err := NewClient(bcl, s.roster.RandomServerIdentity(), "3")
-	// cl3.Signers = []darc.Signer{darc.NewSignerEd25519(cl3.public, cl3.private)}
-	// require.NoError(t, err)
-	// err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl3.Signers[0], 0)
-	// require.NoError(t, err)
-	// err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl3.Signers[0], 1)
-	// require.NoError(t, err)
 
 	// ------------------------------------------------------------------------
 	// 2. Spwan query instances of MedChain contract
@@ -978,6 +948,129 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
+
+}
+
+func TestClient_IDSharing(t *testing.T) {
+
+	// ------------------------------------------------------------------------
+	// 0. Set up and start service
+	// ------------------------------------------------------------------------
+
+	log.Info("[INFO] Starting the service")
+	s, _, cl := newSer(t)
+	require.Equal(t, s.owner, cl.Signers[0])
+	// leader := s.services[0]
+	defer s.close()
+
+	log.Info("[INFO] Starting ByzCoin Client")
+	err := cl.Create()
+	require.Nil(t, err)
+
+	// ------------------------------------------------------------------------
+	// 1. Add Project A Darc
+	// ------------------------------------------------------------------------
+
+	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
+	actionsAAnd := "invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:medchain.count_global_obfuscated,invoke:darc.evolve"
+
+	actionsAOr := "spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:medchain,invoke:medchain.update,_name:deferred,spawn:naming,_name:medchain,_config"
+
+	// all signers need to sign
+	exprAAnd := expression.InitAndExpr(cl.Signers[0].Identity().String())
+
+	// at least one signer need to sign
+	exprAOr := expression.InitOrExpr(cl.Signers[0].Identity().String())
+	cl.AllDarcs["A"], err = cl.CreateDarc("Project A darc", rulesA, actionsAAnd, actionsAOr, exprAAnd, exprAOr)
+	require.NoError(t, err)
+
+	// Verify the darc is correct
+	require.Nil(t, cl.AllDarcs["A"].Verify(true))
+	aDarcBuf, err := cl.AllDarcs["A"].ToProto()
+	require.NoError(t, err)
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	require.NoError(t, err)
+	require.True(t, cl.AllDarcs["A"].Equal(aDarcCopy))
+
+	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byzcoin.ContractDarcID,
+			Args: byzcoin.Arguments{
+				{
+					Name:  "darc",
+					Value: aDarcBuf,
+				},
+			},
+		},
+		SignerIdentities: []darc.Identity{cl.Signers[0].Identity()},
+		SignerCounter:    cl.IncrementCtrs(),
+	})
+	require.Nil(t, err)
+
+	err = ctx.FillSignersAndSignWith(cl.Signers...)
+	require.Nil(t, err)
+
+	_, err = cl.Bcl.AddTransactionAndWait(ctx, 10)
+	require.Nil(t, err)
+	cl.AllDarcIDs["A"] = cl.AllDarcs["A"].GetBaseID()
+	log.Info("[INFO] Darc for Project A is:", cl.AllDarcs["A"].String())
+
+	// ------------------------------------------------------------------------
+	// 4. Propagate data and then Request shared data
+	// ------------------------------------------------------------------------
+
+	services := s.local.GetServices(s.hosts, sid)
+	for _, s := range services {
+		log.Info("[INFO] sending PropagateIDRequest 1 to", s)
+		resp, err := s.(*Service).HandleGetSharedData(
+			&GetSharedDataRequest{},
+		)
+		require.Empty(t, err)
+		log.Info("[INFO] response is", resp.QueryInstIDs)
+	}
+
+	rep1 := PropagateIDReply{}
+	err = cl.onetcl.SendProtobuf(s.roster.List[1], &PropagateIDRequest{ctx.Instructions[0].DeriveID(""), s.roster}, &rep1)
+	require.NoError(t, err)
+	services = s.local.GetServices(s.hosts, sid)
+	for _, s := range services {
+		log.Info("[INFO] sending PropagateIDRequest 1 to", s)
+		resp, err := s.(*Service).HandleGetSharedData(
+			&GetSharedDataRequest{},
+		)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.QueryInstIDs)
+		log.Info("[INFO] response is", resp.QueryInstIDs)
+		fmt.Println(resp.QueryInstIDs)
+	}
+
+	type Client struct {
+		*onet.Client
+	}
+
+	newCl := Client{Client: onet.NewClient(TSuite, ServiceName)}
+
+	err = s.local.WaitDone(defaultBlockInterval)
+	require.NoError(t, err)
+	rep2 := PropagateIDReply{}
+	err = newCl.SendProtobuf(s.roster.List[1], &PropagateIDRequest{ctx.Instructions[0].DeriveID(""), s.roster}, &rep2)
+	require.NoError(t, err)
+	err = newCl.SendProtobuf(s.roster.List[1], &PropagateIDRequest{byzcoin.InstanceID{}, s.roster}, &rep2)
+	require.NoError(t, err)
+	services = s.local.GetServices(s.hosts, sid)
+	for _, s := range services {
+		log.Info("[INFO] sending PropagateIDRequest 2 to service", s)
+		resp, err := s.(*Service).HandleGetSharedData(
+			&GetSharedDataRequest{},
+		)
+		require.Nil(t, err)
+		require.NotEmpty(t, resp.QueryInstIDs)
+		log.Info("[INFO] response is", resp.QueryInstIDs)
+		fmt.Println(resp.QueryInstIDs)
+	}
 
 }
 

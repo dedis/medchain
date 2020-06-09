@@ -132,7 +132,6 @@ type SearchReply struct {
 // PropagateIDRequest includes the data that is shared among all nodes
 type PropagateIDRequest struct {
 	QueryInstID byzcoin.InstanceID
-	Status      []byte
 	Roster      *onet.Roster
 }
 
