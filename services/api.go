@@ -76,6 +76,7 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 	if err != nil {
 		return nil, xerrors.Errorf("error in getting genesis darc from skipchain: %v", err)
 	}
+	cl.GenDarc = gDarc
 	cl.GenDarcID = gDarc.GetBaseID()
 	log.Info("[INFO] (NewClient) Genesis darc:", gDarc.String())
 	return cl, nil
@@ -87,6 +88,7 @@ func (c *Client) Create() error {
 
 	log.Info("[INFO] (API) Creating the MedChain client:")
 	if c.signerCtrs == nil {
+		fmt.Println("here")
 		c.RefreshSignerCounters()
 	}
 	c.AllDarcs = make(map[string]*darc.Darc)
@@ -1066,6 +1068,27 @@ func (c *Client) RefreshSignerCounters() {
 		return
 	}
 	c.signerCtrs = signerCtrs.Counters
+}
+
+// SyncSignerCtrs syncs counters among clients
+func (c *Client) SyncSignerCtrs(signers ...darc.Signer) {
+	c.signerCtrs, _ = c.GetLatestSignerCtrs(signers...)
+	//c.IncrementCtrs()
+	log.Info("[INFO] (SyncSignerCtrs) latest coutners are", (c.signerCtrs))
+}
+
+// GetLatestSignerCtrs updates the coutnters using byzcoin retrieval
+func (c *Client) GetLatestSignerCtrs(signers ...darc.Signer) ([]uint64, error) {
+	signerCtrs := make([]uint64, len(c.signerCtrs))
+	for i, signer := range signers {
+		resp, err := c.Bcl.GetSignerCounters(signer.Identity().String())
+		if err != nil {
+			return nil, xerrors.Errorf("could not get signer counter: %v", err)
+		}
+		signerCtrs[i] = resp.Counters[0]
+	}
+
+	return signerCtrs, nil
 }
 
 // IncrementCtrs is used to increment the signer counters

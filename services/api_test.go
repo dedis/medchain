@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
-	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
@@ -684,7 +682,7 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Add Project A Darc
 	// ------------------------------------------------------------------------
-
+	log.Info("[INFO] Adding project darc")
 	rulesA := darc.InitRules([]darc.Identity{s.owner.Identity()}, []darc.Identity{cl.Signers[0].Identity()})
 	actionsAAnd := "spawn:medchain,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
@@ -711,7 +709,7 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 
 	// Add darc to byzcoin
 	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(s.genDarc.GetBaseID()),
+		InstanceID: byzcoin.NewInstanceID(cl.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
 			Args: byzcoin.Arguments{
@@ -737,32 +735,34 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 1.  add new client and add new signer to darc
 	// ------------------------------------------------------------------------
+
 	log.Info("[INFO] Updating Genesis Darc")
 	cl2, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2")
+	log.Info("[INFO] Client 2 genesis darc", cl2.GenDarc.String())
+
 	expr := expression.InitOrExpr(cl.Signers[0].Identity().String(), cl2.Signers[0].Identity().String())
-
-	rGenDarc, err := lib.GetDarcByID(cl.Bcl, cl.GenDarcID)
+	err = cl2.GenDarc.Rules.UpdateRule("spawn:"+ContractName, expr)
 	require.NoError(t, err)
-	newDarc1, err := cl.AddRuleToDarc(rGenDarc, "spawn:"+ContractName, expr)
+	err = cl2.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"update", expr)
 	require.NoError(t, err)
-	newDarc1, err = cl.AddRuleToDarc(newDarc1, "invoke:"+ContractName+"."+"update", expr)
+	err = cl2.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"verifystatus", expr)
 	require.NoError(t, err)
-	newDarc1, err = cl.AddRuleToDarc(newDarc1, "invoke:"+ContractName+"."+"verifystatus", expr)
+	err = cl2.GenDarc.Rules.UpdateRule("_name:"+ContractName, expr)
 	require.NoError(t, err)
-	newDarc1, err = cl.AddRuleToDarc(newDarc1, "_name:"+ContractName, expr)
+	err = cl2.GenDarc.Rules.UpdateRule("spawn:deferred", expr)
 	require.NoError(t, err)
-	newDarc1, err = cl.AddRuleToDarc(newDarc1, "spawn:deferred", expr)
+	err = cl2.GenDarc.Rules.UpdateRule("invoke:deferred.addProof", expr)
 	require.NoError(t, err)
-	newDarc1, err = cl.AddRuleToDarc(newDarc1, "invoke:deferred.addProof", expr)
-	require.NoError(t, err)
-	newDarc2, err := cl.AddRuleToDarc(newDarc1, "invoke:deferred.execProposedTx", expr)
+	err = cl2.GenDarc.Rules.UpdateRule("invoke:deferred.execProposedTx", expr)
 	require.NoError(t, err)
 
-	log.Info("[INFO] New genesis darc", newDarc2.String())
+	log.Info("[INFO] New client 2 genesis darc", cl2.GenDarc.String())
 
 	log.Info("[INFO] Starting ByzCoin Client 2")
-	cl2.GenDarcID = newDarc2.GetBaseID()
 	err = cl2.Create()
+	log.Info("[INFO] Getting sigerCounter for Client2 from bzycion")
+	resp, err := cl2.Bcl.GetSignerCounters(cl2.Signers[0].Identity().String())
+	log.Info("[INFO] resp1", resp.Counters)
 	require.NoError(t, err)
 	require.Equal(t, cl2.signerCtrs, []uint64([]uint64{0x1}))
 	cl2.Bcl.WaitPropagation(1)
@@ -777,6 +777,7 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	require.NoError(t, err)
 	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0], 1)
 	require.NoError(t, err)
+	require.Equal(t, cl2.Bcl, cl.Bcl)
 
 	// ------------------------------------------------------------------------
 	// 2. Spwan query instances of MedChain contract
@@ -849,18 +850,9 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	req3.QueryInstID = req1.QueryInstID
 	req3.QueryStatus = req1.QueryStatus
 	resp3, err := cl.ExecDefferedQuery(req3)
-	log.Info("[INFO] resp3:", resp3)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "instruction verification: evaluating darc: expression evaluated to false")
-	// require.True(t, resp3.OK)
-	// require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
-	// require.Equal(t, resp3.QueryInstID, req3.QueryInstID)
-	// require.Equal(t, resp1.QueryInstID, resp3.QueryInstID)
-
-	// iIDStr := resp3.QueryInstID.String()
-	// iIDBuf, err := hex.DecodeString(iIDStr)
-	// require.NoError(t, err)
-	// require.Equal(t, resp2.QueryInstID, byzcoin.NewInstanceID(iIDBuf))
+	require.Nil(t, resp3)
 
 	dd3, err := cl.Bcl.GetDeferredData(resp1.QueryInstID)
 	log.Infof("Here is the deferred data after first execution: \n%s", dd3)
@@ -872,26 +864,18 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 4. Add signature of user2 (i.e, add proof) to the deferred query instance.
 	// ------------------------------------------------------------------------
-	// namingTx, err := cl2.Bcl.CreateTransaction(
-	// 	byzcoin.Instruction{
-	// 		InstanceID: byzcoin.NewInstanceID(cl2.GenDarcID),
-	// 		Spawn: &byzcoin.Spawn{
-	// 			ContractID: byzcoin.ContractNamingID,
-	// 		},
-	// 		SignerCounter: cl2.IncrementCtrs(),
-	// 	},
-	// )
-	// require.NoError(t, err)
-	// log.Info("[INFO] (API) Spawning the instance of naming contract")
-	// err = cl2.spawnTx(namingTx)
-	// require.NoError(t, err)
-	// log.Info("[INFO] (API) contract_name instance was added to the ledger")
+	log.Info("[INFO] Getting sigerCounter for Client2 from bzycion")
+	resp, err = cl2.Bcl.GetSignerCounters(cl2.Signers[0].Identity().String())
+	log.Info("[INFO] resp2", resp.Counters)
+
+	cl2.SyncSignerCtrs(cl2.Signers...)
+	log.Info("[INFO] resp3", resp.Counters)
 
 	req4 := &SignDeferredTxRequest{}
 	req4.Keys = cl2.Signers[0]
 	req4.ClientID = cl2.ClientID
 	req4.QueryInstID = req1.QueryInstID
-	require.Equal(t, cl2.signerCtrs, []uint64([]uint64{0x1}))
+	require.Equal(t, []uint64([]uint64{0x0}), cl2.signerCtrs)
 	resp4, err := cl2.AddSignatureToDeferredQuery(req4)
 	require.NoError(t, err)
 	require.NotNil(t, resp4)
@@ -911,6 +895,9 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 	req5.ClientID = cl.ClientID
 	req5.QueryInstID = req1.QueryInstID
 	req5.QueryStatus = req1.QueryStatus
+
+	cl.SyncSignerCtrs(cl.Signers...)
+
 	resp5, err := cl.ExecDefferedQuery(req5)
 	require.NoError(t, err)
 	require.True(t, resp5.OK)
@@ -944,7 +931,7 @@ func TestClient_MedchainDeferredMultiSigners(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID+"_auth")
+	instaID, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
@@ -1472,26 +1459,17 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.genDarc = &s.req.GenesisDarc
-	s.req.BlockInterval = testBlockInterval
-	ocl := onet.NewClient(cothority.Suite, byzcoin.ServiceName)
 
-	var resp byzcoin.CreateGenesisBlockResponse
-	err = ocl.SendProtobuf(s.roster.List[0], s.req, &resp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.id = resp.Skipblock.Hash
-
-	bcl := byzcoin.NewClient(s.id, *s.roster)
-
+	s.req.BlockInterval = time.Second / 5
+	bcl, _, err := byzcoin.NewLedger(s.req, false)
+	require.NoError(t, err)
+	gDarc := &s.req.GenesisDarc
+	s.genDarc = gDarc
+	require.NoError(t, err)
 	cl, err := NewClient(bcl, serverID, "1")
 	require.NoError(t, err)
 
-	// cl.GMsg = s.req
-	cl.Signers = []darc.Signer{s.owner}
-	cl.GenDarc = s.genDarc
-	cl.GenDarcID = s.genDarc.GetBaseID()
+	cl.Signers[0] = s.owner
 	log.Lvl1("[INFO] Created the services")
 	return s, bcl, cl
 }
