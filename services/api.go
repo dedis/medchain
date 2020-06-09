@@ -114,7 +114,8 @@ func (c *Client) Create() error {
 		xerrors.Errorf("Could not add naming contract instace to the ledger: %v", err)
 	}
 
-	log.Info("[INFO] (API) contract_name instance was added to the ledger")
+	log.Info("[INFO] (Create) contract_name instance was added to the ledger")
+	log.Info("[INFO] (Create) Genesis Darc:", c.GenDarc)
 
 	return nil
 }
@@ -322,21 +323,21 @@ func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceI
 	action := c.getActionFromOneQuery(query)
 
 	// Check if the query is authorized/rejected
-	authorizations, err := c.checkAuth(query, darcID, action)
+	authorization, err := c.checkAuth(query, c.Signers[0], darcID, action)
 	if err != nil {
 		return *new(byzcoin.ClientTransaction), nil, err
 	}
-	for _, res := range authorizations {
-		if res == false {
-			ok = false //reject the query as at least one of the signers can't sign
-			args = byzcoin.Argument{
-				Name:  query.ID,
-				Value: []byte("Rejected"),
-			}
-			status = []byte("Rejected")
-			log.Info("[INFO] (Invoke) Query was REJECTED")
+	res := authorization
+	if res == false {
+		ok = false //reject the query as at least one of the signers can't sign
+		args = byzcoin.Argument{
+			Name:  query.ID,
+			Value: []byte("Rejected"),
 		}
+		status = []byte("Rejected")
+		log.Info("[INFO] (Invoke) Query was REJECTED")
 	}
+
 	if ok {
 		args = byzcoin.Argument{
 			Name:  query.ID,
@@ -366,37 +367,41 @@ func (c *Client) prepareTx(query Query, darcID darc.ID, instID byzcoin.InstanceI
 }
 
 // checkAuth checks authorizations for the query
-func (c *Client) checkAuth(query Query, darcID darc.ID, action string) ([]bool, error) {
+func (c *Client) checkAuth(query Query, signer darc.Signer, darcID darc.ID, action string) (bool, error) {
+	var auth bool
+	auth = false
 	// We need the identity part of the signatures before
 	// calling ToDarcRequest() below, because the identities
 	// go into the message digest.
-	sigs := make([]darc.Signature, len(c.Signers))
-	authorizations := make([]bool, len(c.Signers))
-	for i, x := range c.Signers {
-		sigs[i].Signer = x.Identity()
+	ddarc, err := lib.GetDarcByID(c.Bcl, darcID)
+	if err != nil {
+		return false, xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
+	log.Info("[INFO] (checkAuth) darc:", ddarc.String())
 
-	// Check signers' authorizations for a specific action
-	for i, signer := range c.Signers {
-		a, err := c.Bcl.CheckAuthorization(darcID, signer.Identity())
-		if err != nil {
-			return authorizations, err
-		}
+	dAction := darc.Action("invoke:medchain." + action)
+	exists := ddarc.Rules.Contains(dAction)
+	if !exists {
+		log.Info("[INFO] (checkAuth) Darc action does not exist")
+		return false, nil
+	}
+	for _, r := range ddarc.Rules.List {
 
-		for _, authAction := range a {
-			if darc.Action("invoke:medchain."+action) == authAction {
-				authorizations[i] = true
-			} else {
-				continue
-			}
+		if r.Action == dAction {
+			ruleStr := r.String()
+			log.Infof("[INFO] (checkAuth) %v: %v", action, ruleStr)
+			idExists := strings.Contains(ruleStr, signer.Identity().String())
+			log.Info("[INFO] (checkAuth) ID existance in darc rule:", idExists)
+			auth = true
 		}
 	}
-	return authorizations, nil
+	return auth, nil
 }
 
 //SpawnQuery spawns a query instance
 func (c *Client) SpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
-	log.Info("[INFO] Spawning the deferred query ")
+	log.Info("[INFO] (SpawnQuery) Spawning the query ")
+	log.Info("[INFO] (SpawnQuery) darcID,", req.DarcID)
 
 	if len(req.QueryID) == 0 {
 		return nil, xerrors.New("query ID required")
@@ -418,10 +423,10 @@ func (c *Client) SpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
 //CreateInstance spawns a query
 func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 
-	log.Info("[INFO] Spawning the query with ID: ", req.QueryID)
-	log.Info("[INFO] Spawning the query with Status: ", req.QueryStatus)
-	log.Info("[INFO] Spawning the query with Status: ", string(req.QueryStatus))
-	log.Info("[INFO] Spawning the query with Darc ID: ", req.DarcID)
+	log.Info("[INFO] (SpawnQuery) Spawning the query with ID: ", req.QueryID)
+	log.Info("[INFO] (SpawnQuery) Spawning the query with Status: ", req.QueryStatus)
+	log.Info("[INFO] (SpawnQuery)Spawning the query with Status: ", string(req.QueryStatus))
+	log.Info("[INFO] (SpawnQuery)Spawning the query with Darc ID: ", req.DarcID)
 
 	query := Query{}
 	query.ID = req.QueryID
@@ -431,7 +436,7 @@ func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 	if err != nil {
 		return nil, xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
-	log.Infof("[INFO] Spawning the query %v with value contract", query)
+	log.Infof("[INFO] (SpawnQuery) Spawning the query %v with value contract", query)
 	instr := byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(req.DarcID),
 		Spawn: &byzcoin.Spawn{
@@ -532,7 +537,7 @@ func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 // by invoking an addProof action from the deferred contract on the deferred
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
-	log.Info("[INFO] Add signature to the query transaction")
+	log.Info("[INFO] (AddSignatureToDeferredQuery) Add signature to the query transaction")
 	log.Info("[INFO] (AddSignatureToDeferredQuery) length of signers", len(c.Signers))
 	log.Info("[INFO] (AddSignatureToDeferredQuery) coutners", (c.signerCtrs))
 	if req.Keys.Type() == -1 {
@@ -545,8 +550,8 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	if len(req.QueryInstID) == 0 {
 		return nil, errors.New("query instance ID required")
 	}
-
 	result, err := c.Bcl.GetDeferredData(req.QueryInstID)
+	log.Info("[INFO] (AddSignatureToDeferredQuery) retrieved deferred data:", (result))
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get deffered instance from skipchain: %v", err)
 	}
@@ -561,11 +566,11 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	if err != nil {
 		return nil, xerrors.Errorf("could not sign the deffered query: %v", err)
 	}
-
 	index := uint32(0) // The index of the instruction to sign in the transaction
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
+	log.Info("[INFO] (AddSignatureToDeferredQuery) creating addProof tx")
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: req.QueryInstID,
 		Invoke: &byzcoin.Invoke{
@@ -692,7 +697,17 @@ func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, erro
 // AddSignerToDarc adds new signer to project darc
 // TODO: make this a defferred tx (not important for this part of project;
 // it is important for th eadmin part)
-func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer, typeOfExpr int) error {
+func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer, typeStr string) error {
+
+	var typeOfExpr int
+	if typeStr != "&" && typeStr != "|" {
+		return xerrors.Errorf(" invalid rule entered")
+	}
+	if typeStr == "&" {
+		typeOfExpr = 0
+	} else {
+		typeOfExpr = 1
+	}
 
 	projectDarc, err := lib.GetDarcByID(c.Bcl, darcID)
 	if err != nil {
@@ -998,23 +1013,36 @@ func (c *Client) EvolveProjectDarc(signerIDs []string, olddarc *darc.Darc, darcA
 
 // UpdateDarcSignerRule updates the rules in project darc
 func (c *Client) UpdateDarcSignerRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr, typeOfExpr int) error {
-	err := evolvedDarc.Rules.UpdateEvolution(newSignerExpr[0])
-	if err != nil {
-		return xerrors.Errorf("updating _evolve rule in darc: %v", err)
-	}
-	err = evolvedDarc.Rules.UpdateSign(newSignerExpr[0])
-	if err != nil {
-		return xerrors.Errorf("updating the _sign rule in darc: %v", err)
-	}
 
 	for _, action := range darcActions {
 		if len(action) == 0 {
 			return xerrors.Errorf("error in updating the project darc:action '%v' does not exist", action)
 		}
-		err = evolvedDarc.Rules.UpdateRule(action, newSignerExpr[typeOfExpr])
+
+		// typeOfExpr defines the type or rule to use; 0:& and 1:|
+		err := evolvedDarc.Rules.UpdateRule(action, newSignerExpr[typeOfExpr])
 		if err != nil {
 			return xerrors.Errorf("updating the %s expression in darc: %v", action, err)
 		}
+	}
+	return nil
+}
+
+// UpdateDarcSignerSignRule updates the _sign in project darc
+func (c *Client) UpdateDarcSignerSignRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr, typeOfExpr int) error {
+	err := evolvedDarc.Rules.UpdateSign(newSignerExpr[0])
+	if err != nil {
+		return xerrors.Errorf("updating the _sign rule in darc: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateDarcSignerEvolveRule updates the _evolve rule in project darc
+func (c *Client) UpdateDarcSignerEvolveRule(evolvedDarc *darc.Darc, darcActions []darc.Action, newSignerExpr []expression.Expr, typeOfExpr int) error {
+	err := evolvedDarc.Rules.UpdateEvolution(newSignerExpr[0])
+	if err != nil {
+		return xerrors.Errorf("updating _evolve rule in darc: %v", err)
 	}
 	return nil
 }
