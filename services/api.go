@@ -43,6 +43,7 @@ type Client struct {
 	// Instance ID of naming contract
 	NamingInstance byzcoin.InstanceID
 	GenDarcID      darc.ID
+	GenDarc        *darc.Darc
 	// // Map projects to their darcs
 	AllDarcs   map[string]*darc.Darc
 	AllDarcIDs map[string]darc.ID
@@ -94,7 +95,7 @@ func (c *Client) Create() error {
 	// Spawn an instance of naming contract
 	namingTx, err := c.Bcl.CreateTransaction(
 		byzcoin.Instruction{
-			InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
+			InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 			Spawn: &byzcoin.Spawn{
 				ContractID: byzcoin.ContractNamingID,
 			},
@@ -288,7 +289,7 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 
 	// Name the instance of the query with as its key using contract_name to
 	// make retrievals easier
-	err = c.nameInstance(newInstID, c.GenDarcID, query.ID+"_auth")
+	err = c.nameInstance(newInstID, req.DarcID, query.ID+"_auth")
 	if err != nil {
 		return nil, err
 	}
@@ -991,7 +992,8 @@ func (c *Client) getActionFromOneQuery(query Query) string {
 
 //NameInstance uses contract_name to name a contract instance
 func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name string) error {
-	log.Info("[INFO] (API) nameInstance")
+	log.Info("[INFO] (nameInstance) naming instance ID:", instID.String())
+
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: byzcoin.NamingInstanceID,
 		Invoke: &byzcoin.Invoke{
@@ -1017,16 +1019,17 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	if err != nil {
 		return xerrors.Errorf("Could not add transaction to ledger: %v", err)
 	}
-	log.Info("[INFO] (Naming Contract) Query was added to the ledger")
-
-	// This sanity check heavily reduces the performance
-	replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
-	if err != nil {
-		return err
-	}
-	if replyID != instID {
-		return err
-	}
+	c.Bcl.WaitPropagation(1)
+	log.Info("[INFO] (Naming) Query was added to the ledger")
+	// log.Info("[INFO] (Naming) Resolving the instance ID")
+	// // This sanity check heavily reduces the performance
+	// replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
+	// if err != nil {
+	// 	return err
+	// }
+	// if replyID != instID {
+	// 	return err
+	// }
 	return nil
 }
 

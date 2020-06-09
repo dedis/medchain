@@ -113,6 +113,7 @@ func TestClient_MedchainAuthorize(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
+	log.Info("[INFO] Resolving the instance ID")
 	instID1, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["A"], query.ID)
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instID1.Slice())
@@ -286,26 +287,25 @@ func TestClient_MedchainReject(t *testing.T) {
 	qu, err := cl.GetQuery(instID2.Slice())
 	require.Nil(t, err)
 	require.Equal(t, 1, len(qu.Storage))
-	require.Equal(t, resp.QueryInstID, instID2)
+	require.NotEqual(t, resp.QueryInstID, instID2)
 	require.Equal(t, []byte("Submitted"), qu.Storage[0].Status)
-	require.Equal(t, "wsdf65k80h:A:patient_list", qu.Storage[0].ID)
+	require.Equal(t, "wsdf65k80h:B:patient_list", qu.Storage[0].ID)
 
-	instID3, err := cl.Bcl.ResolveInstanceID(cl.AllDarcIDs["B"], query.ID+"_auth")
+	instID3, err := cl.Bcl.ResolveInstanceID(cl.GenDarcID, query.ID+"_auth")
 	require.Nil(t, err)
 	qu2, err := cl.GetQuery(instID3.Slice())
 	require.Nil(t, err)
-	require.Equal(t, 2, len(qu2.Storage))
-	require.Equal(t, resp.QueryInstID, instID2)
-	require.Equal(t, []byte("Submitted"), qu.Storage[0].Status)
-	require.Equal(t, []byte("Rejected"), qu.Storage[1].Status)
-	require.Equal(t, "wsdf65k80h:A:patient_list", qu.Storage[1].ID)
+	require.Equal(t, 1, len(qu2.Storage))
+	require.Equal(t, resp.QueryInstID, instID3)
+	require.Equal(t, []byte("Rejected"), qu2.Storage[0].Status)
+	require.Equal(t, "wsdf65k80h:B:patient_list", qu2.Storage[0].ID)
 
 	//Fetch the index, and check it.
 	idx = checkProof(t, cl, leader.omni, resp.QueryInstID.Slice(), cl.Bcl.ID)
 	qdata = QueryData{}
 	err = protobuf.Decode(idx, &qdata)
 	require.Nil(t, err)
-	require.Equal(t, 2, len(qu.Storage))
+	require.Equal(t, 1, len(qu.Storage))
 
 }
 
@@ -588,7 +588,7 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 	require.NotNil(t, resp1)
 	require.NotNil(t, req1.QueryInstID)
 	require.True(t, resp1.OK)
-	require.Equal(t, "Submitted", req1.QueryStatus)
+	require.Equal(t, []byte("Submitted"), req1.QueryStatus)
 
 	result, err := cl.Bcl.GetDeferredDataAfter(resp1.QueryInstID, cl.Bcl.Latest)
 	require.Nil(t, err)
@@ -1490,6 +1490,7 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 
 	// cl.GMsg = s.req
 	cl.Signers = []darc.Signer{s.owner}
+	cl.GenDarc = s.genDarc
 	cl.GenDarcID = s.genDarc.GetBaseID()
 	log.Lvl1("[INFO] Created the services")
 	return s, bcl, cl
