@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	cli "github.com/urfave/cli"
+	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/onet/v3/app"
 	"go.dedis.ch/onet/v3/log"
@@ -232,18 +232,15 @@ func main() {
 			Flags:   clientFlags,
 		},
 
+		// BEGIN CLIENT: FETCH DEFERRED QUERY INSTANCE IDS ----------
 		{
-			Name:    "check",
-			Aliases: []string{"c"},
-			Usage:   "Check if the servers in the group definition are up and running",
-			Action:  checkConfig,
-			Flags: append(clientFlags,
-				cli.BoolFlag{
-					Name:  "detail, l",
-					Usage: "Show details of all servers",
-				}),
+			Name:    "fetch",
+			Aliases: []string{"f"},
+			Usage:   "Fetch deferred query instance IDs",
+			Action:  fetchInstanceIDs,
+			Flags:   clientFlags,
 		},
-		// CLIENT END: SIGN PROPOSED QUERY ------------
+		// CLIENT END: FETCH DEFERRED QUERY INSTANCE IDS ------------
 
 		// BEGIN SERVER --------
 		{
@@ -282,6 +279,24 @@ func main() {
 					Usage:   "Setup server configuration (non-interactive)",
 					Action:  NonInteractiveSetup,
 					Flags:   nonInteractiveSetupFlags,
+				},
+				{
+					Name:      "check",
+					Aliases:   []string{"c"},
+					Usage:     "Check if the servers in the group definition are up and running",
+					ArgsUsage: "Cothority group definition file",
+					Action:    checkConfig,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "g",
+							Usage: "Cothority group definition file",
+						},
+						cli.IntFlag{
+							Name:  "timeout, t",
+							Value: 10,
+							Usage: "Set a different timeout in seconds",
+						},
+					},
 				},
 			},
 		},

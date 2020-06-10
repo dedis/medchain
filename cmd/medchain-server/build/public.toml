@@ -1,0 +1,12 @@
+[[servers]]
+  Address = "tls://127.0.0.1:7770"
+  Suite = "Ed25519"
+  Public = "290c4640f7fa64689b6bfdad4506deb713632efa4b40dd70d36180c8692ca9a2"
+  Description = "New cothority"
+  [servers.Services]
+    [servers.Services.ByzCoin]
+      Public = "4080d75701110eec55e2d9bbe1f301d7a3d8d3ae16bec825e55ce1b397e9ff035e4cc0e140fc7bb0141354ab6f0a5adfd2cf9e30587fff162eac50afce04a16b29d7b232d842f517f23c77a9575fe8ec5bf0e5816879e1d56501dc5513c2d4fd09dd8a39848a6d20bd1d57a76149e92148b9c5634e594b92b54b5e0cfaf29856"
+      Suite = "bn256.adapter"
+    [servers.Services.Skipchain]
+      Public = "5581a7a253720e6c7e519506fe449d6b55d694770fbe7d168ec922f0b6dcf23c32a45e095a18f21545239d47dad9f5cbfed0b82cae82b51fc3b0fc20c76c7ea084a274370d1d553c4c4b0d747611c91a390320aba42f695a8c9d6e6d9ad4f1c62328fb0179ad9dcfe5884fbd29060e429714bfa7555944e820b2e0a4d46a91ff"
+      Suite = "bn256.adapter"

@@ -607,16 +607,9 @@ func (c *Client) ExecDefferedQuery(req *ExecuteDeferredTxRequest) (*ExecuteDefer
 	if len(req.ClientID) == 0 {
 		return nil, xerrors.New("ClientID required")
 	}
-	if len(req.QueryID) == 0 {
-		return nil, xerrors.New("Query ID required")
-	}
 
 	if len(req.QueryInstID) == 0 {
 		return nil, xerrors.New("query instance ID required")
-	}
-
-	if len(req.QueryInstID) == 0 {
-		return nil, xerrors.New("query Darc ID required")
 	}
 
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{

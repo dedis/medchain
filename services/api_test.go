@@ -165,8 +165,6 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
-	req3.DarcID = req1.DarcID
-	req3.QueryID = req1.QueryID
 	req3.QueryInstID = resp1.QueryInstID
 	resp3, err := cl.ExecDefferedQuery(req3)
 	require.NoError(t, err)
@@ -490,8 +488,6 @@ func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
-	req3.DarcID = req1.DarcID
-	req3.QueryID = req1.QueryID
 	req3.QueryInstID = resp1.QueryInstID
 	resp3, err := cl.ExecDefferedQuery(req3)
 	require.Error(t, err)
@@ -536,9 +532,7 @@ func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
 	// 5. Execute the query transaction. This one should succeed
 	// ------------------------------------------------------------------------
 	req5 := &ExecuteDeferredTxRequest{}
-	req5.DarcID = req1.DarcID
 	req5.ClientID = cl.ClientID
-	req5.QueryID = req1.QueryID
 	req5.QueryInstID = resp1.QueryInstID
 
 	cl.SyncSignerCtrs(cl.Signers...)
@@ -559,7 +553,7 @@ func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err = cl.Bcl.ResolveInstanceID(req5.DarcID, query.ID)
+	instaID, err = cl.Bcl.ResolveInstanceID(req1.DarcID, query.ID)
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
@@ -749,7 +743,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 
 	log.Info("[INFO] Darc for Project is:", cl.AllDarcs["A"].String())
 	// ------------------------------------------------------------------------
-	// 2. Spwan query instances of MedChain contract and check its authorizations
+	// 2. Spwan query instance of MedChain contract and check its authorizations
 	// ------------------------------------------------------------------------
 
 	req1 := &AddQueryRequest{}
@@ -813,6 +807,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(shareRep2.QueryInstIDs))
 	require.Equal(t, resp1.QueryInstID, shareRep2.QueryInstIDs[0])
+
 	// ------------------------------------------------------------------------
 	// 3. Add signature (i.e, add proof) to the deferred query instance
 	// ------------------------------------------------------------------------
@@ -840,8 +835,6 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	// ------------------------------------------------------------------------
 	req3 := &ExecuteDeferredTxRequest{}
 	req3.ClientID = cl.ClientID
-	req3.DarcID = req1.DarcID
-	req3.QueryID = req1.QueryID
 	req3.QueryInstID = resp1.QueryInstID
 	resp3, err := cl.ExecDefferedQuery(req3)
 	require.Error(t, err)
@@ -882,13 +875,11 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.Empty(t, dd4.ExecResult)
 
 	// ------------------------------------------------------------------------
-	// 5. User 3 executes the query transaction. This one should fail too as one more signature is needed
+	// 5. User 3 executes the query transaction. This one should fail again as one more signature is needed
 	// ------------------------------------------------------------------------
 	cl.SyncSignerCtrs(cl.Signers...)
 	req6 := &ExecuteDeferredTxRequest{}
 	req6.ClientID = cl.ClientID
-	req6.DarcID = req1.DarcID
-	req6.QueryID = req1.QueryID
 	req6.QueryInstID = resp1.QueryInstID
 	resp6, err := cl.ExecDefferedQuery(req6)
 	require.Error(t, err)
@@ -932,9 +923,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	// 7. Execute the transaction. This time it should be successful
 	// ------------------------------------------------------------------------
 	req5 := &ExecuteDeferredTxRequest{}
-	req5.DarcID = req1.DarcID
 	req5.ClientID = cl.ClientID
-	req5.QueryID = req1.QueryID
 	req5.QueryInstID = resp1.QueryInstID
 
 	cl.SyncSignerCtrs(cl.Signers...)
@@ -955,7 +944,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 
 	// Use the client API to get the query back
 	// Resolve instance takes much time to run
-	instaID, err = cl.Bcl.ResolveInstanceID(req5.DarcID, query.ID)
+	instaID, err = cl.Bcl.ResolveInstanceID(req1.DarcID, query.ID)
 	require.Nil(t, err)
 	_, err = cl.GetQuery(instaID.Slice())
 	require.Nil(t, err)
@@ -992,6 +981,19 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(shareRep2.QueryInstIDs))
 	require.Equal(t, resp1.QueryInstID, shareRep2.QueryInstIDs[0])
+
+	// ------------------------------------------------------------------------
+	// 8. Execute the transaction. This time it should fail as the transaction has already been executed
+	// ------------------------------------------------------------------------
+	req5 = &ExecuteDeferredTxRequest{}
+	req5.ClientID = cl.ClientID
+	req5.QueryInstID = resp1.QueryInstID
+
+	resp5, err = cl.ExecDefferedQuery(req6)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "maximum number of executions reached")
+	require.Nil(t, resp5)
+	fmt.Println("extra execution", resp5)
 
 }
 func TestClient_IDSharing(t *testing.T) {
