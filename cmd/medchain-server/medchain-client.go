@@ -16,6 +16,7 @@ import (
 	cli "github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/byzcoin"
+	"go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	bcadminlib "go.dedis.ch/cothority/v3/byzcoin/bcadmin/lib"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/skipchain"
@@ -40,8 +41,7 @@ type bcConfig struct {
 func create(c *cli.Context) error {
 	// Here is what this function does:
 	//   1. Starts MedChain client
-	//   2. Gets DarcID of genesis darc that has invoke rules for deferred, medchain, etc contracs
-	//   3. Creates MedChain client
+	//   2. Creates MedChain client
 
 	// ---
 	// 1. Start MedChain client
@@ -51,34 +51,16 @@ func create(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("failed to get medchain client:", err)
 	}
+
 	// ---
-	// 2. GetsDarcID of genesis darc that has invoke rules for deferred, medchain, etc contracts --- see the API tests to know more about the rules that have to be allowed by the genesis darc
-	// ---
-	darcArg := c.String("darc")
-	if darcArg == "" {
-		log.Info("[INFO] (CLI) GenDarcID was not given, fetching th elatest version of GenDarc from ByzCoin")
-		genDarc, err := mccl.Bcl.GetGenDarc()
-		if err != nil {
-			return err
-		}
-		mccl.GenDarcID = genDarc.GetBaseID()
-	} else {
-		log.Info("[INFO] (CLI) Retrieving GenDarcID by ID provided:", darcArg)
-		darcBuf, err := bcadminlib.StringToDarcID(darcArg)
-		if err != nil {
-			return err
-		}
-		mccl.GenDarcID = darc.ID(darcBuf)
-	}
-	// ---
-	// 3. Creates MedChain client
+	// 2. Creates MedChain client
 	// ---
 	err = mccl.Create()
 	if err != nil {
 		return err
 	}
-	log.Info("[INFO] Created MedChain with genesis darc ID:", mccl.GenDarcID)
-	log.Info("[INFO] Created MedChain with naming instance ID:", mccl.GenDarcID)
+	log.Info("[INFO] Created MedChain with genesis darc ID:", mccl.GenDarc.GetIdentityString())
+	log.Info("[INFO] Created MedChain with naming instance ID:", mccl.GenDarc.GetIdentityString())
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -358,13 +340,13 @@ func fetchInstanceIDs(c *cli.Context) error {
 		return xerrors.Errorf("failed to get medchain client: %v", err)
 	}
 
-	log.Info("[INFO] (CLI) Getting all instance IDs from the server %v", mccl.EntryPoint)
+	log.Infof("[INFO] (CLI) Getting all instance IDs from the server %v", mccl.EntryPoint)
 	iids, err := mccl.GetSharedData()
 	if err != nil {
 		xerrors.Errorf("failed to fetch instance IDs: %v", err)
 	}
 	for _, iid := range iids.QueryInstIDs {
-		log.Info("[INFO] Fetched instance ID from the server %v: %v", mccl.EntryPoint, iid.String())
+		log.Infof("[INFO] Fetched instance ID from the server %v: %v", mccl.EntryPoint, iid.String())
 	}
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
@@ -527,7 +509,7 @@ func getClient(c *cli.Context) (*s.Client, error) {
 		log.Info("[INFO] (CLI) --address was not provideed. Contacting a random server... ", list)
 		si := roster.RandomServerIdentity()
 		log.Info("[INFO] (CLI) Roster list is", list)
-		log.Info("[INFO] (CLI) Using server %v", si.String())
+		log.Infof("[INFO] (CLI) Using server %v", si.String())
 	}
 	// ---
 	// 5. Init MedChain client
@@ -593,5 +575,128 @@ func createkey(c *cli.Context) error {
 		}()
 	}
 	_, err = fmt.Fprintln(fo, newSigner.Identity().String())
+	return err
+}
+
+func addProjectDarc(c *cli.Context) error {
+	log.Info("[INFO] (CLI) Adding project darc")
+	mccl, err := getClient(c)
+	if err != nil {
+		return err
+	}
+	pname := c.String("name")
+	if pname == "" {
+		return errors.New("--name is required")
+	}
+	mccl.SyncSignerCtrs()
+
+	// TODO broadcast the base ID
+	darc, err := mccl.AddProjectDarc(pname)
+	if err != nil {
+		return xerrors.Errorf("error in adding project darc: %w", err)
+	}
+	log.Infof("[INFO] (CLI) Created Darc for project %v with based ID", pname, darc.GetIdentityString())
+	output := c.String("out_id")
+	if output != "" {
+		log.Infof("[INFO] (CLI) Saving darc %v id in %v", darc.GetIdentityString(), output)
+		err = ioutil.WriteFile(output, []byte(darc.GetIdentityString()), 0644)
+		if err != nil {
+			return err
+		}
+	}
+	return bcadminlib.WaitPropagation(c, mccl.Bcl)
+}
+
+func addSigner(c *cli.Context) error {
+	log.Info("[INFO] (CLI) Adding project darc")
+	mccl, err := getClient(c)
+	if err != nil {
+		return err
+	}
+	pname := c.String("name")
+	if pname == "" {
+		return errors.New("--name is required")
+	}
+	darcIDStr := c.String("id")
+	if darcIDStr == "" {
+		return errors.New("--id is required")
+	}
+	rule := c.String("rule")
+	if rule == "" {
+		return errors.New("--rule is required")
+	}
+	typeStr := c.String("type")
+	if rule == "" {
+		return errors.New("--type is required")
+	}
+
+	idStr := c.String("identity")
+
+	if len(idStr) == 0 {
+		if !c.Bool("delete") {
+			return xerrors.New("--identity flag is required")
+		}
+	}
+	mccl.SyncSignerCtrs()
+	darcBuf, err := bcadminlib.StringToDarcID(darcIDStr)
+	if err != nil {
+		return err
+	}
+	darcID := darc.ID(darcBuf)
+	d, err := bcadminlib.GetDarcByString(mccl.Bcl, darcIDStr)
+	if err != nil {
+		return xerrors.Errorf("failed to get the darc: %v", err)
+	}
+	if c.Bool("delete") {
+		err = d.Rules.DeleteRules(darc.Action(rule))
+		if err != nil {
+			return xerrors.Errorf("failed to delete rule: %v", err)
+		}
+		log.Infof("[INFO] (CLI) Deleted rule %v from darc with ID %v ", rule, darcIDStr)
+	} else {
+
+		err = mccl.AddSignerToDarc(pname, darcID, []darc.Action{darc.Action(rule)}, idStr, typeStr)
+		if err != nil {
+			return xerrors.Errorf("error in adding signer to darc: %w", err)
+		}
+		log.Infof("[INFO] (CLI) Added identitiy %v to darc with ID %v ", idStr, darcIDStr)
+	}
+	return bcadminlib.WaitPropagation(c, mccl.Bcl)
+}
+
+func getQuery(c *cli.Context) error {
+	mccl, err := getClient(c)
+	if err != nil {
+		return err
+	}
+	instID := c.String("instid")
+	if instID == "" {
+		return xerrors.New("--id flag is required")
+	}
+	instIDBuf, err := hex.DecodeString(instID)
+	if err != nil {
+		return err
+	}
+	id := byzcoin.NewInstanceID(instIDBuf)
+	dd, err := mccl.Bcl.GetDeferredData(id)
+	log.Infof("[INFO] (CLI) Instance ID: %v ", id.String())
+	log.Infof("[INFO] (CLI) Retrieved deferred data is %v ", dd)
+	return bcadminlib.WaitPropagation(c, mccl.Bcl)
+}
+
+func darcShow(c *cli.Context) error {
+	mccl, err := getClient(c)
+	if err != nil {
+		return err
+	}
+
+	dstr := c.String("darc")
+
+	d, err := lib.GetDarcByString(mccl.Bcl, dstr)
+	if err != nil {
+		return err
+	}
+
+	log.Info("[INFO] (CLI) Darc is %v ", d.String())
 	return err
 }

@@ -166,7 +166,7 @@ func main() {
 		// BEGIN CLIENT: Create a MedChain CLI Client ----------
 		{
 			Name:    "create",
-			Aliases: []string{"c"},
+			Aliases: []string{"cr"},
 			Usage:   "Create a MedChain CLI Client",
 			Action:  create,
 			Flags: append(clientFlags,
@@ -199,14 +199,6 @@ func main() {
 			Action:  addSignature,
 			Flags: append(clientFlags,
 				cli.StringFlag{
-					Name:  optionDarcID + ", " + optionDarcIDShort,
-					Usage: "The DarcID of project darc governing the query ",
-				},
-				cli.StringFlag{
-					Name:  optionQueryIDShort + ", " + optionQueryIDShort,
-					Usage: "The ID of query as token:project_name:action ",
-				},
-				cli.StringFlag{
 					Name:  optionInstanceID + ", " + optionInstanceIDShort,
 					Usage: "The instance ID of query to add signature to ",
 				}),
@@ -226,13 +218,31 @@ func main() {
 		// BEGIN CLIENT:  EXECUTE PROPOSED QUERY ----------
 		{
 			Name:    "exec",
-			Aliases: []string{"d"},
+			Aliases: []string{"e"},
 			Usage:   "Execute a proposed query",
 			Action:  execDefferedQuery,
-			Flags:   clientFlags,
+			Flags: append(clientFlags,
+				cli.StringFlag{
+					Name:  optionInstanceID + ", " + optionInstanceIDShort,
+					Usage: "The instance ID of query to add signature to ",
+				}),
 		},
+		// CLIENT END: EXECUTE PROPOSED QUERY  ------------
+		// BEGIN CLIENT: GET DEFERRED DATA  ----------
+		{
+			Name:    "get",
+			Aliases: []string{"g"},
+			Usage:   "Get deferred data",
+			Action:  getQuery,
+			Flags: append(clientFlags,
+				cli.StringFlag{
+					Name:  optionInstanceID + ", " + optionInstanceIDShort,
+					Usage: "The instance ID of deferred data to retrieve ",
+				}),
+		},
+		// CLIENT END: GET DEFERRED DATA  ------------
 
-		// BEGIN CLIENT: FETCH DEFERRED QUERY INSTANCE IDS ----------
+		// BEGIN CLIENT: FETCH DEFERRED QUERY INSTANCE IDs ----------
 		{
 			Name:    "fetch",
 			Aliases: []string{"f"},
@@ -240,7 +250,71 @@ func main() {
 			Action:  fetchInstanceIDs,
 			Flags:   clientFlags,
 		},
-		// CLIENT END: FETCH DEFERRED QUERY INSTANCE IDS ------------
+		// CLIENT END: FETCH DEFERRED QUERY INSTANCE IDs ------------
+		{
+			Name:    "darc",
+			Usage:   "Tool used to manage project darcs",
+			Aliases: []string{"d"},
+			Subcommands: cli.Commands{
+				{
+					Name:   "show",
+					Usage:  "Show a DARC",
+					Action: darcShow,
+					Flags: append(clientFlags, []cli.Flag{
+						cli.StringFlag{
+							Name:  "id",
+							Usage: "The ID of darc to show",
+						},
+					}...),
+				},
+				{
+					Name:   "add",
+					Usage:  "Add a new project DARC with default rules.",
+					Action: addProjectDarc,
+					Flags: append(clientFlags, []cli.Flag{
+						cli.StringFlag{
+							Name:  "out_id",
+							Usage: "Output file for the darc id (optional)",
+						},
+						cli.StringFlag{
+							Name:  "name",
+							Usage: "The name for the new DARC (default: random)",
+						},
+					}...),
+				},
+				{
+					Name:   "rule",
+					Usage:  "Add signer to a project rule or delete the rule.",
+					Action: addSigner,
+					Flags: append(clientFlags, []cli.Flag{
+						cli.StringFlag{
+							Name:  "id",
+							Usage: "The ID of the DARC to update",
+						},
+						cli.StringFlag{
+							Name:  "name",
+							Usage: "The name of the DARC to update",
+						},
+						cli.StringFlag{
+							Name:  "rule",
+							Usage: "The rule to which signer is added",
+						},
+						cli.StringFlag{
+							Name:  "identity, signer_id",
+							Usage: "The identity of the signer who will be allowed to use the rule.",
+						},
+						cli.StringFlag{
+							Name:  "type, t",
+							Usage: "Type of rul to use. Either & or | ",
+						},
+						cli.BoolFlag{
+							Name:  "delete",
+							Usage: "Delete the rule",
+						},
+					}...),
+				},
+			},
+		},
 
 		// BEGIN SERVER --------
 		{
@@ -305,7 +379,7 @@ func main() {
 
 	cliApp.Flags = binaryFlags
 	cliApp.Before = func(c *cli.Context) error {
-		log.SetDebugVisible(c.GlobalInt("debug"))
+		log.SetDebugVisible(c.Int("debug"))
 		return nil
 	}
 	err := cliApp.Run(os.Args)
