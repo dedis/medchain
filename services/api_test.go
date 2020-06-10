@@ -23,7 +23,7 @@ import (
 var testBlockInterval = 500 * time.Millisecond
 var actionsList = "patient_list,count_per_site,count_per_site_obfuscated,count_per_site_shuffled,count_per_site_shuffled_obfuscated,count_global,count_global_obfuscated"
 
-func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
+func TestClient_Authorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
@@ -199,7 +199,7 @@ func TestClient_MedchainDeferredTxAuthorize(t *testing.T) {
 
 }
 
-func TestClient_MedchainDeferredTxReject(t *testing.T) {
+func TestClient_Reject(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
@@ -290,7 +290,7 @@ func TestClient_MedchainDeferredTxReject(t *testing.T) {
 
 }
 
-func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
+func TestClient_TwoSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
@@ -405,9 +405,9 @@ func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
 	require.NoError(t, err)
 	darcActionsAOr, err := cl.getDarcActions(actionsAOr)
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0], "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "&")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0], "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "|")
 	require.NoError(t, err)
 	require.Equal(t, cl2.Bcl, cl.Bcl)
 
@@ -577,7 +577,7 @@ func TestClient_MedchainDeferredTwoSigners(t *testing.T) {
 
 }
 
-func TestClient_MedchainWithSahre(t *testing.T) {
+func TestClient_FullWorkFlow(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service
 	// ------------------------------------------------------------------------
@@ -654,7 +654,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	// log.Info("[INFO] Client 2 genesis darc", cl2.GenDarc.String())
 
 	log.Info("[INFO] Updating Genesis Darc")
-	expr := expression.InitOrExpr(cl.Signers[0].Identity().String(), cl2.Signers[0].Identity().String())
+	expr := expression.InitOrExpr(cl.Signers[0].Identity().String())
 	err = cl2.GenDarc.Rules.UpdateRule("spawn:"+ContractName, expr)
 	require.NoError(t, err)
 	err = cl2.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"update", expr)
@@ -692,9 +692,9 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.NoError(t, err)
 	darcActionsAOr, err := cl.getDarcActions(actionsAOr)
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0], "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "&")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0], "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "|")
 	require.NoError(t, err)
 	require.Equal(t, cl2.Bcl, cl.Bcl)
 
@@ -735,9 +735,9 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	require.Nil(t, err)
 	require.NoError(t, err)
 
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl3.Signers[0], "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl3.Signers[0].Identity().String(), "&")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl3.Signers[0], "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl3.Signers[0].Identity().String(), "|")
 	require.NoError(t, err)
 	require.Equal(t, cl3.Bcl, cl.Bcl)
 
@@ -996,7 +996,7 @@ func TestClient_MedchainWithSahre(t *testing.T) {
 	fmt.Println("extra execution", resp5)
 
 }
-func TestClient_IDSharing(t *testing.T) {
+func TestClient_Propagation(t *testing.T) {
 
 	// ------------------------------------------------------------------------
 	// 0. Set up and start service

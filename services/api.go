@@ -680,7 +680,7 @@ func (c *Client) VerifStatus(req *VerifyStatusRequest) (*VerifyStatusReply, erro
 // AddSignerToDarc adds new signer to project darc
 // TODO: make this a defferred tx (not important for this part of project;
 // it is important for th eadmin part)
-func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner darc.Signer, typeStr string) error {
+func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc.Action, newSigner string, typeStr string) error {
 
 	var typeOfExpr int
 	var exp expression.Expr
@@ -708,7 +708,7 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 	for i := range signerIDs {
 		signerIDs[i] = strings.TrimSpace(signerIDs[i])
 	}
-	signerIDs = append(signerIDs, newSigner.Identity().String())
+	signerIDs = append(signerIDs, newSigner)
 	log.Info("[INFO] (AddSignerToDarc) signerIDs:", signerIDs)
 
 	ctx, newDarcID, err := c.EvolveProjectDarc(signerIDs, projectDarc, darcActions, typeOfExpr)
@@ -773,26 +773,53 @@ func (c *Client) CreateDarc(name string, rules darc.Rules, actionsAnd string, ac
 }
 
 // AddProjectDarc is used to create project darcs with default rules
-func (c *Client) AddProjectDarc(name string) error {
+func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
 
-	rules := darc.InitRules([]darc.Identity{c.Signers[0].Identity()}, []darc.Identity{c.Signers[0].Identity()})
-	c.AllDarcs[name] = darc.NewDarc(rules, []byte(name))
-	// Add _name to Darc rule so that we can name the instances using contract_name
-	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
-	c.AllDarcs[name].Rules.AddRule("_name:"+ContractName, expr)
-	c.AllDarcs[name].Rules.AddRule("spawn:naming", expr)
-	darcBuf, err := c.AllDarcs[name].ToProto()
+	rulesA := darc.InitRules([]darc.Identity{c.Signers[0].Identity()}, []darc.Identity{c.Signers[0].Identity()})
+	actionsAAnd := "spawn:medchain,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
+		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
+		"invoke:medchain.count_global_obfuscated"
+
+	actionsAOr := "invoke:medchain.update,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,invoke:darc.evolve,_name:deferred,spawn:naming,_name:medchain,spawn:value,invoke:value.update,_name:value"
+
+	// all signers need to sign
+	exprAAnd := expression.InitAndExpr(c.Signers[0].Identity().String())
+
+	// at least one signer needs to sign
+	var err error
+	exprAOr := expression.InitOrExpr(c.Signers[0].Identity().String())
+	c.AllDarcs[name], err = c.CreateDarc(name, rulesA, actionsAAnd, actionsAOr, exprAAnd, exprAOr)
 	if err != nil {
-		return err
+		return nil, xerrors.Errorf("could not create project darc:", err)
 	}
+
+	// Verify the darc is correct
+	err = c.AllDarcs[name].Verify(true)
+	if err != nil {
+		return nil, xerrors.Errorf("could not create project darc:", err)
+	}
+
+	aDarcBuf, err := c.AllDarcs[name].ToProto()
+	if err != nil {
+		return nil, xerrors.Errorf("could not create project darc:", err)
+	}
+	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
+	if err != nil {
+		return nil, xerrors.Errorf("could not create project darc:", err)
+	}
+	if c.AllDarcs[name].Equal(aDarcCopy) != true {
+		return nil, xerrors.Errorf("could not create project darc")
+	}
+
+	// Add darc to byzcoin
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
-		InstanceID: byzcoin.NewInstanceID(c.GenDarcID),
+		InstanceID: byzcoin.NewInstanceID(c.GenDarc.GetBaseID()),
 		Spawn: &byzcoin.Spawn{
 			ContractID: byzcoin.ContractDarcID,
 			Args: byzcoin.Arguments{
 				{
 					Name:  "darc",
-					Value: darcBuf,
+					Value: aDarcBuf,
 				},
 			},
 		},
@@ -800,20 +827,64 @@ func (c *Client) AddProjectDarc(name string) error {
 		SignerCounter:    c.IncrementCtrs(),
 	})
 	if err != nil {
-		return err
+		return nil, xerrors.Errorf("could not create project darc:", err)
 	}
 
-	err = ctx.FillSignersAndSignWith(c.Signers...)
+	err = c.spawnTx(ctx)
 	if err != nil {
-		return err
-	}
-
-	_, err = c.Bcl.AddTransactionAndWait(ctx, 10)
-	if err != nil {
-		return err
+		return nil, xerrors.Errorf("could not create project darc:", err)
 	}
 	c.AllDarcIDs[name] = c.AllDarcs[name].GetBaseID()
+	log.Info("[INFO] Darc for Project is:", c.AllDarcs[name].String())
 
+	return c.AllDarcs[name], nil
+}
+
+// UpdateGenesisDarc is used to update client genesis darc so that the user can start inracting with the server
+func (c *Client) UpdateGenesisDarc(name string) error {
+
+	log.Info("[INFO] Updating Genesis Darc")
+	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
+	err := c.GenDarc.Rules.UpdateRule("spawn:"+ContractName, expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"update", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"verifystatus", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("_name:"+ContractName, expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("spawn:deferred", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("invoke:deferred.addProof", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.UpdateRule("invoke:deferred.execProposedTx", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.AddRule("spawn:value", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.AddRule("invoke:value.update", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
+	err = c.GenDarc.Rules.AddRule("_name:value", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc:", err)
+	}
 	return nil
 }
 
