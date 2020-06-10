@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/onet/v3/app"
+	"go.dedis.ch/onet/v3/cfgpath"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
 )
@@ -131,6 +133,7 @@ func main() {
 	serverFlags := []cli.Flag{
 		cli.StringFlag{
 			Name:  optionConfig + ", " + optionConfigShort,
+			Value: path.Join(cfgpath.GetConfigPath(BinaryName), app.DefaultServerConfig),
 			Usage: "Configuration file of the server",
 		},
 	}
@@ -169,11 +172,7 @@ func main() {
 			Aliases: []string{"cr"},
 			Usage:   "Create a MedChain CLI Client",
 			Action:  create,
-			Flags: append(clientFlags,
-				cli.StringFlag{
-					Name:  optionDarcID + ", " + optionDarcIDShort,
-					Usage: "The DarcID that has the spawn:medchain rule (default is the genesis DarcID) ",
-				}),
+			Flags:   clientFlags,
 		},
 		// CLIENT END: Create a MedChain CLI Client ------------
 
@@ -183,11 +182,16 @@ func main() {
 			Aliases: []string{"q"},
 			Usage:   "Submit a query for authorization",
 			Action:  submitQuery,
-			Flags: append(clientFlags,
+			Flags: append(clientFlags, []cli.Flag{
 				cli.StringFlag{
 					Name:  optionQueryIDShort + ", " + optionQueryIDShort,
 					Usage: "The ID of query as token:project_name:action ",
-				}),
+				},
+				cli.StringFlag{
+					Name:  optionDarcID + ", " + optionDarcIDShort,
+					Usage: "The ID of project darc associated with query ",
+				},
+			}...),
 		},
 		// CLIENT END: SUBMIT DEFERRED QUERY ------------
 
@@ -263,7 +267,7 @@ func main() {
 					Flags: append(clientFlags, []cli.Flag{
 						cli.StringFlag{
 							Name:  "id",
-							Usage: "The ID of darc to show",
+							Usage: "The ID of darc to show (admin darc by default)",
 						},
 					}...),
 				},

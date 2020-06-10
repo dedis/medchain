@@ -20,7 +20,7 @@ var raiseFdLimit func()
 
 func runServer(ctx *cli.Context) error {
 	// first check the options
-	config := ctx.GlobalString("config")
+	config := ctx.String("config")
 	if raiseFdLimit != nil {
 		raiseFdLimit()
 	}
@@ -29,6 +29,7 @@ func runServer(ctx *cli.Context) error {
 }
 
 func checkConfig(c *cli.Context) error {
+	log.Lvl1("[INFO] Roster check...")
 	tomlFileName := c.String("g")
 	if c.NArg() > 0 {
 		tomlFileName = c.Args().First()
@@ -79,6 +80,8 @@ func checkConfig(c *cli.Context) error {
 			return errors.New("didn't get all the responses in time")
 		}
 	}
+
+	log.Lvl1("[INFO] Roster check succeeded")
 
 	return nil
 }

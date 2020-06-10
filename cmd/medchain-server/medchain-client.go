@@ -46,10 +46,10 @@ func create(c *cli.Context) error {
 	// ---
 	// 1. Start MedChain client
 	// ---
-	log.Info("[INFO](CLI)Creating the MedChain CLI client:")
+	log.Info("[INFO] (CLI)Creating MedChain CLI client")
 	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("failed to get medchain client:", err)
+		return xerrors.Errorf("failed to get medchain client: %v", err)
 	}
 
 	// ---
@@ -80,7 +80,7 @@ func submitQuery(c *cli.Context) error {
 	log.Info("[INFO] (CLI) Starting query submission")
 	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("failed to get medchain client:", err)
+		return xerrors.Errorf("failed to get medchain client: :%v", err)
 	}
 	// ---
 	// 2. Get DarcID and retrieve it from bzycoin
@@ -179,7 +179,7 @@ func addSignature(c *cli.Context) error {
 	log.Info("[INFO] Creating the MedChain CLI client:")
 	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("failed to get medchain client:", err)
+		return xerrors.Errorf("failed to get medchain client: %v", err)
 	}
 	// ---
 	// 2. Read instanceID of query to be signed from file from flag
@@ -262,7 +262,7 @@ func execDefferedQuery(c *cli.Context) error {
 	log.Info("[INFO] Creating the MedChain CLI client:")
 	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("failed to get medchain client:", err)
+		return xerrors.Errorf("failed to get medchain client: %v", err)
 	}
 	// ---
 	// 2. Read instanceID of query to be signed from file from flag
@@ -364,7 +364,7 @@ func verifyStatus(c *cli.Context) error {
 	log.Info("[INFO] Creating the MedChain CLI client:")
 	mccl, err := getClient(c)
 	if err != nil {
-		return xerrors.Errorf("[INFO] failed to get medchain client:", err)
+		return xerrors.Errorf("[INFO] failed to get medchain client: %v", err)
 	}
 	// ---
 	// 2. Read instanceID of query to be signed from file from flag
@@ -484,26 +484,33 @@ func getClient(c *cli.Context) (*s.Client, error) {
 		return nil, errors.New("couldn't read group file: " + err.Error())
 	}
 	list := roster.List
-
+	log.Info("[INFO] (CLI) Roster list is", list)
 	address := c.String("address")
 	if address != "" {
 		// Contact desired server
 		log.Info("[INFO] contacting server at", address)
 		addr := network.Address(address)
+		log.Info("[INFO] Network Address", addr.String())
 		if !strings.HasPrefix(address, "tls://") {
 			addr = network.NewAddress(network.TLS, address)
 		}
+		log.Info("[INFO] Network Address", addr.String())
 		newSi := network.NewServerIdentity(nil, addr)
-		if si.Address.Port() == "" {
+		log.Info("[INFO] NewSi", newSi.String())
+		log.Info("[INFO] NewSi Port ", newSi.Address.Port())
+		if newSi.Address.Port() == "" {
 			return nil, xerrors.New("port not found, must provide addr:port")
 		}
-		log.Info("[INFO] (CLI) Finding server id with address%v", si.Address.String())
+		log.Infof("[INFO] (CLI) Finding server id with address%v", newSi.Address.String())
+		var found = false
 		for _, id := range list {
-			if id == newSi {
+			if id.Address == newSi.Address {
+				found = true
 				si = id
-			} else {
-				return nil, xerrors.Errorf("could not find server identity at address: %v", address)
 			}
+		}
+		if !found {
+			return nil, xerrors.Errorf("could not find server identity at address: %v", address)
 		}
 	} else {
 		log.Info("[INFO] (CLI) --address was not provideed. Contacting a random server... ", list)
@@ -595,7 +602,7 @@ func addProjectDarc(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("error in adding project darc: %w", err)
 	}
-	log.Infof("[INFO] (CLI) Created Darc for project %v with based ID", pname, darc.GetIdentityString())
+	log.Infof("[INFO] (CLI) Created Darc for project %v with based ID %v", pname, darc.GetIdentityString())
 	output := c.String("out_id")
 	if output != "" {
 		log.Infof("[INFO] (CLI) Saving darc %v id in %v", darc.GetIdentityString(), output)
@@ -697,6 +704,6 @@ func darcShow(c *cli.Context) error {
 		return err
 	}
 
-	log.Info("[INFO] (CLI) Darc is %v ", d.String())
+	log.Infof("[INFO] (CLI) Darc is %v ", d.String())
 	return err
 }
