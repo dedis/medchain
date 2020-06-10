@@ -243,15 +243,6 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 		return *new(byzcoin.InstanceID), xerrors.Errorf("could not add deferred transaction to ledger: %v", err)
 	}
 	instID := ctx.Instructions[0].DeriveID("")
-
-	// // Name the instance of the query with as its key using contract_name to
-	// // make retrievals easier
-	// err = c.nameInstance(instID, darcID, query.ID)
-	// if err != nil {
-	// 	return *new(byzcoin.InstanceID), err
-	// }
-	// log.Info("[INFO] Deferred Query instance was named ")
-
 	return instID, err
 }
 
@@ -1155,15 +1146,7 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 	}
 	c.Bcl.WaitPropagation(1)
 	log.Info("[INFO] (Naming) Query was added to the ledger")
-	// log.Info("[INFO] (Naming) Resolving the instance ID")
-	// // This sanity check heavily reduces the performance
-	// replyID, err := c.Bcl.ResolveInstanceID(darcID, name)
-	// if err != nil {
-	// 	return err
-	// }
-	// if replyID != instID {
-	// 	return err
-	// }
+
 	return nil
 }
 
