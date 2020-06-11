@@ -184,12 +184,16 @@ func main() {
 			Action:  submitQuery,
 			Flags: append(clientFlags, []cli.Flag{
 				cli.StringFlag{
-					Name:  optionQueryIDShort + ", " + optionQueryIDShort,
+					Name:  optionQueryID + ", " + optionQueryIDShort,
 					Usage: "The ID of query as token:project_name:action ",
 				},
 				cli.StringFlag{
 					Name:  optionDarcID + ", " + optionDarcIDShort,
 					Usage: "The ID of project darc associated with query ",
+				},
+				cli.StringFlag{
+					Name:  optionGroupInstanceIDFile + ", " + optionGroupInstanceIDFileShort,
+					Usage: "The name of file to save instance IDs ",
 				},
 			}...),
 		},
@@ -232,6 +236,7 @@ func main() {
 				}),
 		},
 		// CLIENT END: EXECUTE PROPOSED QUERY  ------------
+
 		// BEGIN CLIENT: GET DEFERRED DATA  ----------
 		{
 			Name:    "get",
@@ -255,6 +260,26 @@ func main() {
 			Flags:   clientFlags,
 		},
 		// CLIENT END: FETCH DEFERRED QUERY INSTANCE IDs ------------
+
+		// BEGIN CLIENT: CREATE KEY ----------
+		{
+			Name:    "key",
+			Usage:   "generates a new keypair and prints the public key in the stdout",
+			Aliases: []string{"k"},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "save",
+					Usage: "file in which the user wants to save the public key instead of printing it",
+				},
+				cli.StringFlag{
+					Name:  "print",
+					Usage: "print the private and public key",
+				},
+			},
+			Action: createKey,
+		},
+		// CLIENT END: CREATE KEY  ------------
+		// BEGIN CLIENT: MANIPULATE DARCS ----------
 		{
 			Name:    "darc",
 			Usage:   "Tool used to manage project darcs",
@@ -264,12 +289,21 @@ func main() {
 					Name:   "show",
 					Usage:  "Show a DARC",
 					Action: darcShow,
-					Flags: append(clientFlags, []cli.Flag{
+					Flags: append(clientFlags,
 						cli.StringFlag{
-							Name:  "id",
+							Name:  "darc",
 							Usage: "The ID of darc to show (admin darc by default)",
-						},
-					}...),
+						}),
+				},
+				{
+					Name:   "update",
+					Usage:  "Update the genesis darc",
+					Action: updateGenesisDarc,
+					Flags: append(clientFlags,
+						cli.StringSliceFlag{
+							Name:  "identity, signer_id",
+							Usage: "The identity of the signer who will be allowed to use the genesis darc rules. multiple use of this param is allowed",
+						}),
 				},
 				{
 					Name:   "add",
@@ -299,9 +333,9 @@ func main() {
 							Name:  "name",
 							Usage: "The name of the DARC to update",
 						},
-						cli.StringFlag{
+						cli.StringSliceFlag{
 							Name:  "rule",
-							Usage: "The rule to which signer is added",
+							Usage: "The rule to which signer is added. multiple use of this is allowed except for --delete",
 						},
 						cli.StringFlag{
 							Name:  "identity, signer_id",
@@ -309,7 +343,7 @@ func main() {
 						},
 						cli.StringFlag{
 							Name:  "type, t",
-							Usage: "Type of rul to use. Either & or | ",
+							Usage: "Type of rule to use. Either AND or OR ",
 						},
 						cli.BoolFlag{
 							Name:  "delete",
@@ -319,6 +353,7 @@ func main() {
 				},
 			},
 		},
+		// CLIENT END: MANIPULATE DARCS ----------
 
 		// BEGIN SERVER --------
 		{

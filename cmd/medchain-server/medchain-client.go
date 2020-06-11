@@ -60,7 +60,6 @@ func create(c *cli.Context) error {
 		return err
 	}
 	log.Info("[INFO] Created MedChain with genesis darc ID:", mccl.GenDarc.GetIdentityString())
-	log.Info("[INFO] Created MedChain with naming instance ID:", mccl.GenDarc.GetIdentityString())
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -103,9 +102,9 @@ func submitQuery(c *cli.Context) error {
 	//  3. Get the proposed query
 	// ---
 	log.Info("[INFO] (CLI) Reading the query")
-	queryArg := c.String("qid")
+	queryArg := c.String("queryid")
 	if queryArg == "" {
-		return xerrors.New("--qid flag is required")
+		return xerrors.New("--queryid flag is required")
 	}
 
 	proposedQuery := s.NewQuery(queryArg, " ")
@@ -114,6 +113,12 @@ func submitQuery(c *cli.Context) error {
 	if len(qq) != 3 {
 		return xerrors.New("invalid query entered")
 	}
+
+	instIDfilePath := c.String("idfile")
+	if instIDfilePath == "" {
+		return xerrors.New("--idfile flag is required")
+	}
+
 	projectName := qq[1]
 	mccl.AllDarcs[string(projectName)] = projectDarc
 	mccl.AllDarcIDs[string(projectName)] = projectDarc.GetBaseID()
@@ -144,10 +149,7 @@ func submitQuery(c *cli.Context) error {
 	// ---
 	// 8.  Write query instance ID to file
 	// ---
-	instIDfilePath := c.String("idfile")
-	if instIDfilePath == "" {
-		return xerrors.New("--idfile flag is required")
-	}
+
 	dir, _ := path.Split(instIDfilePath)
 	pathToWrite := dir + instIDfilePath
 	fWrite, err := os.Create(pathToWrite)
@@ -327,6 +329,8 @@ func execDefferedQuery(c *cli.Context) error {
 	}
 
 	log.Infof("[INFO] (CLI) Here is the deferred data after exectution: \n%s", result)
+
+	log.Info("[INFO] (CLI) Execution was successful")
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -439,8 +443,8 @@ func getClient(c *cli.Context) (*s.Client, error) {
 	// ---
 	// 1. Read Byzcoin config to get config and Byzcoin client
 	// ---
-	log.Info("[INFO] Getting MedChain CLI client")
-	log.Info("[INFO] Reading ByzCoin config file")
+	log.Info("[INFO] (CLI) Getting MedChain CLI client")
+	log.Info("[INFO] (CLI) Reading ByzCoin config file")
 	bc := c.String("bc")
 	if bc == "" {
 		return nil, xerrors.Errorf("--bc flag is required to create the client")
@@ -459,7 +463,7 @@ func getClient(c *cli.Context) (*s.Client, error) {
 	// ---
 	// 2. Get cleint ID
 	// ---
-	log.Info("[INFO] Reading client ID")
+	log.Info("[INFO] (CLI) Reading client ID")
 	cidArg := c.String("cid")
 	if cidArg == "" {
 		return nil, xerrors.New("--cid flag is required")
@@ -488,20 +492,16 @@ func getClient(c *cli.Context) (*s.Client, error) {
 	address := c.String("address")
 	if address != "" {
 		// Contact desired server
-		log.Info("[INFO] contacting server at", address)
 		addr := network.Address(address)
-		log.Info("[INFO] Network Address", addr.String())
+		log.Info("[INFO] (CLI) Network Address", addr.String())
 		if !strings.HasPrefix(address, "tls://") {
 			addr = network.NewAddress(network.TLS, address)
 		}
-		log.Info("[INFO] Network Address", addr.String())
 		newSi := network.NewServerIdentity(nil, addr)
-		log.Info("[INFO] NewSi", newSi.String())
-		log.Info("[INFO] NewSi Port ", newSi.Address.Port())
 		if newSi.Address.Port() == "" {
 			return nil, xerrors.New("port not found, must provide addr:port")
 		}
-		log.Infof("[INFO] (CLI) Finding server id with address%v", newSi.Address.String())
+		log.Infof("[INFO] (CLI) Finding server identity with address%v", newSi.Address.String())
 		var found = false
 		for _, id := range list {
 			if id.Address == newSi.Address {
@@ -519,9 +519,21 @@ func getClient(c *cli.Context) (*s.Client, error) {
 		log.Infof("[INFO] (CLI) Using server %v", si.String())
 	}
 	// ---
-	// 5. Init MedChain client
+	// 5. Get the private key from the cmdline
 	// ---
-	client, err := s.NewClient(byzcoin.NewClient(cfg.ByzCoinID, cfg.Roster), si, cidArg)
+	sstr := c.String("key")
+	if sstr == "" {
+		return nil, errors.New("--key is required")
+	}
+	signer, err := bcadminlib.LoadKeyFromString(sstr)
+	if err != nil {
+		return nil, err
+	}
+
+	// ---
+	// 6. Init MedChain client
+	// ---
+	client, err := s.NewClient(byzcoin.NewClient(cfg.ByzCoinID, cfg.Roster), si, cidArg, *signer)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to init client: %v", err)
 	}
@@ -532,23 +544,10 @@ func getClient(c *cli.Context) (*s.Client, error) {
 	client.ClientID = cidArg
 	client.EntryPoint = si
 
-	// ---
-	// 6. Get the private key from the cmdline
-	// ---
-	sstr := c.String("key")
-	if sstr == "" {
-		return nil, errors.New("--key is required")
-	}
-	signer, err := bcadminlib.LoadKeyFromString(sstr)
-	if err != nil {
-		return nil, err
-	}
-	client.Signers[0] = *signer //if not provided, it is ok as it is already set by NewClient()
-
 	return client, nil
 }
 
-func createkey(c *cli.Context) error {
+func createKey(c *cli.Context) error {
 	if f := c.String("print"); f != "" {
 		sig, err := bcadminlib.LoadSigner(f)
 		if err != nil {
@@ -595,7 +594,7 @@ func addProjectDarc(c *cli.Context) error {
 	if pname == "" {
 		return errors.New("--name is required")
 	}
-	mccl.SyncSignerCtrs()
+	mccl.SyncSignerCtrs(mccl.Signers...)
 
 	// TODO broadcast the base ID
 	darc, err := mccl.AddProjectDarc(pname)
@@ -603,14 +602,27 @@ func addProjectDarc(c *cli.Context) error {
 		return xerrors.Errorf("error in adding project darc: %w", err)
 	}
 	log.Infof("[INFO] (CLI) Created Darc for project %v with based ID %v", pname, darc.GetIdentityString())
+
+	var fo io.Writer
 	output := c.String("out_id")
 	if output != "" {
 		log.Infof("[INFO] (CLI) Saving darc %v id in %v", darc.GetIdentityString(), output)
-		err = ioutil.WriteFile(output, []byte(darc.GetIdentityString()), 0644)
+		file, err := os.Create(output)
 		if err != nil {
 			return err
 		}
+		fo = file
+		defer func() {
+			err := file.Close()
+			if err != nil {
+				log.Error(err)
+			}
+		}()
+	} else {
+		fo = os.Stdout
 	}
+	_, err = fmt.Fprintln(fo, darc.GetIdentityString())
+
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -628,12 +640,12 @@ func addSigner(c *cli.Context) error {
 	if darcIDStr == "" {
 		return errors.New("--id is required")
 	}
-	rule := c.String("rule")
-	if rule == "" {
+	rules := c.StringSlice("rule")
+	if rules == nil {
 		return errors.New("--rule is required")
 	}
 	typeStr := c.String("type")
-	if rule == "" {
+	if typeStr == "" {
 		return errors.New("--type is required")
 	}
 
@@ -644,7 +656,7 @@ func addSigner(c *cli.Context) error {
 			return xerrors.New("--identity flag is required")
 		}
 	}
-	mccl.SyncSignerCtrs()
+	mccl.SyncSignerCtrs(mccl.Signers...)
 	darcBuf, err := bcadminlib.StringToDarcID(darcIDStr)
 	if err != nil {
 		return err
@@ -654,20 +666,29 @@ func addSigner(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("failed to get the darc: %v", err)
 	}
+	var actions []darc.Action
+	for _, rule := range rules {
+		actions = append(actions, darc.Action(rule))
+	}
 	if c.Bool("delete") {
-		err = d.Rules.DeleteRules(darc.Action(rule))
+		if len(actions) > 1 {
+			return xerrors.New("single rule can be deleted at a time")
+		}
+		err = d.Rules.DeleteRules(actions[0])
 		if err != nil {
 			return xerrors.Errorf("failed to delete rule: %v", err)
 		}
-		log.Infof("[INFO] (CLI) Deleted rule %v from darc with ID %v ", rule, darcIDStr)
-	} else {
+		log.Infof("[INFO] (CLI) Deleted rule %v from darc with ID %v ", rules, darcIDStr)
 
-		err = mccl.AddSignerToDarc(pname, darcID, []darc.Action{darc.Action(rule)}, idStr, typeStr)
+	} else {
+		err = mccl.AddSignerToDarc(pname, darcID, actions, idStr, typeStr)
 		if err != nil {
 			return xerrors.Errorf("error in adding signer to darc: %w", err)
 		}
 		log.Infof("[INFO] (CLI) Added identitiy %v to darc with ID %v ", idStr, darcIDStr)
 	}
+	log.Info("[INFO] (CLI) Signing was successful")
+
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -691,6 +712,28 @@ func getQuery(c *cli.Context) error {
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
+// only used in the demo
+func updateGenesisDarc(c *cli.Context) error {
+	mccl, err := getClient(c)
+	if err != nil {
+		return err
+	}
+
+	log.Info("[INFO] (CLI) check identities")
+	identities := c.StringSlice("identity")
+	if identities == nil {
+		return xerrors.New("--identity flag is required")
+	}
+
+	mccl.SyncSignerCtrs(mccl.Signers...)
+	log.Info("[INFO] (CLI) updating the genesis darc")
+	err = mccl.UpdateGenesisDarc(identities)
+	if err != nil {
+		return err
+	}
+	return bcadminlib.WaitPropagation(c, mccl.Bcl)
+}
+
 func darcShow(c *cli.Context) error {
 	mccl, err := getClient(c)
 	if err != nil {
@@ -698,10 +741,13 @@ func darcShow(c *cli.Context) error {
 	}
 
 	dstr := c.String("darc")
+	if dstr == "" {
+		return xerrors.New("--darc flag is required")
+	}
 
 	d, err := lib.GetDarcByString(mccl.Bcl, dstr)
 	if err != nil {
-		return err
+		return xerrors.Errorf("could not get the darc by ID %v : %v", dstr, err)
 	}
 
 	log.Infof("[INFO] (CLI) Darc is %v ", d.String())
