@@ -18,7 +18,6 @@ import (
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/skipchain"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/util/key"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
@@ -54,32 +53,52 @@ type Client struct {
 
 // NewClient creates a new client to talk to the medchain service.
 // Fields DarcID, Instance, and Signers must be filled in before use.
-func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID string) (*Client, error) {
-	keys := key.NewKeyPair(TSuite)
-
+func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID string, keys darc.Signer) (*Client, error) {
+	//keys := key.NewKeyPair(TSuite)
 	if bcl == nil {
 		return nil, errors.New("Byzcoin client is required")
 	}
+
+	if keys.Type() == -1 {
+		return nil, xerrors.New("empty key")
+
+	}
+	pub := keys.Ed25519.Point
+	priv, err := keys.GetPrivate()
+	if err != nil {
+		return nil, xerrors.Errorf("error in getting private key: %v", err)
+	}
+
 	cl := &Client{
 		Bcl:        bcl,
 		onetcl:     onet.NewClient(cothority.Suite, ServiceName),
 		sccl:       skipchain.NewClient(),
 		ClientID:   clientID,
 		EntryPoint: entryPoint,
-		public:     keys.Public,
-		private:    keys.Private,
+		public:     pub,
+		private:    priv,
 		signerCtrs: nil,
 	}
 
-	cl.Signers = []darc.Signer{darc.NewSignerEd25519(cl.public, cl.private)}
+	cl.Signers = []darc.Signer{keys}
 	gDarc, err := bcl.GetGenDarc()
-
 	if err != nil {
-		return nil, xerrors.Errorf("error in getting genesis darc from skipchain: %v", err)
+		return nil, xerrors.Errorf("error in getting genesis darc from ByzCoin: %v", err)
 	}
+
+	for _, signer := range cl.Signers {
+		resp, err := cl.Bcl.GetSignerCounters(signer.Identity().String())
+		if err != nil {
+			return nil, xerrors.Errorf("could not get signer counter: %v", err)
+		}
+		cl.signerCtrs = append(cl.signerCtrs, resp.Counters[0])
+	}
+	log.Info("[INFO] (NewClient) latest coutners are", (cl.signerCtrs))
+
 	cl.GenDarc = gDarc
 	cl.GenDarcID = gDarc.GetBaseID()
 	log.Info("[INFO] (NewClient) Genesis darc:", gDarc.String())
+
 	return cl, nil
 }
 
@@ -112,7 +131,6 @@ func (c *Client) Create() error {
 	if err != nil {
 		xerrors.Errorf("Could not add naming contract instace to the ledger: %v", err)
 	}
-
 	log.Info("[INFO] (Create) contract_name instance was added to the ledger")
 	log.Info("[INFO] (Create) Genesis Darc:", c.GenDarc)
 
@@ -391,7 +409,11 @@ func (c *Client) checkAuth(query Query, signer darc.Signer, darcID darc.ID, acti
 //SpawnQuery spawns a query instance
 func (c *Client) SpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
 	log.Info("[INFO] (SpawnQuery) Spawning the query ")
-	log.Info("[INFO] (SpawnQuery) darcID,", req.DarcID)
+	ddarc, err := lib.GetDarcByID(c.Bcl, req.DarcID)
+	if err != nil {
+		return nil, xerrors.Errorf("error in getting darc from ByzCoin: %v", err)
+	}
+	log.Info("[INFO] (SpawnQuery) darcID,", ddarc.GetIdentityString())
 
 	if len(req.QueryID) == 0 {
 		return nil, xerrors.New("query ID required")
@@ -414,9 +436,7 @@ func (c *Client) SpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
 func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 
 	log.Info("[INFO] (SpawnQuery) Spawning the query with ID: ", req.QueryID)
-	log.Info("[INFO] (SpawnQuery) Spawning the query with Status: ", req.QueryStatus)
 	log.Info("[INFO] (SpawnQuery)Spawning the query with Status: ", string(req.QueryStatus))
-	log.Info("[INFO] (SpawnQuery)Spawning the query with Darc ID: ", req.DarcID)
 
 	query := Query{}
 	query.ID = req.QueryID
@@ -684,10 +704,10 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 
 	var typeOfExpr int
 	var exp expression.Expr
-	if typeStr != "&" && typeStr != "|" {
+	if typeStr != "AND" && typeStr != "OR" {
 		return xerrors.Errorf(" invalid rule entered")
 	}
-	if typeStr == "&" {
+	if typeStr == "AND" {
 		typeOfExpr = 0
 	} else {
 		typeOfExpr = 1
@@ -703,7 +723,7 @@ func (c *Client) AddSignerToDarc(name string, darcID darc.ID, darcActions []darc
 			exp = projectDarc.Rules.List[i].Expr
 		}
 	}
-	log.Info("eeeeeeeeee", string(exp))
+	log.Info("[INFO] Expression used to add signers", string(exp))
 	signerIDs := strings.Split(string(exp), "|")
 	for i := range signerIDs {
 		signerIDs[i] = strings.TrimSpace(signerIDs[i])
@@ -774,13 +794,14 @@ func (c *Client) CreateDarc(name string, rules darc.Rules, actionsAnd string, ac
 
 // AddProjectDarc is used to create project darcs with default rules
 func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
+	log.Info("[INFO] Adding project darc")
 
 	rulesA := darc.InitRules([]darc.Identity{c.Signers[0].Identity()}, []darc.Identity{c.Signers[0].Identity()})
 	actionsAAnd := "spawn:medchain,invoke:medchain.patient_list,invoke:medchain.count_per_site,invoke:medchain.count_per_site_obfuscated," +
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
 		"invoke:medchain.count_global_obfuscated"
 
-	actionsAOr := "invoke:medchain.update,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,invoke:darc.evolve,_name:deferred,spawn:naming,_name:medchain,spawn:value,invoke:value.update,_name:value"
+	actionsAOr := "invoke:medchain.update,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,invoke:darc.evolve,_name:deferred,spawn:naming,_name:medchain,spawn:value,invoke:value.update,_name:value,invoke:darc.evolve_unrestricted"
 
 	// all signers need to sign
 	exprAAnd := expression.InitAndExpr(c.Signers[0].Identity().String())
@@ -790,22 +811,22 @@ func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
 	exprAOr := expression.InitOrExpr(c.Signers[0].Identity().String())
 	c.AllDarcs[name], err = c.CreateDarc(name, rulesA, actionsAAnd, actionsAOr, exprAAnd, exprAOr)
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 
 	// Verify the darc is correct
 	err = c.AllDarcs[name].Verify(true)
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 
 	aDarcBuf, err := c.AllDarcs[name].ToProto()
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 	aDarcCopy, err := darc.NewFromProtobuf(aDarcBuf)
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 	if c.AllDarcs[name].Equal(aDarcCopy) != true {
 		return nil, xerrors.Errorf("could not create project darc")
@@ -827,12 +848,12 @@ func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
 		SignerCounter:    c.IncrementCtrs(),
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 
 	err = c.spawnTx(ctx)
 	if err != nil {
-		return nil, xerrors.Errorf("could not create project darc:", err)
+		return nil, xerrors.Errorf("could not create project darc: %v", err)
 	}
 	c.AllDarcIDs[name] = c.AllDarcs[name].GetBaseID()
 	log.Info("[INFO] Darc for Project is:", c.AllDarcs[name].String())
@@ -841,50 +862,56 @@ func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
 }
 
 // UpdateGenesisDarc is used to update client genesis darc so that the user can start inracting with the server
-func (c *Client) UpdateGenesisDarc(name string) error {
+func (c *Client) UpdateGenesisDarc(signers []string) error {
 
 	log.Info("[INFO] Updating Genesis Darc")
-	expr := expression.InitOrExpr(c.Signers[0].Identity().String())
-	err := c.GenDarc.Rules.UpdateRule("spawn:"+ContractName, expr)
+
+	gDarc, err := c.Bcl.GetGenDarc()
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("error in getting genesis darc from ByzCoin: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"update", expr)
+	expr := expression.InitOrExpr(signers...)
+	err = gDarc.Rules.AddRule("spawn:"+ContractName, expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("invoke:"+ContractName+"."+"verifystatus", expr)
+	err = gDarc.Rules.AddRule("invoke:"+ContractName+"."+"update", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("_name:"+ContractName, expr)
+	err = gDarc.Rules.AddRule("invoke:"+ContractName+"."+"verifystatus", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("spawn:deferred", expr)
+	err = gDarc.Rules.AddRule("_name:"+ContractName, expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("invoke:deferred.addProof", expr)
+	err = gDarc.Rules.AddRule("spawn:deferred", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.UpdateRule("invoke:deferred.execProposedTx", expr)
+	err = gDarc.Rules.AddRule("invoke:deferred.addProof", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.AddRule("spawn:value", expr)
+	err = gDarc.Rules.AddRule("invoke:deferred.execProposedTx", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.AddRule("invoke:value.update", expr)
+	err = gDarc.Rules.AddRule("spawn:value", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
-	err = c.GenDarc.Rules.AddRule("_name:value", expr)
+	err = gDarc.Rules.AddRule("invoke:value.update", expr)
 	if err != nil {
-		return xerrors.Errorf("could not add rule to genesis darc:", err)
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
 	}
+	err = gDarc.Rules.AddRule("_name:value", expr)
+	if err != nil {
+		return xerrors.Errorf("could not add rule to genesis darc: %v", err)
+	}
+	log.Infof("[INFO] Updated Genesis Darc with ID %v: ", gDarc.GetIdentityString())
 	return nil
 }
 
@@ -1251,6 +1278,7 @@ func (c *Client) RefreshSignerCounters() {
 
 // SyncSignerCtrs syncs counters among clients
 func (c *Client) SyncSignerCtrs(signers ...darc.Signer) {
+	log.Info("[INFO] (SyncSignerCtrs) Sync signer counters")
 	c.signerCtrs, _ = c.GetLatestSignerCtrs(signers...)
 	//c.IncrementCtrs()
 	log.Info("[INFO] (SyncSignerCtrs) latest coutners are", (c.signerCtrs))

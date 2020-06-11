@@ -176,7 +176,7 @@ func (s *Service) HandleSpawnQuery(req *AddQueryRequest) (*AddQueryReply, error)
 
 	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
 	if !req.DarcID.Equal(darcID) {
-		return reply, xerrors.Errorf("error in getting spawned value contract from skipchain: %v", err)
+		return reply, xerrors.Errorf("error in getting spawned value contract from skipchain")
 	}
 
 	reply.OK = true

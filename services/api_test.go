@@ -362,8 +362,8 @@ func TestClient_TwoSigners(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 1.  add new client and add new signer to darc
 	// ------------------------------------------------------------------------
-
-	cl2, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2")
+	admin2 := darc.NewSignerEd25519(nil, nil)
+	cl2, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2", admin2)
 	// log.Info("[INFO] Client 2 genesis darc", cl2.GenDarc.String())
 
 	log.Info("[INFO] Updating Genesis Darc")
@@ -405,9 +405,9 @@ func TestClient_TwoSigners(t *testing.T) {
 	require.NoError(t, err)
 	darcActionsAOr, err := cl.getDarcActions(actionsAOr)
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "AND")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "OR")
 	require.NoError(t, err)
 	require.Equal(t, cl2.Bcl, cl.Bcl)
 
@@ -649,8 +649,8 @@ func TestClient_FullWorkFlow(t *testing.T) {
 	// ------------------------------------------------------------------------
 	// 1.1  add new client and add new signer to darc
 	// ------------------------------------------------------------------------
-
-	cl2, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2")
+	admin2 := darc.NewSignerEd25519(nil, nil)
+	cl2, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2", admin2)
 	// log.Info("[INFO] Client 2 genesis darc", cl2.GenDarc.String())
 
 	log.Info("[INFO] Updating Genesis Darc")
@@ -692,17 +692,17 @@ func TestClient_FullWorkFlow(t *testing.T) {
 	require.NoError(t, err)
 	darcActionsAOr, err := cl.getDarcActions(actionsAOr)
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl2.Signers[0].Identity().String(), "AND")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl2.Signers[0].Identity().String(), "OR")
 	require.NoError(t, err)
 	require.Equal(t, cl2.Bcl, cl.Bcl)
 
 	// ------------------------------------------------------------------------
 	// 1.2  add new client and add new signer to darc
 	// ------------------------------------------------------------------------
-
-	cl3, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2")
+	admin3 := darc.NewSignerEd25519(nil, nil)
+	cl3, err := NewClient(bcl, s.roster.RandomServerIdentity(), "2", admin3)
 	expr2 := expression.InitOrExpr(cl.Signers[0].Identity().String(), cl3.Signers[0].Identity().String())
 	err = cl3.GenDarc.Rules.UpdateRule("spawn:"+ContractName, expr2)
 	require.NoError(t, err)
@@ -735,9 +735,9 @@ func TestClient_FullWorkFlow(t *testing.T) {
 	require.Nil(t, err)
 	require.NoError(t, err)
 
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl3.Signers[0].Identity().String(), "&")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAAnd, cl3.Signers[0].Identity().String(), "AND")
 	require.NoError(t, err)
-	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl3.Signers[0].Identity().String(), "|")
+	err = cl.AddSignerToDarc("A", cl.AllDarcIDs["A"], darcActionsAOr, cl3.Signers[0].Identity().String(), "OR")
 	require.NoError(t, err)
 	require.Equal(t, cl3.Bcl, cl.Bcl)
 
@@ -1212,10 +1212,10 @@ func newSer(t *testing.T) (*ser, *byzcoin.Client, *Client) {
 	gDarc := &s.req.GenesisDarc
 	s.genDarc = gDarc
 	require.NoError(t, err)
-	cl, err := NewClient(bcl, serverID, "1")
+	cl, err := NewClient(bcl, serverID, "1", s.owner)
 	require.NoError(t, err)
 
-	cl.Signers[0] = s.owner
+	//cl.Signers[0] = s.owner
 	log.Lvl1("[INFO] Created the services")
 	return s, bcl, cl
 }
