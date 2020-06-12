@@ -393,8 +393,8 @@ func (c *Client) checkAuth(query Query, signer darc.Signer, darcID darc.ID, acti
 		log.Info("[INFO] (checkAuth) Darc action does not exist")
 		return false, nil
 	}
+	log.Info("[INFO] (checkAuth) checking actions")
 	for _, r := range ddarc.Rules.List {
-		log.Info("[INFO] (checkAuth) checking actions")
 		if r.Action == dAction {
 			ruleStr := r.String()
 			idExists := strings.Contains(ruleStr, signer.Identity().String())

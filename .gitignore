@@ -3,5 +3,7 @@
 .DS_Store
 build
 medchain-server
+medchain-cli-client
+medchain-cli-client/build
 simulation
 !medchain-server/run_nodes.sh
