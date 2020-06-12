@@ -394,13 +394,15 @@ func (c *Client) checkAuth(query Query, signer darc.Signer, darcID darc.ID, acti
 		return false, nil
 	}
 	for _, r := range ddarc.Rules.List {
-
+		log.Info("[INFO] (checkAuth) checking actions")
 		if r.Action == dAction {
 			ruleStr := r.String()
-			log.Infof("[INFO] (checkAuth) %v: %v", action, ruleStr)
 			idExists := strings.Contains(ruleStr, signer.Identity().String())
-			log.Info("[INFO] (checkAuth) ID existance in darc rule:", idExists)
-			auth = true
+			if idExists {
+				log.Info("[INFO] (checkAuth) ID existance in darc rule:", idExists)
+				auth = true
+			}
+
 		}
 	}
 	return auth, nil
@@ -801,7 +803,7 @@ func (c *Client) AddProjectDarc(name string) (*darc.Darc, error) {
 		"invoke:medchain.count_per_site_shuffled,invoke:medchain.count_per_site_shuffled_obfuscated,invoke:medchain.count_global," +
 		"invoke:medchain.count_global_obfuscated"
 
-	actionsAOr := "invoke:medchain.update,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,invoke:darc.evolve,_name:deferred,spawn:naming,_name:medchain,spawn:value,invoke:value.update,_name:value,invoke:darc.evolve_unrestricted"
+	actionsAOr := "spawn:deferred,invoke:medchain.update,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,invoke:darc.evolve,_name:deferred,spawn:naming,_name:medchain,spawn:value,invoke:value.update,_name:value,invoke:darc.evolve_unrestricted"
 
 	// all signers need to sign
 	exprAAnd := expression.InitAndExpr(c.Signers[0].Identity().String())
@@ -1243,7 +1245,7 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 
 func (c *Client) spawnTx(ctx byzcoin.ClientTransaction) error {
 	log.Info("[INFO] (spawnTx) length of signers", len(c.Signers))
-	log.Info("[INFO] (spawnTx) coutners", (c.signerCtrs))
+	log.Info("[INFO] (spawnTx) Counters", (c.signerCtrs))
 	err := ctx.FillSignersAndSignWith(c.Signers...)
 	if err != nil {
 		return xerrors.Errorf("error in signing the tx: %v", err)

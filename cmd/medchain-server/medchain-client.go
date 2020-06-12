@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -149,19 +148,35 @@ func submitQuery(c *cli.Context) error {
 	// ---
 	// 8.  Write query instance ID to file
 	// ---
-
+	log.Infof("[INFO] (CLI) writing query instance IDs to file %v", instIDfilePath)
 	dir, _ := path.Split(instIDfilePath)
 	pathToWrite := dir + instIDfilePath
-	fWrite, err := os.Create(pathToWrite)
-	if err != nil {
-		return err
-	}
-	defer fWrite.Close()
+	fWrite1, err := os.Create("deferred_" + pathToWrite)
+	fWrite2, err := os.Create(pathToWrite)
 
-	_, err = fWrite.WriteString(base64.URLEncoding.EncodeToString([]byte(req.QueryInstID.String())))
 	if err != nil {
 		return err
 	}
+	defer fWrite1.Close()
+	defer fWrite2.Close()
+
+	if reply.QueryInstID.String() != req.QueryInstID.String() {
+		_, err = fWrite1.WriteString(reply.QueryInstID.String())
+		if err != nil {
+			return err
+		}
+		_, err = fWrite2.WriteString(req.QueryInstID.String())
+		if err != nil {
+			return err
+		}
+
+	} else {
+		_, err = fWrite2.WriteString(req.QueryInstID.String())
+		if err != nil {
+			return err
+		}
+	}
+
 	log.Info("[INFO] (CLI) Query was submitted successfully")
 
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
@@ -247,6 +262,7 @@ func addSignature(c *cli.Context) error {
 	}
 
 	log.Infof("[INFO] (CLI) Here is the deferred data after adding signature: \n%s", result)
+	log.Info("[INFO] (CLI) Signing was successful")
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }
 
@@ -604,10 +620,12 @@ func addProjectDarc(c *cli.Context) error {
 	log.Infof("[INFO] (CLI) Created Darc for project %v with based ID %v", pname, darc.GetIdentityString())
 
 	var fo io.Writer
-	output := c.String("out_id")
-	if output != "" {
-		log.Infof("[INFO] (CLI) Saving darc %v id in %v", darc.GetIdentityString(), output)
-		file, err := os.Create(output)
+
+	save := c.String("save")
+	if save == "" {
+		fo = os.Stdout
+	} else {
+		file, err := os.Create(save)
 		if err != nil {
 			return err
 		}
@@ -618,8 +636,6 @@ func addProjectDarc(c *cli.Context) error {
 				log.Error(err)
 			}
 		}()
-	} else {
-		fo = os.Stdout
 	}
 	_, err = fmt.Fprintln(fo, darc.GetIdentityString())
 
@@ -687,7 +703,6 @@ func addSigner(c *cli.Context) error {
 		}
 		log.Infof("[INFO] (CLI) Added identitiy %v to darc with ID %v ", idStr, darcIDStr)
 	}
-	log.Info("[INFO] (CLI) Signing was successful")
 
 	return bcadminlib.WaitPropagation(c, mccl.Bcl)
 }

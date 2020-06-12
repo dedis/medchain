@@ -684,7 +684,7 @@ func TestClient_FullWorkFlow(t *testing.T) {
 	log.Info("[INFO] resp1", resp.Counters)
 	require.NoError(t, err)
 	require.Equal(t, cl2.signerCtrs, []uint64([]uint64{0x1}))
-	cl2.Bcl.WaitPropagation(1)
+	//cl2.Bcl.WaitPropagation(1)
 	require.Nil(t, err)
 	require.NoError(t, err)
 
@@ -731,7 +731,7 @@ func TestClient_FullWorkFlow(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, cl3.signerCtrs, []uint64([]uint64{0x1}))
-	cl3.Bcl.WaitPropagation(1)
+	//cl3.Bcl.WaitPropagation(1)
 	require.Nil(t, err)
 	require.NoError(t, err)
 

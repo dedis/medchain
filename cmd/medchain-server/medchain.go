@@ -311,7 +311,7 @@ func main() {
 					Action: addProjectDarc,
 					Flags: append(clientFlags, []cli.Flag{
 						cli.StringFlag{
-							Name:  "out_id",
+							Name:  "save",
 							Usage: "Output file for the darc id (optional)",
 						},
 						cli.StringFlag{
