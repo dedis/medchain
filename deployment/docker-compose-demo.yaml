@@ -11,19 +11,19 @@ services:
       dockerfile: deployment/Dockerfile
 
     environment: 
-    - NODE_IDX=0 
+    - NODE_IDX=1 
     - MEDCHAIN_LOG_LEVEL=5
     - LOG_LEVEL=5 
     - MEDCHAIN_TIMEOUT_SECONDS=600
-    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
-    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/group.toml
     - CONF_DIR=/medchain-config
     ports:
-      - "7770"
-      - "7771"
+      - "7770:7770"
+      - "7771:7771"
     volumes:
       - ./medchain-config:/medchain-config
-    container_name: srv0
+    container_name: mc1
     networks:
       - test
 
@@ -34,19 +34,19 @@ services:
       dockerfile: deployment/Dockerfile
 
     environment: 
-    - NODE_IDX=1 
+    - NODE_IDX=2 
     - MEDCHAIN_LOG_LEVEL=5
     - LOG_LEVEL=5 
     - MEDCHAIN_TIMEOUT_SECONDS=600
-    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
-    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/group.toml
     - CONF_DIR=/medchain-config
     ports:
-      - "7772"
-      - "7773"
+      - "7772:7772"
+      - "7773:7773"
     volumes:
       - ./medchain-config:/medchain-config
-    container_name: srv1
+    container_name: mc2
     networks:
       - test
 
@@ -57,19 +57,19 @@ services:
       dockerfile: deployment/Dockerfile
 
     environment: 
-    - NODE_IDX=2 
+    - NODE_IDX=3 
     - MEDCHAIN_LOG_LEVEL=5
     - LOG_LEVEL=5 
     - MEDCHAIN_TIMEOUT_SECONDS=600
-    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
-    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/group.toml
     - CONF_DIR=/medchain-config
     ports:
-      - "7774"
-      - "7775"
+      - "7774:7774"
+      - "7775:7775"
     volumes:
       - ./medchain-config:/medchain-config
-    container_name: srv2
+    container_name: mc3
     networks:
       - test
 
@@ -82,7 +82,7 @@ services:
     environment:
       - NODE_IDX=0 
       - LOG_LEVEL=5
-      - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
+      - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
       - MEDCO_NODE_IDX=0
       - CLIENT_QUERY_TIMEOUT_SECONDS=660
       - MEDCHAIN_ADDRESS=tls://localhost:7770

@@ -18,11 +18,11 @@ CGO_ENABLED=0 go install -v ./cmd/medchain-server/...
 FROM golang:1.13-alpine as release
 
 # run time environment variables
-ENV NODE_IDX="0" \
+ENV NODE_IDX="1" \
     MEDCHAIN_LOG_LEVEL="5" \
     MEDCHAIN_TIMEOUT_SECONDS="600"\
-    MEDCHAIN_GROUP_FILE_PATH="/medchain-config/public.toml"\
-    MEDCHAIN_NODES_ADDRESS="/medchain-config/public.toml"\
+    MEDCHAIN_GROUP_FILE_PATH="/medchain-config/group.toml"\
+    MEDCHAIN_NODES_ADDRESS="/medchain-config/group.toml"\
     MEDCHAIN_CONF_DIR="/medchain-config"
 
 

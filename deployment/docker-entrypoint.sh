@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # export environment variables
-export  MEDCHAIN_KEY_FILE_PATH="$MEDCHAIN_CONF_DIR/srv$NODE_IDX-private.toml" \
+export  MEDCHAIN_KEY_FILE_PATH="$MEDCHAIN_CONF_DIR/mc$NODE_IDX/private.toml" \
        
 
 # run medchain

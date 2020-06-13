@@ -73,7 +73,7 @@ if [ "$flush" ]; then
   rm -f *db
 fi
 
-rm -f public.toml
+rm -f group.toml
 mkdir -p log
 touch running
 for n in $( seq $nbr_nodes -1 1 ); do
@@ -100,7 +100,7 @@ for n in $( seq $nbr_nodes -1 1 ); do
       sleep 1
     done
   ) &
-  cat $mc/public.toml >> public.toml
+  cat $mc/public.toml >> group.toml
   # Wait for LOG to be initialized
   sleep 1
 done

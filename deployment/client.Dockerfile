@@ -21,17 +21,17 @@ CGO_ENABLED=0 go install -v ./cmd/medchain-cli-client/...
 FROM golang:1.13-alpine as release
 
 # run time environment variables
-ENV NODE_IDX="0" \
+ENV NODE_IDX="1" \
     MEDCHAIN_LOG_LEVEL="5" \
     MEDCHAIN_TIMEOUT_SECONDS="600"\
-    MEDCHAIN_GROUP_FILE_PATH="/medchain-config/public.toml"\
-    MEDCHAIN_NODES_ADDRESS="/medchain-config/public.toml"\
+    MEDCHAIN_GROUP_FILE_PATH="/medchain-config/group.toml"\
+    MEDCHAIN_NODES_ADDRESS="/medchain-config/group.toml"\
     MEDCHAIN_CONF_DIR="/medchain-config"
 
 
 
 COPY --from=build /go/bin/medchain-cli-client /go/bin/
-COPY --from=build /go/bin/bcadmin /usr/local/bin/
+COPY --from=build /go/bin/bcadmin  /usr/local/bin/
 
 COPY deployment/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
