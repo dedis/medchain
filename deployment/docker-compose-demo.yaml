@@ -1,0 +1,94 @@
+version: '2.4'
+
+networks:
+  test:
+
+services:
+  medchain-server_1:
+    image: medchain:dev
+    build: 
+      context: ../ 
+      dockerfile: deployment/Dockerfile
+
+    environment: 
+    - NODE_IDX=0 
+    - MEDCHAIN_LOG_LEVEL=5
+    - LOG_LEVEL=5 
+    - MEDCHAIN_TIMEOUT_SECONDS=600
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - CONF_DIR=/medchain-config
+    ports:
+      - "7770"
+      - "7771"
+    volumes:
+      - ./medchain-config:/medchain-config
+    container_name: srv0
+    networks:
+      - test
+
+  medchain-server_2:
+    image: medchain:dev
+    build: 
+      context: ../ 
+      dockerfile: deployment/Dockerfile
+
+    environment: 
+    - NODE_IDX=1 
+    - MEDCHAIN_LOG_LEVEL=5
+    - LOG_LEVEL=5 
+    - MEDCHAIN_TIMEOUT_SECONDS=600
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - CONF_DIR=/medchain-config
+    ports:
+      - "7772"
+      - "7773"
+    volumes:
+      - ./medchain-config:/medchain-config
+    container_name: srv1
+    networks:
+      - test
+
+  medchain-server_3:
+    image: medchain:dev
+    build: 
+      context: ../ 
+      dockerfile: deployment/Dockerfile
+
+    environment: 
+    - NODE_IDX=2 
+    - MEDCHAIN_LOG_LEVEL=5
+    - LOG_LEVEL=5 
+    - MEDCHAIN_TIMEOUT_SECONDS=600
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/public.toml
+    - CONF_DIR=/medchain-config
+    ports:
+      - "7774"
+      - "7775"
+    volumes:
+      - ./medchain-config:/medchain-config
+    container_name: srv2
+    networks:
+      - test
+
+  medchain-cli-client:
+    image: medchain-cli-client:dev
+    build:
+      context: ../
+      dockerfile: deployment/client.Dockerfile
+    tty: true
+    environment:
+      - NODE_IDX=0 
+      - LOG_LEVEL=5
+      - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/public.toml
+      - MEDCO_NODE_IDX=0
+      - CLIENT_QUERY_TIMEOUT_SECONDS=660
+      - MEDCHAIN_ADDRESS=tls://localhost:7770
+    volumes:
+      - ./medchain-config:/medchain-config
+    command: /bin/bash
+    container_name: cli
+    networks:
+      - test

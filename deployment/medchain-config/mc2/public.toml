@@ -1,0 +1,12 @@
+[[servers]]
+  Address = "tls://localhost:7772"
+  Suite = "Ed25519"
+  Public = "d061f3b5fce649e4644bb4efbab3020446c0bfe316e4ce78296663fb1b42b270"
+  Description = "Medchain_2"
+  [servers.Services]
+    [servers.Services.ByzCoin]
+      Public = "836a2c7a3e9293b29346821aa1119a53ccf23df2dac7de7876190137eedd5a9315dcbe5e92031ddf4b96d1b7da95f2e4dcc16c6f6b54d2347f0279eedc05aa406603580c61b338de86e14040372ff0235a965115eeefc4211584cee4078b0e5f0e02d07bb178aa91512f25a160200ebe5cf28c479e90dbd24d516c9c00179cde"
+      Suite = "bn256.adapter"
+    [servers.Services.Skipchain]
+      Public = "70a5139e2bd9bf359cfaa6b77eb0314ac1ef61a7573a10befa0585cbefdd31231beb99c35ede9c6277f3ca2186b2767a8e4918bb7e5a6c7351b4642901e331b031d63b50544b3b00144ab34103db12dbe4dadd83b54c37e0a14bed4efbbf73e728bbc04bb79b35554de052be70580508f8e92a608f2a088524d83a3f2415a63a"
+      Suite = "bn256.adapter"
