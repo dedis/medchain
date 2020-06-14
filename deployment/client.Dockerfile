@@ -1,9 +1,9 @@
 FROM golang:1.13 as build
 
-ARG BUILD_TAG=master
-ARG ldflags="-s -w -X main.gitTag=unknown"
-RUN go get go.dedis.ch/cothority
-RUN cd /go/src/go.dedis.ch/cothority && git checkout $BUILD_TAG && GO111MODULE=on go install -ldflags="$ldflags" ./byzcoin/bcadmin && cd /go
+# ARG BUILD_TAG=master
+# ARG ldflags="-s -w -X main.gitTag=unknown"
+# RUN go get go.dedis.ch/cothority
+# RUN cd /go/src/go.dedis.ch/cothority && git checkout $BUILD_TAG && GO111MODULE=on go install -ldflags="$ldflags" ./byzcoin/bcadmin && cd /go
 
 
 COPY ./ /src
@@ -11,12 +11,16 @@ WORKDIR /src
 
 # get dependencies
 RUN go get -v -d ./...
+RUN go get -v go.dedis.ch/cothority/v3/byzcoin/bcadmin
+
 
 # compile and install medchain binary
 # CGO_ENABLED=0 in order to be able to run from alpine
 RUN CGO_ENABLED=0 go build -v ./cmd/medchain-cli-client/... && \ 
 CGO_ENABLED=0 go install -v ./cmd/medchain-cli-client/... 
 
+RUN CGO_ENABLED=0 go build -v ./byzcoin/bcadmin && \ 
+CGO_ENABLED=0 go install -v ./byzcoin/bcadmin 
 # -------------------------------------------
 FROM golang:1.13-alpine as release
 
