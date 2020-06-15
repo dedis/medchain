@@ -9,7 +9,6 @@ import (
 	_ "github.com/medchain/protocols"
 	_ "github.com/medchain/services"
 	"github.com/urfave/cli"
-	_ "go.dedis.ch/cothority/byzcoin/bcadmin"
 	"go.dedis.ch/cothority/v3"
 	_ "go.dedis.ch/cothority/v3"
 	_ "go.dedis.ch/cothority/v3/byzcoin"
@@ -196,7 +195,7 @@ func main() {
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:  "g",
-							Usage: "Cothority group definition file",
+							Usage: "MedChain group definition file",
 						},
 						cli.IntFlag{
 							Name:  "timeout, t",

@@ -11,6 +11,7 @@ import (
 
 	"io/ioutil"
 
+	_ "github.com/medchain/protocols"
 	s "github.com/medchain/services"
 	cli "github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"

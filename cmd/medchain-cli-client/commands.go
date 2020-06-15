@@ -103,8 +103,9 @@ func main() {
 
 	clientFlags := []cli.Flag{
 		cli.StringFlag{
-			Name:  optionBCConfig + ", " + optionBCConfigShort,
-			Usage: "Byzcoin config file",
+			Name:   optionBCConfig + ", " + optionBCConfigShort,
+			EnvVar: "BC",
+			Usage:  "ByzCoin config file",
 		},
 		cli.StringFlag{
 			Name:  optionGroupFile + ", " + optionGroupFileShort,
@@ -192,7 +193,7 @@ func main() {
 			Flags: append(clientFlags,
 				cli.StringFlag{
 					Name:  optionInstanceID + ", " + optionInstanceIDShort,
-					Usage: "The instance ID of query to add signature to ",
+					Usage: "The instance ID of query to execute",
 				}),
 		},
 		// CLIENT END: EXECUTE PROPOSED QUERY  ------------
@@ -224,7 +225,7 @@ func main() {
 		// BEGIN CLIENT: CREATE KEY ----------
 		{
 			Name:    "key",
-			Usage:   "generates a new keypair and prints the public key in the stdout",
+			Usage:   "Generate a new keypair and print the public key in the stdout",
 			Aliases: []string{"k"},
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -286,7 +287,7 @@ func main() {
 					Action: addSigner,
 					Flags: append(clientFlags, []cli.Flag{
 						cli.StringFlag{
-							Name:  "id",
+							Name:  "darc",
 							Usage: "The ID of the DARC to update",
 						},
 						cli.StringFlag{
