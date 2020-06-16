@@ -1,12 +1,19 @@
 Simulation = "MedChainService"
-Servers = 3
-Bf = 2
+Servers = 8
+BF = 2
 Rounds = 1
 Suite = "Ed25519"
 Bandwidth = 100
-Delay = 20
 RunWait = "2h"
+Delay = 10
+BatchSize = 5
 
-
-HOSTS, BlockInterval 
-30, "5s"
+Keep,   Queries,  Hosts,      BlockInterval         
+true,     1,          5,             "1s"
+true,     1,          10,            "1s"
+true,     1,          20,            "1s"
+true,     1,          30,            "1s"
+false,     1,          5,             "1s"
+false,     1,          10,            "1s"
+false,     1,          20,            "1s"
+false,     1,          30,            "1s"

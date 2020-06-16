@@ -24,6 +24,7 @@ package main
 // 	"strconv"
 
 // 	"github.com/BurntSushi/toml"
+// 	"github.com/medchain/protocols"
 // 	"go.dedis.ch/onet/v3"
 // 	"go.dedis.ch/onet/v3/log"
 // 	"go.dedis.ch/onet/v3/simul/monitor"
@@ -87,7 +88,7 @@ package main
 // 			return err
 // 		}
 // 		go p.Start()
-// 		children := <-p.(*protocols.MedChainProtocol).ChildCount
+// 		children := <-p.(*protocols.PropagationFunc).ChildCount
 // 		round.Record()
 // 		if children != size {
 // 			return errors.New("Didn't get " + strconv.Itoa(size) +
