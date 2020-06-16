@@ -93,11 +93,8 @@ func NewClient(bcl *byzcoin.Client, entryPoint *network.ServerIdentity, clientID
 		}
 		cl.signerCtrs = append(cl.signerCtrs, resp.Counters[0])
 	}
-	log.Info("[INFO] (NewClient) latest coutners are", (cl.signerCtrs))
-
 	cl.GenDarc = gDarc
 	cl.GenDarcID = gDarc.GetBaseID()
-	log.Info("[INFO] (NewClient) Genesis darc:", gDarc.String())
 
 	return cl, nil
 }
@@ -131,15 +128,12 @@ func (c *Client) Create() error {
 	if err != nil {
 		xerrors.Errorf("Could not add naming contract instace to the ledger: %v", err)
 	}
-	log.Info("[INFO] (Create) contract_name instance was added to the ledger")
-	log.Info("[INFO] (Create) Genesis Darc:", c.GenDarc)
-
+	log.Info("[INFO] (Create) Client was created")
 	return nil
 }
 
 //SpawnDeferredQuery spawns a query as well as a deferred contract with medchain contract
 func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
-	log.Info("[INFO] Spawning the deferred query ")
 
 	if len(req.QueryID) == 0 {
 		return nil, xerrors.New("query ID required")
@@ -158,16 +152,14 @@ func (c *Client) SpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDeferredQ
 	}
 
 	req.QueryStatus = []byte("Submitted")
-	log.Info("[INFO] Spawning the deferred query ")
 	return c.createDeferredInstance(req)
 }
 
 //createDeferredInstance spawns a query that
 func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDeferredQueryReply, error) {
 	log.Info("[INFO] Spawning the deferred query with ID: ", req.QueryID)
-	log.Info("[INFO] Spawning the deferred query with Status: ", req.QueryStatus)
 	log.Info("[INFO] Spawning the deferred query with Status: ", string(req.QueryStatus))
-	log.Info("[INFO] Spawning the deferred query with Darc ID: ", req.DarcID)
+
 	query := Query{}
 	query.ID = req.QueryID
 	query.Status = req.QueryStatus
@@ -176,7 +168,7 @@ func (c *Client) createDeferredInstance(req *AddDeferredQueryRequest) (*AddDefer
 	if err != nil {
 		return nil, xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
-	log.Info("[INFO] Spawning the deferred query with decoded query: ", query)
+
 	proposedInstr := byzcoin.Instruction{
 		InstanceID: byzcoin.NewInstanceID(req.DarcID),
 		Spawn: &byzcoin.Spawn{
@@ -266,8 +258,6 @@ func (c *Client) spawnDeferredInstance(query Query, proposedTransactionBuf []byt
 
 // AuthorizeQuery checks authorizations of the query
 func (c *Client) AuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
-	log.Info("[INFO] Authorization of query ")
-
 	if len(req.QueryID) == 0 {
 		return nil, xerrors.New("query ID required")
 	}
@@ -278,7 +268,6 @@ func (c *Client) AuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryRepl
 
 	req.QueryStatus = []byte("Submitted")
 	log.Info("[INFO] Checking the authorizations for the query with instance ID: ", req.QueryInstID)
-	log.Info("[INFO] Checking the authorizations for the query with query ID: ", req.QueryID)
 	return c.createQueryAndWait(req)
 }
 
@@ -314,8 +303,6 @@ func (c *Client) createQueryAndWait(req *AuthorizeQueryRequest) (*AuthorizeQuery
 		return nil, xerrors.Errorf("could not get AuthorizeQueryReply from service: %v", err)
 	}
 	reply.QueryInstID = req.QueryInstID
-	log.Info("[INFO] (AuthorizeQuery) InstanceID received from service is:", reply.QueryInstID.String())
-	log.Info("[INFO] (AuthorizeQuery) reply.OK received from service is:", reply.OK)
 
 	return reply, nil
 }
@@ -385,15 +372,12 @@ func (c *Client) checkAuth(query Query, signer darc.Signer, darcID darc.ID, acti
 	if err != nil {
 		return false, xerrors.Errorf(" error in retrieving darc : %v", err)
 	}
-	log.Info("[INFO] (checkAuth) darc:", ddarc.String())
-
 	dAction := darc.Action("invoke:medchain." + action)
 	exists := ddarc.Rules.Contains(dAction)
 	if !exists {
 		log.Info("[INFO] (checkAuth) Darc action does not exist")
 		return false, nil
 	}
-	log.Info("[INFO] (checkAuth) checking actions")
 	for _, r := range ddarc.Rules.List {
 		if r.Action == dAction {
 			ruleStr := r.String()
@@ -438,7 +422,6 @@ func (c *Client) SpawnQuery(req *AddQueryRequest) (*AddQueryReply, error) {
 func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 
 	log.Info("[INFO] (SpawnQuery) Spawning the query with ID: ", req.QueryID)
-	log.Info("[INFO] (SpawnQuery)Spawning the query with Status: ", string(req.QueryStatus))
 
 	query := Query{}
 	query.ID = req.QueryID
@@ -516,7 +499,6 @@ func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 			log.Info("[INFO] (SpawnQuery) Query status now is: ", string(reply2.QueryStatus))
 			reply.QueryStatus = reply2.QueryStatus
 			if string(reply2.QueryStatus) == "Authorized" {
-				log.Info("[INFO] (SpawnQuery) spawning deferred query")
 				req3 := &AddDeferredQueryRequest{}
 				query := NewQuery(req2.QueryID, string(reply2.QueryStatus))
 				req3.QueryInstID = req2.QueryInstID
@@ -550,8 +532,7 @@ func (c *Client) createInstance(req *AddQueryRequest) (*AddQueryReply, error) {
 // query instance
 func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignDeferredTxReply, error) {
 	log.Info("[INFO] (AddSignatureToDeferredQuery) Add signature to the query transaction")
-	log.Info("[INFO] (AddSignatureToDeferredQuery) length of signers", len(c.Signers))
-	log.Info("[INFO] (AddSignatureToDeferredQuery) coutners", (c.signerCtrs))
+
 	if req.Keys.Type() == -1 {
 		return nil, errors.New("client keys are required")
 	}
@@ -582,7 +563,6 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	indexBuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(indexBuf, uint32(index))
 
-	log.Info("[INFO] (AddSignatureToDeferredQuery) creating addProof tx")
 	ctx, err := c.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: req.QueryInstID,
 		Invoke: &byzcoin.Invoke{
@@ -608,8 +588,7 @@ func (c *Client) AddSignatureToDeferredQuery(req *SignDeferredTxRequest) (*SignD
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create the transaction: %v", err)
 	}
-	log.Info("[INFO] (AddSignatureToDeferredQuery) length of signers", len(c.Signers))
-	log.Info("[INFO] (AddSignatureToDeferredQuery) coutners", (c.signerCtrs))
+
 	err = c.spawnTx(ctx)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to sign the deferred transaction: %v", err)
@@ -1244,8 +1223,7 @@ func (c *Client) nameInstance(instID byzcoin.InstanceID, darcID darc.ID, name st
 }
 
 func (c *Client) spawnTx(ctx byzcoin.ClientTransaction) error {
-	log.Info("[INFO] (spawnTx) length of signers", len(c.Signers))
-	log.Info("[INFO] (spawnTx) Counters", (c.signerCtrs))
+	log.Info("[INFO] (spawnTx) Signer counters", (c.signerCtrs))
 	err := ctx.FillSignersAndSignWith(c.Signers...)
 	if err != nil {
 		return xerrors.Errorf("error in signing the tx: %v", err)

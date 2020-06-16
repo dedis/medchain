@@ -174,7 +174,6 @@ func (s *Service) HandleSpawnQuery(req *AddQueryRequest) (*AddQueryReply, error)
 		return reply, xerrors.Errorf("could not get spawned value contract from skipchain: %v", err)
 	}
 
-	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
 	if !req.DarcID.Equal(darcID) {
 		return reply, xerrors.Errorf("error in getting spawned value contract from skipchain")
 	}
@@ -246,8 +245,7 @@ func (s *Service) HandleGetSharedData(req *GetSharedDataRequest) (*GetSharedData
 
 // HandleAuthorizeQuery handles request to authorize a query
 func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQueryReply, error) {
-	log.Info("[INFO]: ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
-	log.Info("[INFO]: ( HandleAuthorizeQuery) query status:", string(req.QueryStatus))
+	log.Info("[INFO] ", s.ServerIdentity().String(), "received a AuthorizeQueryRequest")
 
 	reply := &AuthorizeQueryReply{}
 	reply.OK = false
@@ -271,9 +269,6 @@ func (s *Service) HandleAuthorizeQuery(req *AuthorizeQueryRequest) (*AuthorizeQu
 	if !darcID.Equal(req.DarcID) {
 		return nil, xerrors.Errorf("error in decoding the data: %v", err)
 	}
-
-	log.Info("[INFO] (HandleAuthorizeQuery) Authorize query darc ID: ", req.DarcID)
-
 	reply.QueryStatus = req.QueryStatus
 	reply.OK = true
 	log.Info("[INFO] (HandleAuthorizeQuery) Query Status: ", string(reply.QueryStatus))

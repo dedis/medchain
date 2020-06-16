@@ -94,7 +94,7 @@ func TestClient_Authorize(t *testing.T) {
 	// ------------------------------------------------------------------------
 
 	req1 := &AddQueryRequest{}
-	query := NewQuery("wsdf65k80h:B:patient_list", " ")
+	query := NewQuery("wsdf65k80h:A:patient_list", " ")
 	req1.QueryID = query.ID
 	req1.ClientID = cl.ClientID
 	req1.DarcID = cl.AllDarcs["A"].GetBaseID()
