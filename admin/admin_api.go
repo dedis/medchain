@@ -596,9 +596,18 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Adding rule to darc: %w", err)
 	}
 
-	pdarcActions = "_name:accessright"
+	err = pdarc.Rules.UpdateEvolution(pdarcExpr)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Updating the _evolve expression in darc: %w", err)
+	}
+	err = pdarc.Rules.UpdateSign(pdarcExpr)
+	if err != nil {
+		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Updating the _sign expression in darc: %w", err)
+	}
+
 	// The naming contract doesn't support deferred transactions, therefore the one spawning the project darc needs to
 	// set up the name resolver
+	pdarcActions = "_name:accessright"
 	pdarcExpr = expression.InitOrExpr(cl.adminkeys.Identity().String())
 	err = addActionsToDarc(pdarc, pdarcActions, pdarcExpr)
 	if err != nil {

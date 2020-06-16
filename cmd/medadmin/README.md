@@ -85,12 +85,16 @@ The project command manages the project access rights.
 
 ### Deploy the chain 
 
-First start a few cothority nodes:
+First, compile the conode.go files. The `run_nodes.sh` script requires the executable file of conode.go to be called conode:
+	 
+	 path/to/medchain/cmd/medadmin/build$ go build -o conode
+	 
+Secondly, start a few cothority nodes:
 
 ```
 path/to/medchain/cmd/medadmin$ make clean
 path/to/medchain/cmd/medadmin$ cd build
-path/to/medchain/cmd/medadmin/build$ ./run_nodes
+path/to/medchain/cmd/medadmin/build$ ./run_nodes.sh
 ```
 
 Open a new shell.
