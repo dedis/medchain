@@ -655,9 +655,9 @@ func addSigner(c *cli.Context) error {
 	if pname == "" {
 		return errors.New("--name is required")
 	}
-	darcIDStr := c.String("id")
+	darcIDStr := c.String("darc")
 	if darcIDStr == "" {
-		return errors.New("--id is required")
+		return errors.New("--darc is required")
 	}
 	rules := c.StringSlice("rule")
 	if rules == nil {
