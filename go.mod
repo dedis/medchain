@@ -5,7 +5,6 @@ go 1.12
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/dedis/cothority_template v0.0.0-20191121084815-f73b5bf67b5d
-	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli v1.22.2
 	go.dedis.ch/cothority/v3 v3.4.3
