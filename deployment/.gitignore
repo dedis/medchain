@@ -1,2 +1,3 @@
-medchain-config
+medchain-config/mc*
 exe/*
+medchain-config/
