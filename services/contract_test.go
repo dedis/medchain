@@ -64,11 +64,11 @@ func TestInvoke(t *testing.T) {
 	// define varibales
 	var queryArgs1 = Query{}
 	queryArgs1.ID = "query1"
-	queryArgs1.Status = "Rejected"
+	queryArgs1.Status = []byte("Rejected")
 
 	var queryArgs2 = Query{}
 	queryArgs2.ID = "query2"
-	queryArgs2.Status = "Authorized"
+	queryArgs2.Status = []byte("Authorized")
 
 	// Create a new instance with two key/values:
 	args := byzcoin.Arguments{
@@ -118,16 +118,16 @@ func TestInvoke(t *testing.T) {
 	// Verify the content is as it is supposed to be.
 	require.Equal(t, 3, len(newArgs.Storage))
 	require.Equal(t, "query1", newArgs.Storage[0].ID)
-	require.Equal(t, "Rejected", newArgs.Storage[0].Status)
+	require.Equal(t, []byte("Rejected"), newArgs.Storage[0].Status)
 	require.Equal(t, "query2", newArgs.Storage[1].ID)
-	require.Equal(t, "Executed", newArgs.Storage[1].Status)
+	require.Equal(t, []byte("Executed"), newArgs.Storage[1].Status)
 }
 
 func TestUpdate(t *testing.T) {
 	cs := QueryData{
 		Storage: []Query{{
 			ID:     "query3",
-			Status: "Authorized",
+			Status: []byte("Authorized"),
 		}},
 	}
 
@@ -172,7 +172,7 @@ func TestVerifyStatus(t *testing.T) {
 	cs := QueryData{
 		Storage: []Query{{
 			ID:     "query1",
-			Status: "Authorized",
+			Status: []byte("Authorized"),
 		}},
 	}
 
@@ -185,27 +185,29 @@ func TestVerifyStatus(t *testing.T) {
 	// check the skipchain (items in the ledger)
 	require.Equal(t, 2, len(cs.Storage))
 	require.Equal(t, "query1", cs.Storage[0].ID)
-	require.Equal(t, "Authorized", cs.Storage[0].Status)
+	require.Equal(t, []byte("Authorized"), cs.Storage[0].Status)
 	require.Equal(t, "query2", cs.Storage[1].ID)
-	require.Equal(t, "Rejected", cs.Storage[1].Status)
+	require.Equal(t, []byte("Rejected"), cs.Storage[1].Status)
 
 	// Check the status of query1
-	err := cs.VerifyStatus(byzcoin.Arguments{{
+	status, err := cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query1",
 	}})
 	//The status of query1 is Authorized, so should return nil
 	assert.Nil(t, err)
+	require.Equal(t, ("Authorized"), status)
 
 	// Check the status of query2
-	err = cs.VerifyStatus(byzcoin.Arguments{{
+	status, err = cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query2",
 	}})
 
-	//The status of query2 is not Authorized, so should return some error (i.e., not nil)
-	assert.NotNil(t, err)
+	//The status of query2 is Rejected
+	assert.Nil(t, err)
+	require.Equal(t, ("Rejected"), status)
 
 	// Check the status of query3
-	err = cs.VerifyStatus(byzcoin.Arguments{{
+	status, err = cs.VerifyStatus(byzcoin.Arguments{{
 		Name: "query3",
 	}})
 

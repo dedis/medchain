@@ -1,0 +1,41 @@
+
+version: '2.4'
+
+services:
+  medchain-server:
+    image: medchain:dev
+    build: 
+      context: ../ 
+      dockerfile: deployment/Dockerfile
+
+    environment: 
+    - NODE_IDX=1 
+    - MEDCHAIN_LOG_LEVEL=5
+    - LOG_LEVEL=5 
+    - MEDCHAIN_TIMEOUT_SECONDS=600
+    - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
+    - MEDCHAIN_NODES_ADDRESS=/medchain-config/group.toml
+    - CONF_DIR=/medchain-config
+    ports:
+      - "7770"
+      - "7771"
+    volumes:
+      - ./medchain-config:/medchain-config
+    
+  medchain-cli-client:
+    image: medchain-cli-client:dev
+    build:
+      context: ../
+      dockerfile: deployment/client.Dockerfile
+    tty: true
+    environment:
+      - NODE_IDX=1 
+      - LOG_LEVEL=5
+      - MEDCHAIN_GROUP_FILE_PATH=/medchain-config/group.toml
+      - MEDCO_NODE_IDX=0
+      - CLIENT_QUERY_TIMEOUT_SECONDS=660
+      - MEDCHAIN_ADDRESS=tls://localhost:7770
+    volumes:
+      - ./medchain-config:/medchain-config
+    network_mode: host
+    command: /bin/bash

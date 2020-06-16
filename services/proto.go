@@ -6,7 +6,7 @@ package medchain
 // in package time.
 type Query struct {
 	ID     string //assumed to be like query_id:user_id:databaseX.<type of query, e.g. patient_list, count_per_site, etc. >
-	Status string
+	Status []byte
 	//When   int64 //TODO: to be able to search the queries by timestamp
 }
 
@@ -19,7 +19,7 @@ type QueryData struct {
 func NewQuery(k, v string) Query {
 	res := Query{
 		ID:     k,
-		Status: v,
+		Status: []byte(v),
 	}
 	return res
 }

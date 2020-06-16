@@ -22,8 +22,8 @@ type medchainContract struct {
 	QueryData
 }
 
-// contractMedchainFromBytes defines the contract
-func contractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
+// ContractMedchainFromBytes defines the contract
+func ContractMedchainFromBytes(in []byte) (byzcoin.Contract, error) {
 	cv := &medchainContract{}
 	err := protobuf.Decode(in, &cv.QueryData)
 	if err != nil {
@@ -52,7 +52,7 @@ func (c *medchainContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Ins
 	// Put the data received in the inst.Spawn.Args into our QueryData structure.
 	cs := &c.QueryData
 	for _, kv := range inst.Spawn.Args {
-		cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
+		cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
 	}
 
 	// Encode the data into our QueryDataStorage structure that holds all the key-value pairs
@@ -108,7 +108,7 @@ func (c *medchainContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.In
 		}
 	case "verifystatus":
 		kvd := &c.QueryData
-		err := kvd.VerifyStatus(inst.Invoke.Args)
+		_, err := kvd.VerifyStatus(inst.Invoke.Args)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("failed to verify the query status with error: %v", err)
 		}
@@ -234,12 +234,12 @@ func (cs *QueryData) Update(args byzcoin.Arguments) {
 					cs.Storage = append(cs.Storage[0:i], cs.Storage[i+1:]...)
 					break
 				}
-				cs.Storage[i].Status = string(kv.Value)
+				cs.Storage[i].Status = kv.Value
 			}
 
 		}
 		if !updated {
-			cs.Storage = append(cs.Storage, Query{kv.Name, string(kv.Value)})
+			cs.Storage = append(cs.Storage, Query{kv.Name, kv.Value})
 		}
 	}
 }
@@ -247,26 +247,22 @@ func (cs *QueryData) Update(args byzcoin.Arguments) {
 //VerifyStatus goes through all the arguments and:
 //- if found: returns the status of the query off the ledger
 //- if not found: returns nil
-func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (err error) {
+func (cs *QueryData) VerifyStatus(args byzcoin.Arguments) (string, error) {
 	for _, kv := range args {
 		var found bool
 		for _, stored := range cs.Storage {
 			if stored.ID == kv.Name {
 				found = true
-				if stored.Status == "Authorized" {
-					return nil
-				}
-				return xerrors.Errorf("query %s has status %s and has not been authorized", stored.ID, stored.Status)
-
+				return string(stored.Status), nil
 			}
 
 		}
 		if !found {
-			return xerrors.Errorf("could not find the query with ID %s", kv.Name)
+			return "", xerrors.Errorf("could not find the query with ID %s", kv.Name)
 		}
 
 	}
-	return
+	return "", nil
 }
 
 // VerifyDeferredInstruction implements the byzcoin.Contract interface
