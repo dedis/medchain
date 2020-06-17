@@ -225,20 +225,21 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 	// ------------------------------------------------------------------------
 	// 2. Spwan instances of MedChain contract (query) and check authorizations - in this case the query is authorized (scenario 1)
 	// ------------------------------------------------------------------------
-	charset := "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	qIDAuth := make([]string, s.Queries)
-	for i := 0; i < s.Queries; i++ {
-		qIDAuth[i] = randomString(10, charset) + ":" + randomString(1, "AB") + ":" + randomAction()
-	}
-
-	qIDRej := make([]string, s.Queries)
-	for i := 0; i < s.Queries; i++ {
-		qIDRej[i] = randomString(10, charset) + ":" + randomString(1, "AB") + ":" + "patient_list"
-	}
 
 	for round := 0; round < s.Rounds; round++ {
 		log.Lvl1("Starting round", round)
+		charset1 := "abcdefghijklmnopqrstuvwxyz"
+		charset2 := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+		qIDAuth := make([]string, s.Queries)
+		for i := 0; i < s.Queries; i++ {
+			qIDAuth[i] = randomString(10, charset1) + ":" + randomString(1, "AB") + ":" + randomAction()
+		}
+
+		qIDRej := make([]string, s.Queries)
+		for i := 0; i < s.Queries; i++ {
+			qIDRej[i] = randomString(10, charset2) + ":" + randomString(1, "AB") + ":" + "patient_list"
+		}
+
 		roundM := monitor.NewTimeMeasure("round")
 
 		queries := s.Queries
@@ -246,15 +247,15 @@ func (s *SimulationService) Run(config *onet.SimulationConfig) error {
 		var allIDs []byzcoin.InstanceID
 
 		for q := 0; q < queries; q++ {
-			//prepare := monitor.NewTimeMeasure("prepare")
-			authorize := monitor.NewTimeMeasure("authorize")
+			prepare := monitor.NewTimeMeasure("prepare")
+
 			req1 := &medchain.AddQueryRequest{}
 			query := medchain.NewQuery(qIDAuth[q], "Submitted")
 			req1.QueryID = query.ID
 			req1.ClientID = cl.ClientID
 			req1.DarcID = cl.AllDarcs["A"].GetBaseID()
-			//prepare.Record()
-
+			prepare.Record()
+			authorize := monitor.NewTimeMeasure("authorize")
 			resp1, err := cl.SpawnQuery(req1)
 			if err != nil {
 				return xerrors.Errorf("could not spawn query: %v", err)
