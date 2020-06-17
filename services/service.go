@@ -139,7 +139,6 @@ func (s *Service) HandleSpawnDeferredQuery(req *AddDeferredQueryRequest) (*AddDe
 
 	log.Info("[INFO] (HandleSpawnDeferredQuery) Decoded deferred query data: ", dd)
 
-	log.Info("[INFO] Spawned query with darc ID: ", req.DarcID)
 	if !req.DarcID.Equal(darcID) {
 		return reply, xerrors.Errorf("error in getting spawned query from skipchain: %v", err)
 	}
