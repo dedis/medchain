@@ -1,4 +1,4 @@
-package medchain
+package medchainservices
 
 import (
 	"go.dedis.ch/kyber/v3/suites"

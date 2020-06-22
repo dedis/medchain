@@ -1,4 +1,4 @@
-package medchain
+package medchainservices
 
 // Query is the struvutre of key-value pairs stored in the ledger
 // Value field of the query holds UserID + Query Definition

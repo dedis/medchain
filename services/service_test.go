@@ -1,4 +1,4 @@
-package medchain
+package medchainservices
 
 import (
 	"testing"
