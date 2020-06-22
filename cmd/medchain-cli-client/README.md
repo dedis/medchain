@@ -12,7 +12,6 @@ We implemented the app for MedChain which is a client that talks to the service 
 ## MedChain Command-line-interface (CLI) Commands  
 
 Table below summarizes the commands that are supported in MedChain CLI Client. Please note that in the table, `client_flags` refers to:
-`client_flags`:
 
 - `--bc: ByzCoin config file`
 - `--file: MedChain group definition file`
@@ -137,7 +136,7 @@ bash$ ./medchain-cli-client  darc rule --bc $BC --file$MEDCHAIN_GROUP_FILE_PATH
 bash$ ./medchain-cli-client darc show --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH--cid 3 --address $adr2 --key $admin2 --darc $projectA
 ```
 
-We run the above commands also once for client 3, i.e., using \texttt{--identity \$admin3}. 
+We run the above commands also once for client 3, i.e., using `--identity \$admin3`. 
 
 In order to submit query, we can use:
 
@@ -146,7 +145,7 @@ bash$ ./medchain-cli-client query --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH --ci
 export inst1=$(cat deferred_InstIDs1.txt)
 ```
 
-Please note that a deferred instance is returned by server if the query is authorized. 
+Please note that a deferred instance ID is returned by server if the query is authorized.
 
 To get the deferred query, one can run
 
