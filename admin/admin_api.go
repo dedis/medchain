@@ -18,7 +18,7 @@ import (
 
 type Client struct {
 	Bcl               *byzcoin.Client
-	onetCl            *onet.Client // Oner Client to the ShareID service
+	onetCl            *onet.Client // Onet Client to the ShareID service
 	adminkeys         darc.Signer
 	genDarc           darc.Darc
 	signerCounter     uint64
@@ -290,10 +290,13 @@ func (cl *Client) GetAdminsList(listId byzcoin.InstanceID) (AdminsList, error) {
 	return list, nil
 }
 
-// TODO will need to use the method to create threshold multisig rules when implemented
-// Create the multisignature rule expression from the list of identities. For now every admin needs to sign.
-func createMultisigRuleExpression(al []string) expression.Expr {
-	return expression.InitAndExpr(al...) // For now everyone needs to sign
+// Create the multisignature rule expression from the list of identities.
+func createMultisigRuleExpression(identities []string, min int) expression.Expr {
+	// this method from the bcadmin library return all the different combinations of identities for the given threshold
+	// of required signatures
+	andGroups := lib.CombinationAnds(identities, min)
+	groupExpr := expression.InitOrExpr(andGroups...)
+	return groupExpr
 }
 
 func (cl *Client) createAdminDarc() (*darc.Darc, error) {
@@ -301,7 +304,8 @@ func (cl *Client) createAdminDarc() (*darc.Darc, error) {
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	adminDarc := darc.NewDarc(rules, []byte(description))
 	adminDarcActions := "invoke:darc.evolve,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,spawn:value,_name:value,invoke:value.update"
-	adminDarcExpr := createMultisigRuleExpression([]string{cl.adminkeys.Identity().String()})
+	identities := []string{cl.adminkeys.Identity().String()}
+	adminDarcExpr := createMultisigRuleExpression(identities,len(identities)) // All identities are for now required to sign (len(identities))
 	err := addActionsToDarc(adminDarc, adminDarcActions, adminDarcExpr)
 	return adminDarc, err
 }
@@ -423,7 +427,8 @@ func (cl *Client) updateAdminRules(evolvedAdminDarc *darc.Darc, newAdminExpr []e
 // Create the transaction that evolve the admin darc expressions with the new admins list
 func (cl *Client) evolveAdminDarc(adminsList []string, olddarc *darc.Darc) (byzcoin.Instruction, error) {
 	newdarc := olddarc.Copy()
-	newAdminExpr := []expression.Expr{createMultisigRuleExpression(adminsList), expression.InitOrExpr(adminsList...)}
+	// All identities are for now required to sign (len(adminsList))
+	newAdminExpr := []expression.Expr{createMultisigRuleExpression(adminsList,len(adminsList)), expression.InitOrExpr(adminsList...)}
 	err := cl.updateAdminRules(newdarc, newAdminExpr)
 	if err != nil {
 		return byzcoin.Instruction{}, xerrors.Errorf("Updating admin rules: %w", err)
@@ -549,6 +554,7 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx ui
 	return cl.spawnTransaction(ctx)
 }
 
+// Sign for the exectution of the deferred transaction
 func (cl *Client) ExecDefferedTx(instID byzcoin.InstanceID) error {
 	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
@@ -590,7 +596,9 @@ func (cl *Client) createProjectDarc(pname string, adid darc.ID) (byzcoin.ClientT
 	rules := darc.InitRules([]darc.Identity{cl.adminkeys.Identity()}, []darc.Identity{cl.adminkeys.Identity()})
 	pdarc := darc.NewDarc(rules, []byte(pdarcDescription))
 	pdarcActions := "spawn:accessright,invoke:accessright.add,invoke:accessright.update,invoke:accessright.delete"
-	pdarcExpr := createMultisigRuleExpression([]string{adminDarc.GetIdentityString()})
+	identities := []string{adminDarc.GetIdentityString()}
+	// All identities are for now required to sign (len(identities))
+	pdarcExpr := createMultisigRuleExpression(identities, len(identities))
 	err = addActionsToDarc(pdarc, pdarcActions, pdarcExpr)
 	if err != nil {
 		return byzcoin.ClientTransaction{}, darc.ID{}, "", xerrors.Errorf("Adding rule to darc: %w", err)

@@ -22,7 +22,7 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	defer local.CloseAll()
 
 	superAdmin := darc.NewSignerEd25519(nil, nil)
-	_, roster, _ := local.GenTree(5, true)
+	_, roster, _ := local.GenTree(3, true)
 
 	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
 		[]string{"spawn:value", "spawn:deferred", "invoke:deferred.addProof",
@@ -173,7 +173,7 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	defer local.CloseAll()
 
 	superAdmin := darc.NewSignerEd25519(nil, nil)
-	_, roster, _ := local.GenTree(5, true)
+	_, roster, _ := local.GenTree(3, true)
 
 	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
 		[]string{"spawn:value", "spawn:deferred", "invoke:deferred.addProof",
@@ -321,7 +321,7 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	defer local.CloseAll()
 
 	superAdmin := darc.NewSignerEd25519(nil, nil)
-	_, roster, _ := local.GenTree(5, true)
+	_, roster, _ := local.GenTree(3, true)
 
 	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
 		[]string{"spawn:value", "spawn:deferred", "invoke:deferred.addProof",

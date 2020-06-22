@@ -3,6 +3,8 @@ module github.com/medchain
 go 1.12
 
 require (
+	github.com/BurntSushi/toml v0.3.1
+	github.com/pkg/errors v0.8.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli v1.22.3
