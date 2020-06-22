@@ -5,6 +5,6 @@ build
 medchain-server
 medchain-cli-client
 build
-simulation
+simulation/simulation
 !medchain-server/run_nodes.sh
 medchain-config/
