@@ -4,7 +4,7 @@ MedChain supports two ways for clients to connect to the MedChain service:
   - Go API Client
   - CLI
   
-In this folder you will finf the implementation of MedChain CLI client.
+In this folder you will find the implementation of MedChain CLI client.
 
 An [app](https://github.com/dedis/onet/tree/master/app), in the context of [Onet](https://github.com/dedis/onet), is a CLI-program that interacts with one or more Conodes through the use of the API defined by one or more services. 
 We implemented the app for MedChain which is a client that talks to the service available in server (MedChain node). The code for this CLI-app is found in [cmd/medchain-cli-client](https://github.com/ldsec/medchain/tree/dev/cmd/medchain-cli-client) directory of MedChain repository. CLI client can be used to interact with one or more MedChain nodes.
