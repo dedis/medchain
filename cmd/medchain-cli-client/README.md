@@ -53,7 +53,7 @@ In order to setup and start ByzCoin ledger, we run the following commands:
 ```bash
 bash$ go build
 bash$ mkdir medchain-config
-bash$ run_nodes.sh -v 5 -n 3 -d ./medchain-config/
+bash$ ../medchain-server/run_nodes.sh -v 5 -n 3 -d ./medchain-config/
 bash$ bcadmin --config medchain-config create medchain-config/group.toml | tail -n 1
 bash$ bcadmin -c config info
 ```
