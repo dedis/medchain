@@ -104,7 +104,6 @@ func spawn(c *cli.Context) error {
 		return err
 	}
 	cl.SyncSignerCounter()
-	// TODO broadcast the base ID
 	darc, err := cl.SpawnNewAdminDarc()
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
@@ -225,7 +224,7 @@ func addAdmin(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
+	fmt.Println("Deferred transaction (2 instructions) spawned with ID:")
 	fmt.Println(deferredId)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -254,7 +253,7 @@ func removeAdmin(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
+	fmt.Println("Deferred transaction (2 instructions) spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -287,7 +286,7 @@ func modifyAdminKey(c *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("spawning a new Admin Darc: %w", err)
 	}
-	fmt.Println("Deffered transaction (2 instructions) spawned with ID:")
+	fmt.Println("Deferred transaction (2 instructions) spawned with ID:")
 	fmt.Println(darc)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -297,7 +296,7 @@ func sync(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	ids, err := cl.FetchNewDefferedInstanceIDs()
+	ids, err := cl.FetchNewDeferredInstanceIDs()
 	if err != nil {
 		return err
 	}
@@ -330,7 +329,7 @@ func deferredSign(c *cli.Context) error {
 	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 	cl.SyncSignerCounter()
-	err = cl.AddSignatureToDefferedTx(id, idx)
+	err = cl.AddSignatureToDeferredTx(id, idx)
 	if err != nil {
 		return err
 	}
@@ -353,7 +352,7 @@ func deferredExec(c *cli.Context) error {
 	}
 	id := byzcoin.NewInstanceID(instIDBuf)
 	cl.SyncSignerCounter()
-	err = cl.ExecDefferedTx(id)
+	err = cl.ExecDeferredTx(id)
 	if err != nil {
 		return err
 	}
@@ -387,7 +386,7 @@ func projectCreate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deferred transaction spawned with ID:")
 	fmt.Println(defId)
 	fmt.Println("Project darc ID: ", pdarcID)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
@@ -424,7 +423,7 @@ func projectCreateAccessRight(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deferred transaction spawned with ID:")
 	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -518,7 +517,7 @@ func addQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deferred transaction spawned with ID:")
 	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -563,7 +562,7 @@ func modifyQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deferred transaction spawned with ID:")
 	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }
@@ -603,7 +602,7 @@ func removeQuerier(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Deffered transaction spawned with ID:")
+	fmt.Println("Deferred transaction spawned with ID:")
 	fmt.Println(id)
 	return bcadminlib.WaitPropagation(c, cl.Bcl)
 }

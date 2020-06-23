@@ -88,12 +88,12 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
@@ -112,20 +112,20 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction but threshold of signature not reached")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.Error(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl2.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl2.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 
@@ -144,22 +144,22 @@ func TestAdminClient_AddAdminsToDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
-	err = admcl3.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl3.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl3.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl2.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl2.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
-	err = admcl3.ExecDefferedTx(id)
+	err = admcl3.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 4 has been added to the admin darc")
 }
@@ -239,14 +239,14 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
@@ -265,17 +265,17 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl2.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl2.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 
@@ -291,23 +291,23 @@ func TestAdminClient_RemovingAdminsFromDarc(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 sign the transaction")
-	err = admcl3.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
+	err = admcl3.AddSignatureToDeferredTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
+	err = admcl3.AddSignatureToDeferredTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
 	// For now the multisignature rule state that every admin sign for sensitive operations (in other rules admin shouldn't sign to be removed)
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign remove the admin from the admin list
+	err = admcl2.AddSignatureToDeferredTx(id, 0) // the first instruction to sign remove the admin from the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign remove the admin from the admin darc
+	err = admcl2.AddSignatureToDeferredTx(id, 1) // the second instruction to sign remove the admin from the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 3 try to execute the transaction")
-	err = admcl3.ExecDefferedTx(id)
+	err = admcl3.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been removed from the admin darc")
 }
@@ -386,12 +386,12 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign add the admin to the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign add the admin to the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign add the admin to the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign add the admin to the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 2 has been added to the admin darc")
 
@@ -410,17 +410,17 @@ func TestAdminClient_UpdateAdminKeys(t *testing.T) {
 	_, err = admcl2.Bcl.GetDeferredData(id) // Verify that the deferred transaction is registered on chain
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
+	err = admcl.AddSignatureToDeferredTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
+	err = admcl.AddSignatureToDeferredTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
+	err = admcl2.AddSignatureToDeferredTx(id, 0) // the first instruction to sign modify the admin identity in the admin list
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
+	err = admcl2.AddSignatureToDeferredTx(id, 1) // the second instruction to sign modify the admin identity in the admin darc
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Tx successfully executed, admin 3 has been added to the admin darc")
 }
@@ -492,9 +492,9 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new project darc")
 	instID, pdarcID, _, err := admcl.CreateNewProject(adminDarc.GetBaseID(), "Project A")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(instID, 0)
+	err = admcl.AddSignatureToDeferredTx(instID, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(instID)
+	err = admcl.ExecDeferredTx(instID)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -504,9 +504,9 @@ func TestAdminClient_SpawnProject(t *testing.T) {
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -593,11 +593,11 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
 	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
@@ -610,13 +610,13 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new project darc")
 	instID, pdarcID, _, err := admcl.CreateNewProject(adid, "Project A")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(instID, 0)
+	err = admcl.AddSignatureToDeferredTx(instID, 0)
 	require.NoError(t, err)
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(instID, 0)
+	err = admcl2.AddSignatureToDeferredTx(instID, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(instID)
+	err = admcl.ExecDeferredTx(instID)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -624,11 +624,11 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
 	id, err = admcl.CreateAccessRight(pdarcID, adid)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
@@ -654,20 +654,20 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	log.Lvl1("[INFO] Add the querier 1:1 to the project")
 	id, err = admcl.AddQuerierToProject(pdarcID, adid, "1:1", "count_per_site_shuffled,count_global")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Modify the querier 1:1 access rights")
 	id, err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, adid, "1:1", "count_per_site_shuffled")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -695,33 +695,33 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Add the querier 3:1 to the project")
 	id, err = admcl.AddQuerierToProject(pdarcID, adid, "3:1", "count_global")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id) // This transaction is expected to fail as admin 3 is required to sign (for now multisignature rule is such that every admin sign)
+	err = admcl.ExecDeferredTx(id) // This transaction is expected to fail as admin 3 is required to sign (for now multisignature rule is such that every admin sign)
 	require.Error(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	authorization, err = admcl.VerifyAccessRights("3:1", "count_per_site_shuffled", pdarcID)
@@ -730,17 +730,17 @@ func TestAdminClient_TestProjectWorkflow(t *testing.T) {
 
 	id, err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, adid, "3:1", "count_per_site_shuffled")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
 
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	authorization, err = admcl.VerifyAccessRights("3:1", "count_per_site_shuffled", pdarcID)
@@ -817,11 +817,11 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	log.Lvl1("[INFO] Create deffered tx to add admcl2 identity")
 	id, err = admcl.AddAdminToAdminDarc(adid, admcl2.GetKeys().Identity().String())
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
@@ -834,31 +834,31 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new project darc")
 	instID, pdarcID, _, err := admcl.CreateNewProject(adid, "Project A")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(instID, 0)
+	err = admcl.AddSignatureToDeferredTx(instID, 0)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] admin2 synchronize its pending deferred IDs map")
-	err = admcl2.SynchronizeDefferedInstanceIDs()
+	err = admcl2.SynchronizeDeferredInstanceIDs()
 	require.NoError(t, err)
-	for id, signed := range admcl2.pendingDefferedTx {
+	for id, signed := range admcl2.pendingDeferredTx {
 		if !signed {
-			_ = admcl2.AddSignatureToDefferedTx(id, 0) // Ignore the error because the loop sign even transaction that already have been executed
+			_ = admcl2.AddSignatureToDeferredTx(id, 0) // Ignore the error because the loop sign even transaction that already have been executed
 		}
 	}
 
-	err = admcl.ExecDefferedTx(instID)
+	err = admcl.ExecDeferredTx(instID)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
 	id, err = admcl.CreateAccessRight(pdarcID, adid)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	err = local.WaitDone(genesisMsg.BlockInterval)
@@ -884,20 +884,20 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	log.Lvl1("[INFO] Add the querier 1:1 to the project")
 	id, err = admcl.AddQuerierToProject(pdarcID, adid, "1:1", "count_per_site_shuffled,count_global")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	log.Lvl1("[INFO] Modify the querier 1:1 access rights")
 	id, err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, adid, "1:1", "count_per_site_shuffled")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -925,33 +925,33 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 1 sign the transaction")
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 1)
+	err = admcl.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 sign the transaction")
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 1)
+	err = admcl2.AddSignatureToDeferredTx(id, 1)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Admin 2 try to exec the transaction")
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	log.Lvl1("[INFO] Add the querier 3:1 to the project")
 	id, err = admcl.AddQuerierToProject(pdarcID, adid, "3:1", "count_global")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id) // This transaction is expected to fail as admin 3 is required to sign (for now multisignature rule is such that every admin sign)
+	err = admcl.ExecDeferredTx(id) // This transaction is expected to fail as admin 3 is required to sign (for now multisignature rule is such that every admin sign)
 	require.Error(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	authorization, err = admcl.VerifyAccessRights("3:1", "count_per_site_shuffled", pdarcID)
@@ -960,17 +960,17 @@ func TestAdminClient_TestProjectWorkflowWithShare(t *testing.T) {
 
 	id, err = admcl.ModifyQuerierAccessRightsForProject(pdarcID, adid, "3:1", "count_per_site_shuffled")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl2.AddSignatureToDefferedTx(id, 0)
+	err = admcl2.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl3.AddSignatureToDefferedTx(id, 0)
+	err = admcl3.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
 
 	err = admcl.Bcl.WaitPropagation(1)
 	require.NoError(t, err)
 
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	authorization, err = admcl.VerifyAccessRights("3:1", "count_per_site_shuffled", pdarcID)
@@ -991,6 +991,7 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 
 	genesisMsg, err := byzcoin.DefaultGenesisMsg(byzcoin.CurrentVersion, roster,
 		[]string{}, superAdmin.Identity())
+	require.NoError(t, err)
 	require.NoError(t, err)
 	gDarc := &genesisMsg.GenesisDarc
 
@@ -1045,9 +1046,9 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new project darc")
 	instID, pdarcID, _, err := admcl.CreateNewProject(adid, "Project A")
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(instID, 0)
+	err = admcl.AddSignatureToDeferredTx(instID, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(instID)
+	err = admcl.ExecDeferredTx(instID)
 	require.NoError(t, err)
 	err = local.WaitDone(genesisMsg.BlockInterval)
 	require.Nil(t, err)
@@ -1055,9 +1056,9 @@ func TestAdminClient_GetExecResult(t *testing.T) {
 	log.Lvl1("[INFO] Spawn a new accessright instance for the project")
 	id, err = admcl.CreateAccessRight(pdarcID, adid)
 	require.NoError(t, err)
-	err = admcl.AddSignatureToDefferedTx(id, 0)
+	err = admcl.AddSignatureToDeferredTx(id, 0)
 	require.NoError(t, err)
-	err = admcl.ExecDefferedTx(id)
+	err = admcl.ExecDeferredTx(id)
 	require.NoError(t, err)
 
 	err = local.WaitDone(genesisMsg.BlockInterval)

@@ -24,7 +24,7 @@ Medadmin is the Medchain administration CLI used to manage the admin darc, manag
 
      $ medadmin admin subcommand [options] arguments
 
-The admin command manage the admin darc  
+The admin command manages the admin darc  
 
 | Subcommands | Arguments                                                                                                                                                                                                                                                   | Description                                                                                                        |
 |-------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
@@ -44,17 +44,17 @@ The admin command manage the admin darc
 
 ### Deferred
 
-     $ medadmin deffered subcommand [options] arguments
+     $ medadmin Deferred subcommand [options] arguments
 
-The defferred command manages the deffered transaction registered in the global state of Medchain.  
+The defferred command manages the Deferred transaction registered in the global state of Medchain.  
 
 | Subcommands | Arguments                                                                                                                                                                                                                      | Description                                                                                                                                                                                                                                              |
 |-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `sync`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction                                                                                                       | Get the latest deferred transactions instance ids                                                                                                                                                                                                        |
-| `sign`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deffered transaction, `instidx` : the index of the instruction to sign | Sign a deferred transaction                                                                                                                                                                                                                              |
-| `get`       | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deffered transaction                                                   | Get the content of a deferred transaction                                                                                                                                                                                                                |
-| `exec`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deffered transaction                                                   | Execute the deferred transaction                                                                                                                                                                                                                         |
-| `getexecid` | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deffered transaction                                                   | Get the instance id of the executed deferred transaction. (Each time a new identity sign the transaction, the signature is included in the transaction and the final instance-id change, hence we need a method to get the result id from the execution) |
+| `sign`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deferred transaction, `instidx` : the index of the instruction to sign | Sign a deferred transaction                                                                                                                                                                                                                              |
+| `get`       | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deferred transaction                                                   | Get the content of a deferred transaction                                                                                                                                                                                                                |
+| `exec`      | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deferred transaction                                                   | Execute the deferred transaction                                                                                                                                                                                                                         |
+| `getexecid` | `bc` : the ByzCoin config (default is $BC), `keys` : the ed25519 private key that will sign the create query transaction, `id` : the instance id of the deferred transaction                                                   | Get the instance id of the executed deferred transaction. (Each time a new identity sign the transaction, the signature is included in the transaction and the final instance-id change, hence we need a method to get the result id from the execution) |
 
 ### project
 
@@ -216,7 +216,7 @@ Spawn a deferred transactionn to add the admin2 in the admin darc and the admin 
 
 ```
 path/to/medchain/cmd/medadmin$ ./medadmin -c build  admin add --keys $admin1 --identity $admin2
-Deffered transaction (2 instructions) spawned with ID:
+Deferred transaction (2 instructions) spawned with ID:
 7c93c25c950c9627c64389186d3e986cda7018950f1016dcbcc4e40ef2b56c5a
 ```
 
@@ -284,7 +284,7 @@ The list of admin identities in the admin darc:
 
 ```
 path/to/medchain/cmd/medadmin$ ./medadmin -c build project create darc --keys $admin1 --pname projectA
-Deffered transaction spawned with ID:
+Deferred transaction spawned with ID:
 18c541cc78bc8a251e6032328d37b87eddb88b7900f3173026ffc8748c3a2909
 Project darc ID:  darc:28c2b8e1130c9494a98bd30cea4900033c1f1a4eab5dbbd07eee81dc08bc1a5d
 ```
@@ -322,7 +322,7 @@ Succesfully executed the deferred transaction
 
 ```
 path/to/medchain/cmd/medadmin$ ./medadmin -c build project create accessright  --keys $admin1 --pdid $projectA
-Deffered transaction spawned with ID:
+Deferred transaction spawned with ID:
 8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
 ```
 
@@ -373,7 +373,7 @@ Add a querier named **querier1** and give him access to **count_per_site**:
 
 ```
 path/to/medchain/cmd/medadmin$ ./medadmin -c build project add --keys $admin1 --pdid $projectA --qid querier1 --access count_per_site
-Deffered transaction spawned with ID:
+Deferred transaction spawned with ID:
 8e0c7eb83a170178897945aa98906b747b6fb8515f3cffd519bfb651cb27b9fa
 ```
 
@@ -407,7 +407,7 @@ Modify the access rights of **querier1** and give him access to **count_per_site
 
 ```
 path/to/medchain/cmd/medadmin$ ./medadmin -c build project modify --keys $admin1 --pdid $projectA --qid querier1 --access count_per_site:count_per_site_shuffled
-Deffered transaction spawned with ID:
+Deferred transaction spawned with ID:
 018cb63dbc439f06cf77c528d84d2480c5014c9fbecd7a08e7c02217e4fdc5cf
 ```
 

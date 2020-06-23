@@ -22,7 +22,7 @@ type Client struct {
 	adminkeys         darc.Signer
 	genDarc           darc.Darc
 	signerCounter     uint64
-	pendingDefferedTx map[byzcoin.InstanceID]bool // Set of deferred transactions IDs
+	pendingDeferredTx map[byzcoin.InstanceID]bool // Set of deferred transactions IDs
 }
 
 // Map an action in the admin darc to the signature requirements.
@@ -49,7 +49,7 @@ func NewClient(bcl *byzcoin.Client) (*Client, error) {
 		adminkeys:         darc.NewSignerEd25519(nil, nil),
 		signerCounter:     1,
 		onetCl:            onet.NewClient(cothority.Suite, "ShareID"),
-		pendingDefferedTx: make(map[byzcoin.InstanceID]bool),
+		pendingDeferredTx: make(map[byzcoin.InstanceID]bool),
 	}
 	if genDarc, err := bcl.GetGenDarc(); err == nil {
 		cl.genDarc = *genDarc
@@ -106,6 +106,7 @@ func (cl *Client) SpawnNewAdminDarc() (*darc.Darc, error) {
 	return adminDarc, err
 
 }
+
 // Create the admin list. The admin list is a value contract that hold the list of all registered admins in the admin darc.
 // All operations that modify the administrators identities registered in the admin darc also modify this list.
 func (cl *Client) SpawnAdminsList(adid darc.ID) (byzcoin.InstanceID, error) {
@@ -305,7 +306,7 @@ func (cl *Client) createAdminDarc() (*darc.Darc, error) {
 	adminDarc := darc.NewDarc(rules, []byte(description))
 	adminDarcActions := "invoke:darc.evolve,spawn:deferred,invoke:deferred.addProof,invoke:deferred.execProposedTx,spawn:darc,spawn:value,_name:value,invoke:value.update"
 	identities := []string{cl.adminkeys.Identity().String()}
-	adminDarcExpr := createMultisigRuleExpression(identities,len(identities)) // All identities are for now required to sign (len(identities))
+	adminDarcExpr := createMultisigRuleExpression(identities, len(identities)) // All identities are for now required to sign (len(identities))
 	err := addActionsToDarc(adminDarc, adminDarcActions, adminDarcExpr)
 	return adminDarc, err
 }
@@ -319,7 +320,7 @@ func (cl *Client) addDeferredTransaction(tx byzcoin.ClientTransaction, adid darc
 	}
 	deferredInstanceID, err := cl.spawnDeferredInstance(txBuf, adid)
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deferred transaction: %w", err)
 	}
 	res := DeferredIDReply{}
 	// Send the instance id of the deferred transaction to cothority nodes
@@ -428,7 +429,7 @@ func (cl *Client) updateAdminRules(evolvedAdminDarc *darc.Darc, newAdminExpr []e
 func (cl *Client) evolveAdminDarc(adminsList []string, olddarc *darc.Darc) (byzcoin.Instruction, error) {
 	newdarc := olddarc.Copy()
 	// All identities are for now required to sign (len(adminsList))
-	newAdminExpr := []expression.Expr{createMultisigRuleExpression(adminsList,len(adminsList)), expression.InitOrExpr(adminsList...)}
+	newAdminExpr := []expression.Expr{createMultisigRuleExpression(adminsList, len(adminsList)), expression.InitOrExpr(adminsList...)}
 	err := cl.updateAdminRules(newdarc, newAdminExpr)
 	if err != nil {
 		return byzcoin.Instruction{}, xerrors.Errorf("Updating admin rules: %w", err)
@@ -473,7 +474,7 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 		SignerCounter: []uint64{cl.signerCounter},
 	})
 	if err != nil {
-		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deffered transaction: %w", err)
+		return *new(byzcoin.InstanceID), xerrors.Errorf("Creating the deferred transaction: %w", err)
 	}
 	err = cl.spawnTransaction(ctx)
 	if err != nil {
@@ -482,19 +483,19 @@ func (cl *Client) spawnDeferredInstance(proposedTransactionBuf []byte, adid darc
 	return ctx.Instructions[0].DeriveID(""), err
 }
 
-func (cl *Client) SynchronizeDefferedInstanceIDs() error {
-	defferedIDs, err := cl.FetchNewDefferedInstanceIDs()
+func (cl *Client) SynchronizeDeferredInstanceIDs() error {
+	deferredIDs, err := cl.FetchNewDeferredInstanceIDs()
 	if err != nil {
 		return xerrors.Errorf("Fetching Instance IDs: %w", err)
 	}
-	for _, id := range defferedIDs.Ids {
-		cl.pendingDefferedTx[id] = false
+	for _, id := range deferredIDs.Ids {
+		cl.pendingDeferredTx[id] = false
 	}
 	return nil
 }
 
 // Get the last deferred transaction instance ids, known by the different conodes
-func (cl *Client) FetchNewDefferedInstanceIDs() (GetDeferredIDsReply, error) {
+func (cl *Client) FetchNewDeferredInstanceIDs() (GetDeferredIDsReply, error) {
 	res := GetDeferredIDsReply{}
 	err := cl.onetCl.SendProtobuf(cl.Bcl.Roster.RandomServerIdentity(), &GetDeferredIDs{}, &res)
 	if err != nil {
@@ -503,13 +504,13 @@ func (cl *Client) FetchNewDefferedInstanceIDs() (GetDeferredIDsReply, error) {
 	return res, nil
 }
 
-func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx uint64) error {
-	if _, ok := cl.pendingDefferedTx[instID]; !ok {
-		cl.pendingDefferedTx[instID] = false
+func (cl *Client) AddSignatureToDeferredTx(instID byzcoin.InstanceID, instIdx uint64) error {
+	if _, ok := cl.pendingDeferredTx[instID]; !ok {
+		cl.pendingDeferredTx[instID] = false
 	}
 	deferredData, err := cl.Bcl.GetDeferredData(instID)
 	if err != nil {
-		return xerrors.Errorf("Getting the deffered instance from chain: %w", err)
+		return xerrors.Errorf("Getting the deferred instance from chain: %w", err)
 	}
 	rootHash := deferredData.InstructionHashes
 	identity := cl.GetKeys().Identity()
@@ -519,7 +520,7 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx ui
 	}
 	signature, err := cl.GetKeys().Sign(rootHash[instIdx])
 	if err != nil {
-		return xerrors.Errorf("Signing the deffered transaction: %w", err)
+		return xerrors.Errorf("Signing the deferred transaction: %w", err)
 	}
 	index := uint32(instIdx) // The index of the instruction to sign in the transaction
 	indexBuf := make([]byte, 4)
@@ -550,12 +551,12 @@ func (cl *Client) AddSignatureToDefferedTx(instID byzcoin.InstanceID, instIdx ui
 	if err != nil {
 		return xerrors.Errorf("Creating the transaction: %w", err)
 	}
-	cl.pendingDefferedTx[instID] = true
+	cl.pendingDeferredTx[instID] = true
 	return cl.spawnTransaction(ctx)
 }
 
 // Sign for the exectution of the deferred transaction
-func (cl *Client) ExecDefferedTx(instID byzcoin.InstanceID) error {
+func (cl *Client) ExecDeferredTx(instID byzcoin.InstanceID) error {
 	ctx, err := cl.Bcl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
 		Invoke: &byzcoin.Invoke{
@@ -578,7 +579,7 @@ func (cl *Client) CreateNewProject(adid darc.ID, pname string) (byzcoin.Instance
 	}
 	id, err := cl.addDeferredTransaction(proposedTransaction, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, darc.ID{}, "", xerrors.Errorf("Spawning the deffered transaction: %w", err)
+		return byzcoin.InstanceID{}, darc.ID{}, "", xerrors.Errorf("Spawning the deferred transaction: %w", err)
 	}
 	return id, pdarcID, pdarcIDString, err
 }
@@ -664,7 +665,7 @@ func (cl *Client) CreateAccessRight(pdarc, adid darc.ID) (byzcoin.InstanceID, er
 	}
 	id, err := cl.addDeferredTransaction(ctx, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deferred transaction to the ledger: %w", err)
 	}
 	return id, nil
 }
@@ -772,7 +773,7 @@ func (cl *Client) AddQuerierToProject(pdid, adid darc.ID, qid, access string) (b
 	}
 	id, err := cl.addDeferredTransaction(ctx, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deferred transaction to the ledger: %w", err)
 	}
 	return id, nil
 }
@@ -799,7 +800,7 @@ func (cl *Client) RemoveQuerierFromProject(pdid, adid darc.ID, qid string) (byzc
 	}
 	id, err := cl.addDeferredTransaction(ctx, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deferred transaction to the ledger: %w", err)
 	}
 	return id, nil
 }
@@ -829,7 +830,7 @@ func (cl *Client) ModifyQuerierAccessRightsForProject(pdid, adid darc.ID, qid, a
 	}
 	id, err := cl.addDeferredTransaction(ctx, adid)
 	if err != nil {
-		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deffered transaction to the ledger: %w", err)
+		return byzcoin.InstanceID{}, xerrors.Errorf("Adding Deferred transaction to the ledger: %w", err)
 	}
 	return id, nil
 }
@@ -856,8 +857,9 @@ func (cl *Client) VerifyAccessRights(qid, access string, pdid darc.ID) (bool, er
 	if idx == -1 {
 		return false, xerrors.Errorf("There is no such querier registered in the accessright contract")
 	}
-
-	return strings.Contains(received.Access[idx], access), nil
+	// the different access rights for a user are assumed to be splitted with a ':'
+	_, present := Find(strings.Split(received.Access[idx], ":"), access)
+	return present, nil
 }
 
 func (cl *Client) ShowAccessRights(qid string, pdid darc.ID) (string, error) {
@@ -885,5 +887,3 @@ func (cl *Client) ShowAccessRights(qid string, pdid darc.ID) (string, error) {
 
 	return received.Access[idx], nil
 }
-
-
