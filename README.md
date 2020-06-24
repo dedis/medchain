@@ -4,7 +4,7 @@ MedChain is a distributed authorization and access management service for MedCo.
 
 
 ## MedChain Node (Server)
-MedChain server code can be found in [cmd/medchain-server]()cmd/medchain-server) where you can also find instructions on how to run one or more MedChain nodes.
+MedChain server code can be found in [cmd/medchain-server](cmd/medchain-server) where you can also find instructions on how to run one or more MedChain nodes.
 
 ## MedChain Client
 
