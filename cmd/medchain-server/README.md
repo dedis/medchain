@@ -51,7 +51,7 @@ Below is the description of code and files avaliable in this directory
 - `libtest.sh`: Bash script that contains code that can be used to test MedChain nodes
 - `medchain.go`: main MedChain server code
 - `medchain_test.go`: Server Go tests
-- `medchain-server.go`: Definition of server functions (i.e., actions) used in `medchain.go`
-- `non_interactive_setup.go`": Code used to setup the server non-interactively. 
+- `medchain-server.go`: Definition of server functions (i.e., actions) used in `medchain.go`
+- `non_interactive_setup.go`": Code used to setup the server non-interactively.
 - `run_nodes.sh`: Bash script that can be used to setup and run multiple MedChain nodes locally. 
-- `server_test.go`: Server Go test (with logging) 
+- `server_test.go`: Server Go test (with logging)
