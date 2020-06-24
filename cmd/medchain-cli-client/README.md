@@ -178,3 +178,10 @@ bash$ ./medchain-cli-client sign --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH  --ci
  ```
 
 Last but not least, one can use Docker to run a network of MedChain nodes as well as MedChain CLI client using docker-based deployment of MedChain. This is explained in details in [deployment](deployment/README.md).  
+
+## Directory overview
+
+Below is the description of code and files avaliable in this directory:
+
+- `commands.go`: Definition of MedChain CLI client commands 
+- `main.go`: Definition of MedChain CLI client functions (i.e., actions) used in `commands.go`  

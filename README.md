@@ -28,7 +28,7 @@ The client is able to use command-line interface to use MedChain service. Please
 - *cmd*: main applications for this project
     - *cmd/medchain-server*: server application
     - *cmd/medchain-cli-client*: client application
-    - *cmd/medadmint*: MedChain admin client application
+    - *cmd/medadmin*: MedChain admin client application
 - *deployment*: docker image definition and docker-compose deployment of MedChain
 - *protocol*: MedChain to MedChain communication implementation
 - *services*: server-side API and service definitions

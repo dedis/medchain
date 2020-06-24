@@ -1,10 +1,7 @@
-Navigation: [DEDIS](https://github.com/dedis/doc/tree/master/README.md) ::
-[Cothority Template](../README.md) ::
-Simulation
 
-# Simulation
+# MedChain Simulation
 
-After you know that a new service and protocol work at all (unit testing and integration testing have passed) then you might want to know how that software will behave in larger networks of 10's, 100's or 1000's of nodes. This is the job of the simulation system.
+After you know that a new service and protocol work at all (unit testing and integration testing have passed) then you might want to know how that software will behave in larger networks. This is the job of the simulation system.
 
 References:
 * The README.md: https://github.com/dedis/onet/blob/master/simul/README.md
@@ -30,83 +27,38 @@ the Roster.
 
 ## Running your simulation
 
-The simulation example is in the directory `simulation`. It demonstrates how to
-write simulation drivers and configurations for simulating the behaviour of the
-protocol alone (files `protocol.go` and `protocol.toml`) or for simulating a client
-talking to a service (files `service.go` and `service.toml`). Of course, in our case
-we know that this example service always starts one instance of the example
-protocol, so the `TemplateService` will be exercising the protocol as well.
+The simulation for MedChain is defined in `service.go`. It simulates a client
+talking to a service (files `service.go` and `service.toml`). File `service.toml` defines the simulation and its setup (for tests on localhost).
 
 You can build the simulator executable with `go build`. If you try to run it
 with no options (`./simulator`), it asks for a simulation to run. You must give
-it one or more toml files on the commandline.
+it one or more toml files on the commandline, i.e., 
 
-The protocol.toml file has:
-
-```
-Simulation = "TemplateProtocol"
-Servers = 8
-Bf = 4
-Rounds = 10
-CloseWait = 6000
-
-Depth
-1
-2
+```bash
+$ ./simulation service.toml
 ```
 
-When you run `./simulation protocol.toml` this is what you get:
+Simulation results and time measurements are written to `test_data` folder that is created once you run the simulations. You can use the provided python script to produce the plots of results:
 
-```
-$ ./simulation protocol.toml
-1 : (                        simul.startBuild:  54) - Deploying to localhost
-1 : (           platform.(*Localhost).Cleanup:  92) - Nothing to clean up
-1 : (             platform.(*Localhost).Start: 161) - Starting 8 applications of simulation TemplateProtocol
-1 : (                       platform.Simulate: 117) - Started counting children with timeout of 1000
-1 : (                       platform.Simulate: 121) - Found all 5 children
-1 : (                       platform.Simulate: 139) - Starting new node TemplateProtocol
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 0
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 1
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 2
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 3
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 4
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 5
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 6
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 7
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 8
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 9
-1 : (           platform.(*Localhost).Cleanup:  92) - Nothing to clean up
-1 : (             platform.(*Localhost).Start: 161) - Starting 8 applications of simulation TemplateProtocol
-1 : (                       platform.Simulate: 117) - Started counting children with timeout of 1000
-1 : (                       platform.Simulate: 121) - Found all 21 children
-1 : (                       platform.Simulate: 139) - Starting new node TemplateProtocol
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 0
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 1
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 2
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 3
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 4
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 5
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 6
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 7
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 8
-1 : (          main.(*SimulationProtocol).Run:  83) - Starting round 9
+```bash
+$ python plot_simulation.py
 ```
 
-This shows that it started 8 conodes (they, however, just running inside of
-goroutines; you will not see them as separate processes in a `ps -ef` listing).
-This is set from "Servers = 8" in the protocol.toml file.
-
-There are two runs, once for depth = 1 and once for depth = 3. For depth = 1,
-and branching factor 4, there are 5 nodes expected (1 root + 4 children = 5).
-Once all of the 10 rounds are finished, the conodes are shut down. The
-simulation continues for depth = 3, with 1 + 4 + 4*4 = 21 children expected.
-Because 21 children > 8 conodes, some of the conodes will be hosting 3 children.
-
-You could add the `-debug 3` argument and get much, much more debug output from
-each conode showing what it is seeing and doing.
+The plots will be saved in `test_data` folder.
 
 ## Running simulations with "go test"
 
 The `simul_test.go` file shows that simulations can be launched from within
 standard Go tests. This would make it possible to have different tests that use
 different toml files in order to test different sizes of networks, etc.
+
+
+## Directory overview
+
+Below is the description of code and files avaliable in this directory:
+
+- `service.go`: Implementation of MedChain service simulation 
+- `service.toml`: toml file for service simulations
+- `simul.go`: Simulation code using Go tests 
+- `simul_test.go`: Simulation code using Go tests
+- `utils.go`: Simulation utility code
