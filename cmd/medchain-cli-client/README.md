@@ -91,7 +91,7 @@ In order to create the first client we run:
 bash$ ./medchain-cli-client create --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH --cid 1 --address $adrs1 --key $admin1
 ```
 
-Next, we add a default project Darc and call it "Project A Darc". Please note that this functionality is only enabled for test purposes. [medadmin](cmd/medadmin) is the main CLI tool to generate and manage MedChain admin and project Darcs. Please refer to [cmd/medadmin/README.md](cmd/medadmin/README.md) for further details. 
+Next, we add a default project Darc and call it "Project A Darc". Please note that this functionality is only enabled for test purposes. [medadmin](../medadmin) is the main CLI tool to generate and manage MedChain admin and project Darcs. Please refer to [cmd/medadmin/README.md](../medadmin/README.md) for further details. 
 
 ```bash
 bash$ ./medchain-cli-client darc add --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH  --cid 1 --address $adrs1 --key $admin1 --save darc_ids.txt --name A
@@ -177,7 +177,7 @@ bash$ ./medchain-cli-client sign --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH  --ci
     bash$ ./medchain-cli-client exec --bc $BC --file $MEDCHAIN_GROUP_FILE_PATH --cid 2 --address $adrs2 --key $admin2 --instid $inst1
  ```
 
-Last but not least, one can use Docker to run a network of MedChain nodes as well as MedChain CLI client using docker-based deployment of MedChain. This is explained in details in [deployment](deployment/README.md).  
+Last but not least, one can use Docker to run a network of MedChain nodes as well as MedChain CLI client using docker-based deployment of MedChain. This is explained in details in [deployment](../../deployment/README.md).  
 
 ## Directory overview
 
