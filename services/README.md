@@ -13,7 +13,7 @@ In MedChain node implementation, in order to define client-MedChain node communi
 
 ## MedChain Messages and API Calls
 
-In Medchain, we mainly used two services: [ByzCoin]() and [Onet](https://github.com/dedis/onethttps://github.com/dedis/cothority/tree/master/byzcoin) services that enable client-server communications. We define Medchain API using these services and later implement the CLI-program on top of this API (see [MedChain CLI client code](cmd/medchain-cli-client)). Messages defined and used in MedChain can be found in `struct.go` in this directory. Table below shows some of the most important messages defined in MedChain as well as resources they take and their responses.
+In Medchain, we mainly used two services: [ByzCoin](https://github.com/dedis/cothority/tree/master/byzcoin) and [Onet](https://github.com/dedis/onet) services that enable client-server communications. We define Medchain API using these services and later implement the CLI-program on top of this API (see [MedChain CLI client code](../cmd/medchain-cli-client)). Messages defined and used in MedChain can be found in `struct.go` in this directory. Table below shows some of the most important messages defined in MedChain as well as resources they take and their responses.
 
 |Name of Method | Description| Resources| Response|
 | ------ | ------ | ------ | ------ | 

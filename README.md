@@ -8,7 +8,7 @@ MedChain server code can be found in [cmd/medchain-server]()cmd/medchain-server)
 
 ## MedChain Client
 
-MedChain supports 2 ways for clients to connect to MedChain service: [Go API](service/api.go) and [CLI](cmd/medchain-cli-client). 
+MedChain supports 2 ways for clients to connect to MedChain service: [Go API](services/api.go) and [CLI](cmd/medchain-cli-client). 
 Before the client can use the API, a ByzCoin object should be created with a Darc that authorizes the client for "spawn:medchain" and "invoke:medchain.update". More instructions on clients can be found in [services](services) or [cmd/medchain-cli-client](cmd/medchain-cli-client)
 
 * ### MedChain Go API Client

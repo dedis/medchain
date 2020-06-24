@@ -34,7 +34,7 @@ path/to/medchain/cmd/medchain-server$ ./medchain-server server setup
 path/to/medchain/cmd/medchain-server$ ./medchain-server server
 ```
 
-Last but not least, one can use Docker to run a single MedChain server or a network of them. This is implemenmted and explained in details in [deployment](deployment)
+Last but not least, one can use Docker to run a single MedChain server or a network of them. This is implemenmted and explained in details in [deployment](../../deployment)
 
 ## MedChain Node: Test
 

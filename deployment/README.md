@@ -23,7 +23,7 @@ bash$ docker-compose -f docker-compose.yaml up --build
 This command will build MedChain server and CLI client images, setup and run the server in a container, and create a MedChain CLI client container that can interact with running server. Please note that flag `--build` is only necessary if the user needs to build docker images for MedChain node and its CLI client.
 
 
-Please note that before we can setup and run MedChain nodes using `docker-compose.yaml` file, we need to have the `private.toml` file of every MedChain node (server) in `deployment/medchain-config/mcX` directory where X corresponds to node index. We can use the script `run_nodes.sh` provided in [medchain-server](cmd/medchain-server) folder to setup as many MedCahin nodes as we want. For example, to setup 3  MedChain nodes, we can use the commnand below:
+Please note that before we can setup and run MedChain nodes using `docker-compose.yaml` file, we need to have the `private.toml` file of every MedChain node (server) in `deployment/medchain-config/mcX` directory where X corresponds to node index. We can use the script `run_nodes.sh` provided in [medchain-server](../cmd/medchain-server) folder to setup as many MedCahin nodes as we want. For example, to setup 3  MedChain nodes, we can use the commnand below:
 
 ```bash
 bash$ mkdir medchain-config
@@ -35,7 +35,7 @@ Once all the servers are up and running, we need to use MedChain CLI client cont
 bash$ docker exec -it <name_of_cli_client_container> bash
 ```
 
-We can, then, use the commands described in MedChain CLI client [README](cmd/medchain-cli-client/README.md) file to interact with MedChain node through the CLI.  
+We can, then, use the commands described in MedChain CLI client [README](../cmd/medchain-cli-client/README.md) file to interact with MedChain node through the CLI.  
 
 To setup and run a multi-node network, one can define their own network in a docker-compose file and run it using:
 
