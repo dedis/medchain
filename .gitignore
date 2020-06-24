@@ -2,9 +2,5 @@
 .idea
 .DS_Store
 build
-medchain-server
-medchain-cli-client
-build
 simulation/simulation
-!medchain-server/run_nodes.sh
 medchain-config/
