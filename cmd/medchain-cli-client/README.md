@@ -7,7 +7,7 @@ MedChain supports two ways for clients to connect to the MedChain service:
 In this folder you will find the implementation of MedChain CLI client.
 
 An [app](https://github.com/dedis/onet/tree/master/app), in the context of [Onet](https://github.com/dedis/onet), is a CLI-program that interacts with one or more Conodes through the use of the API defined by one or more services. 
-We implemented the app for MedChain which is a client that talks to the service available in server (MedChain node). The code for this CLI-app is found in [cmd/medchain-cli-client](cmd/medchain-cli-client) directory of MedChain repository. CLI client can be used to interact with one or more MedChain nodes.
+We implemented the app for MedChain which is a client that talks to the service available in server (MedChain node). The code for this CLI-app is found in this directory of MedChain repository. CLI client can be used to interact with one or more MedChain nodes.
 
 ## MedChain Command-line-interface (CLI) Commands  
 
@@ -43,7 +43,7 @@ Table below summarizes the subcommands of `darc` command:
 
 ## How to Use MedChain CLI Client
 
-In order to use MedChain CLI client a network of at least 3 MedChain nodes should already be up and running. Please refer to [cmd/medchain-server](cmd/medchain-server) to learn more about MedChain nodes and how to deploy a network of them.
+In order to use MedChain CLI client a network of at least 3 MedChain nodes should already be up and running. Please refer to [cmd/medchain-server](../medchain-server) to learn more about MedChain nodes and how to deploy a network of them.
 Once a network of MedChain nodes (i.e., MedChain servers) is up and running, the following commands can be used to use MedChain CLI client to interact with MedChain servers, submit a query to the network for authorization and demo query rejection and authorization scenarios.
 
 Please note that all the below commands must be run in `cmd/medchain-cli-client`. 
