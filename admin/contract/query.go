@@ -14,6 +14,13 @@ const (
 	QueryDescriptionKey = "description"
 	queryProjectKey     = "project"
 	QueryActionKey      = "action"
+	QueryStatusKey      = "status"
+
+	QueryUpdateAction = "update"
+
+	QueryPendingStatus = "pending"
+	QuerySuccessStatus = "successful"
+	QueryFailedStatus  = "failed"
 )
 
 func init() {
@@ -44,13 +51,15 @@ type QueryContract struct {
 	Description string
 	Project     string
 	Action      string
+	Status      string
 }
 
 // VerifyInstruction implements byzcoin.Contract
 func (c QueryContract) VerifyInstruction(rst byzcoin.ReadOnlyStateTrie,
 	inst byzcoin.Instruction, ctxHash []byte) error {
 
-	return xerrors.Errorf("only a spawn through a project contract is allowed")
+	// TODO: who is allowed to invoke:update a query ???
+	return nil
 }
 
 // Spawn implements byzcoin.Contract
@@ -70,6 +79,7 @@ func (c QueryContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruc
 		Description: description,
 		Project:     project,
 		Action:      action,
+		Status:      QueryPendingStatus,
 	}
 
 	buf, err := protobuf.Encode(&state)
@@ -77,17 +87,41 @@ func (c QueryContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruc
 		return nil, nil, xerrors.Errorf("failed to encode state: %v", err)
 	}
 
-	sc := byzcoin.NewStateChange(byzcoin.Create, inst.DeriveID(""), QueryContractID,
-		buf, darcID)
+	sc := byzcoin.NewStateChange(byzcoin.Create, inst.DeriveID(""),
+		QueryContractID, buf, darcID)
 
 	return []byzcoin.StateChange{sc}, coins, nil
 }
 
 // Invoke implements byzcoin.Contract
-func (c QueryContract) Invoke(_ byzcoin.ReadOnlyStateTrie, _ byzcoin.Instruction,
-	_ []byzcoin.Coin) ([]byzcoin.StateChange, []byzcoin.Coin, error) {
+func (c QueryContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction,
+	coins []byzcoin.Coin) ([]byzcoin.StateChange, []byzcoin.Coin, error) {
 
-	return nil, nil, xerrors.Errorf("invoke not allowed in query contract")
+	if inst.Action() != QueryUpdateAction {
+		return nil, nil, xerrors.Errorf("only the update action is allowed")
+	}
+
+	status := string(inst.Arguments().Search(QueryStatusKey))
+	if status != QuerySuccessStatus && status != QueryFailedStatus {
+		return nil, nil, xerrors.Errorf("invalid status: %s", status)
+	}
+
+	c.Status = status
+
+	buf, err := protobuf.Encode(&c)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to encode query: %v", err)
+	}
+
+	_, _, _, darcID, err := rst.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to get DARC: %v", err)
+	}
+
+	sc := byzcoin.NewStateChange(byzcoin.Update, inst.InstanceID,
+		ProjectContractID, buf, darcID)
+
+	return []byzcoin.StateChange{sc}, coins, nil
 }
 
 // Delete implements byzcoin.Contract
