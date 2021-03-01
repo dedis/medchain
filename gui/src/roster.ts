@@ -1,5 +1,4 @@
-// This file shows a possible roster configuration, which uses the production
-// blockchain. This template is used for the deployment.
+// Replace the roster with yours
 export function getRosterStr () {
   return `[[servers]]
   Address = "tls://localhost:7774"

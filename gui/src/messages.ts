@@ -5,7 +5,7 @@ import models from './protobuf/models.json'
 import { Roster, ServerIdentity, ServiceIdentity } from '@dedis/cothority/network/index'
 
 /**
- * GetDeferredIDs
+ * GetDeferredIDs message
  */
 export class GetDeferredIDs extends Message<GetDeferredIDs> {
   static register () {
@@ -14,7 +14,7 @@ export class GetDeferredIDs extends Message<GetDeferredIDs> {
 }
 
 /**
- * Status response message
+ * Reply of GetDeferredIDs
  */
 export class GetDeferredIDsReply extends Message<GetDeferredIDsReply> {
   static register () {
@@ -42,7 +42,7 @@ export class GetDeferredIDsReply extends Message<GetDeferredIDsReply> {
 }
 
 /**
- * DeferredID
+ * ShareDeferredID message
  */
 export class ShareDeferredID extends Message<ShareDeferredID> {
   static register () {
@@ -80,7 +80,7 @@ export class ShareDeferredID extends Message<ShareDeferredID> {
 }
 
 /**
- * DeferredIDReply
+ * Reply of ShareDeferredID
  */
 export class ShareDeferredIDReply extends Message<ShareDeferredIDReply> {
   static register () {

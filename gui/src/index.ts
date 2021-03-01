@@ -9,20 +9,6 @@ import { getRosterStr } from './roster'
 export function sayHi () {
   console.log('hi')
 
-  const rosterStr = getRosterStr()
-  const roster = Roster.fromTOML(rosterStr)
-
-  const instid = hex2Bytes('9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3')
-  const connection3 = new WebSocketConnection('ws://127.0.0.1:7771', 'ShareID')
-  connection3.send(new ShareDeferredID({ instID: instid, r: roster }), ShareDeferredIDReply).then(
-    (e) => {
-      console.log('ShareID Deferred ok', e)
-    },
-    (e) => {
-      console.log('error', e)
-    }
-  )
-
   document.getElementById('getIDs').addEventListener('click', getIDs)
   document.getElementById('setID').addEventListener('click', setID)
 }
@@ -47,8 +33,8 @@ function setID () {
 
   const input = document.getElementById('setIDInout') as HTMLFormElement
 
-  const connection3 = new WebSocketConnection('ws://127.0.0.1:7771', 'ShareID')
-  connection3.send(new ShareDeferredID({ instID: hex2Bytes(input.value), r: roster }), ShareDeferredIDReply).then(
+  const connection = new WebSocketConnection('ws://127.0.0.1:7771', 'ShareID')
+  connection.send(new ShareDeferredID({ instID: hex2Bytes(input.value), r: roster }), ShareDeferredIDReply).then(
     (e) => {
       document.getElementById('setID-content').innerHTML = 'value set'
     },
@@ -58,7 +44,7 @@ function setID () {
   )
 }
 
-function hex2Bytes (hex: string) {
+function hex2Bytes (hex: string): Buffer {
   if (!hex) {
     return Buffer.allocUnsafe(0)
   }
