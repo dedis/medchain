@@ -1,19 +1,20 @@
 package admin
 
 import (
+	"strings"
+
 	"go.dedis.ch/cothority/v3/byzcoin"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"golang.org/x/xerrors"
-	"strings"
 )
-
 
 // ------------------------------------------------------------------------
 // Manage slice as sets
 // ------------------------------------------------------------------------
 
-// Find the index of an element in the slice. Return -1 and false if the value is not in the slice
+// Find the index of an element in the slice. Return -1 and false if the value
+// is not in the slice
 func Find(slice []string, val string) (int, bool) {
 	for i, item := range slice {
 		if item == val {

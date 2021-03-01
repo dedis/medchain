@@ -1,0 +1,20 @@
+syntax = "proto2";
+package admin;
+
+option java_package = "ch.epfl.dedis.template.proto";
+option java_outer_classname = "RequestIDProto";
+
+message GetDeferredIDs {}
+
+message GetDeferredIDsReply {
+    repeated bytes instanceids = 1;
+}
+
+message ShareDeferredID {
+    required bytes id = 1;
+    required onet.Roster roster = 2;
+}
+
+message ShareDeferredIDReply {
+    required bool ok = 1;
+}
