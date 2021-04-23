@@ -12,13 +12,17 @@ import (
 )
 
 // ProjectContractID is the name of the query Contract.
+//
+// The project contract express the authorization of users on 1 or more
+// datasets. This contract can spawn query instances and will set the query
+// status based on the authorizations of the project.
 const ProjectContractID = "project"
 
 const (
 	ProjectDescriptionKey = "description"
 	ProjectNameKey        = "name"
 	ProjectUserIDKey      = "userID"
-	ProjectActionKey      = "action"
+	ProjectQueryTermKey   = "queryTerm"
 )
 
 func init() {
@@ -31,9 +35,6 @@ func init() {
 // projectContractFromBytes unmarshals a contract
 func projectContractFromBytes(in []byte) (byzcoin.Contract, error) {
 	var c ProjectContract
-
-	fmt.Println("project content:", in)
-	fmt.Printf("%s\n", in)
 
 	err := protobuf.Decode(in, &c)
 	if err != nil {
@@ -48,7 +49,6 @@ func projectContractFromBytes(in []byte) (byzcoin.Contract, error) {
 type ProjectContract struct {
 	byzcoin.BasicContract
 
-	AdminInstance  []byte
 	Name           string
 	Description    string
 	Authorizations Authorizations
@@ -58,12 +58,10 @@ type ProjectContract struct {
 func (p *ProjectContract) VerifyInstruction(rst byzcoin.ReadOnlyStateTrie,
 	inst byzcoin.Instruction, ctxHash []byte) error {
 
-	// In the case the project is used to spawn a query contract, we perform
-	// the verification against the project's authorizations.
 	if inst.ContractID() == QueryContractID {
-		action := string(inst.Spawn.Args.Search(QueryActionKey))
-
-		return p.verifyQuery(inst.SignerIdentities, action)
+		// We don't do any check there because the project's authorization is
+		// managed by the admin, and we perform that check in spawnQuery()
+		return nil
 	}
 
 	return inst.Verify(rst, ctxHash)
@@ -98,7 +96,6 @@ func (p *ProjectContract) Spawn(rst byzcoin.ReadOnlyStateTrie,
 	name := string(inst.Spawn.Args.Search(ProjectNameKey))
 
 	state := ProjectContract{
-		AdminInstance:  inst.InstanceID.Slice(),
 		Description:    description,
 		Name:           name,
 		Authorizations: make(Authorizations, 0),
@@ -125,13 +122,15 @@ func (p ProjectContract) Invoke(rst byzcoin.ReadOnlyStateTrie,
 	}
 
 	userID := string(inst.Arguments().Search(ProjectUserIDKey))
-	action := string(inst.Arguments().Search(ProjectActionKey))
+	queryTerm := string(inst.Arguments().Search(ProjectQueryTermKey))
 
 	switch inst.Invoke.Command {
 	case "add":
-		p.updateAuth(userID, action)
+		p.updateAuth(userID, queryTerm)
 	case "remove":
-		p.removeAuth(userID, action)
+		p.removeAuth(userID, queryTerm)
+	default:
+		return nil, nil, xerrors.Errorf("wrong command: %s", inst.Invoke.Command)
 	}
 
 	buf, err := protobuf.Encode(&p)
@@ -152,19 +151,47 @@ func (p ProjectContract) Delete(_ byzcoin.ReadOnlyStateTrie, _ byzcoin.Instructi
 	return nil, nil, xerrors.Errorf("delete not allowed in project contract")
 }
 
+// spawnQuery spawns a query contract and sets its "status" and "projectID"
+// arguments. The status is given based on the authorization of the userID
+// stored on the authorization of this contract. Status is set to "pending" if
+// at least one of the element in the query definition is allowed, otherwise it
+// sets the status to "rejected".
 func (p *ProjectContract) spawnQuery(rst byzcoin.ReadOnlyStateTrie,
 	inst byzcoin.Instruction, coins []byzcoin.Coin) ([]byzcoin.StateChange, []byzcoin.Coin, error) {
 
-	contract, err := queryContractFromBytes(nil)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to init query contract")
+	args := inst.Spawn.Args
+
+	queryDefinition := args.Search(QueryQueryDefinitionKey)
+	status := QueryRejectedStatus
+
+	auth := p.Authorizations.Find(string(args.Search(QueryUserIDKey)))
+	if auth != nil && auth.IsAllowed(string(queryDefinition)) {
+		status = QueryPendingStatus
 	}
 
-	args := inst.Spawn.Args
-	projectArg := byzcoin.Argument{Name: queryProjectKey, Value: []byte(p.Name)}
-	inst.Spawn.Args = append([]byzcoin.Argument{projectArg}, args...)
+	_, _, _, darcID, err := rst.GetValues(inst.InstanceID.Slice())
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to get DARC: %v", err)
+	}
 
-	return contract.Spawn(rst, inst, coins)
+	state := QueryContract{
+		Description:     string(args.Search(QueryDescriptionKey)),
+		UserID:          string(args.Search(QueryUserIDKey)),
+		ProjectID:       p.Name,
+		QueryID:         string(args.Search(QueryQueryIDKey)),
+		QueryDefinition: string(args.Search(QueryQueryDefinitionKey)),
+		Status:          status,
+	}
+
+	buf, err := protobuf.Encode(&state)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("failed to encode state: %v", err)
+	}
+
+	sc := byzcoin.NewStateChange(byzcoin.Create, inst.DeriveID(""),
+		QueryContractID, buf, darcID)
+
+	return []byzcoin.StateChange{sc}, coins, nil
 }
 
 func (p ProjectContract) String() string {
@@ -177,22 +204,10 @@ func (p ProjectContract) String() string {
 	return out.String()
 }
 
-func (p *ProjectContract) verifyQuery(signers []darc.Identity, action string) error {
-	// check if any signer is allowed
-	for _, signer := range signers {
-		entry := p.Authorizations.Find(signer.String())
-		if entry != nil && entry.IsAllowed(string(action)) {
-			return nil
-		}
-	}
-
-	return xerrors.New("identity(ies) not allowed")
-}
-
 func (p *ProjectContract) updateAuth(userID, action string) {
 	entry := p.Authorizations.Find(userID)
 	if entry == nil {
-		entry = &Authorization{UserID: userID, Actions: []string{}}
+		entry = &Authorization{UserID: userID, QueryTerms: []string{}}
 		p.Authorizations = append(p.Authorizations, entry)
 	}
 
@@ -200,7 +215,7 @@ func (p *ProjectContract) updateAuth(userID, action string) {
 		return
 	}
 
-	entry.Actions = append(entry.Actions, action)
+	entry.QueryTerms = append(entry.QueryTerms, action)
 }
 
 func (p *ProjectContract) removeAuth(userID, action string) {
@@ -210,24 +225,24 @@ func (p *ProjectContract) removeAuth(userID, action string) {
 	}
 
 	var i int
-	for i = 0; i < len(entry.Actions); i++ {
-		if entry.Actions[i] == action {
+	for i = 0; i < len(entry.QueryTerms); i++ {
+		if entry.QueryTerms[i] == action {
 			break
 		}
 	}
 
-	if i == len(entry.Actions) {
+	if i == len(entry.QueryTerms) {
 		// action not present, nothing to remove
 		return
 	}
 
-	entry.Actions = append(entry.Actions[:i], entry.Actions[i+1:]...)
+	entry.QueryTerms = append(entry.QueryTerms[:i], entry.QueryTerms[i+1:]...)
 }
 
 // Authorizations ...
 type Authorizations []*Authorization
 
-// Find search for an entry an return nil if not found.
+// Find search for an entry and return nil if not found.
 func (e Authorizations) Find(userID string) *Authorization {
 	for _, entry := range e {
 		if entry.UserID == userID {
@@ -250,14 +265,17 @@ func (e Authorizations) String() string {
 
 // Authorization ...
 type Authorization struct {
-	UserID  string
-	Actions []string
+	UserID     string
+	QueryTerms []string
 }
 
 // IsAllowed checks if the action is present in the entry.
-func (e Authorization) IsAllowed(a string) bool {
-	for _, action := range e.Actions {
-		if action == a {
+// TODO: here we should check that at least on element of the query definition,
+// Like (Q1 AND Q2) OR Q3 is allowed.
+// I'm not sure yet of the format, nor how to parse it.
+func (e Authorization) IsAllowed(queryDefinition string) bool {
+	for _, action := range e.QueryTerms {
+		if action == queryDefinition {
 			return true
 		}
 	}
@@ -269,7 +287,7 @@ func (e Authorization) String() string {
 	out := new(strings.Builder)
 
 	fmt.Fprintf(out, "- UserID: %s\n", e.UserID)
-	fmt.Fprintf(out, "- Actions: %v\n", e.Actions)
+	fmt.Fprintf(out, "- QueryTerms: %v\n", e.QueryTerms)
 
 	return out.String()
 }

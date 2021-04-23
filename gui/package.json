@@ -37,6 +37,6 @@
     "stream-browserify": "^3.0.0"
   },
   "dependencies": {
-    "@dedis/cothority": "3.6.4-p2012.1814.1317.0"
+    "@dedis/cothority": "^3.6.4"
   }
 }

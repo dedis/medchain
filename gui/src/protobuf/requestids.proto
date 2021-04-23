@@ -1,20 +1,41 @@
 syntax = "proto2";
-package admin;
+package bypros;
 
 option java_package = "ch.epfl.dedis.template.proto";
-option java_outer_classname = "RequestIDProto";
+option java_outer_classname = "ByprosProto";
 
-message GetDeferredIDs {}
-
-message GetDeferredIDsReply {
-    repeated bytes instanceids = 1;
+message Query {
+    required string query = 1;
 }
 
-message ShareDeferredID {
-    required bytes id = 1;
-    required onet.Roster roster = 2;
+message QueryReply {
+    required bytes result = 1;
 }
 
-message ShareDeferredIDReply {
-    required bool ok = 1;
+message Follow {
+    required bytes scid = 1;
+    required network.ServerIdentity target = 2;
+}
+
+message EmptyReply {}
+
+message Unfollow {}
+
+message CatchUpMsg {
+    required bytes scid = 1;
+    required network.ServerIdentity target = 2;
+    required bytes fromblock = 3;
+    required sint64 updateevery = 4;
+}
+
+message CatchUpResponse {
+    required CatchUpStatus status = 1;
+    required bool done = 2;
+    required string err = 3;
+}
+
+message CatchUpStatus {
+    required string message = 1;
+    required sint64 blockindex = 2;
+    required bytes blockhash = 3;
 }

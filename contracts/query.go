@@ -8,19 +8,27 @@ import (
 )
 
 // QueryContractID is the name of the query Contract.
+//
+// The query contract represents a request from a user to perform an action on a
+// project (dataset). This contract is spawned by the Project contract. The
+// project contract will set the "status" field to "pending" or "rejected"
+// when it spawns the contract, based on the project attributes.
 const QueryContractID = "query"
 
 const (
-	QueryDescriptionKey = "description"
-	queryProjectKey     = "project"
-	QueryActionKey      = "action"
-	QueryStatusKey      = "status"
+	QueryDescriptionKey     = "description"
+	QueryUserIDKey          = "userID"
+	QueryProjectIDKey       = "projectID"
+	QueryQueryIDKey         = "queryID"
+	QueryQueryDefinitionKey = "queryDefinition"
+	QueryStatusKey          = "status"
 
 	QueryUpdateAction = "update"
 
-	QueryPendingStatus = "pending"
-	QuerySuccessStatus = "successful"
-	QueryFailedStatus  = "failed"
+	QueryRejectedStatus = "rejected"
+	QueryPendingStatus  = "pending"
+	QuerySuccessStatus  = "successful"
+	QueryFailedStatus   = "failed"
 )
 
 func init() {
@@ -49,9 +57,13 @@ type QueryContract struct {
 	byzcoin.BasicContract
 
 	Description string
-	Project     string
-	Action      string
-	Status      string
+
+	UserID          string
+	ProjectID       string
+	QueryID         string
+	QueryDefinition string
+
+	Status string
 }
 
 // VerifyInstruction implements byzcoin.Contract
@@ -66,38 +78,14 @@ func (c QueryContract) VerifyInstruction(rst byzcoin.ReadOnlyStateTrie,
 func (c QueryContract) Spawn(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction,
 	coins []byzcoin.Coin) ([]byzcoin.StateChange, []byzcoin.Coin, error) {
 
-	_, _, _, darcID, err := rst.GetValues(inst.InstanceID.Slice())
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to get DARC: %v", err)
-	}
-
-	description := string(inst.Spawn.Args.Search(QueryDescriptionKey))
-	project := string(inst.Spawn.Args.Search(queryProjectKey))
-	action := string(inst.Spawn.Args.Search(QueryActionKey))
-
-	state := QueryContract{
-		Description: description,
-		Project:     project,
-		Action:      action,
-		Status:      QueryPendingStatus,
-	}
-
-	buf, err := protobuf.Encode(&state)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to encode state: %v", err)
-	}
-
-	sc := byzcoin.NewStateChange(byzcoin.Create, inst.DeriveID(""),
-		QueryContractID, buf, darcID)
-
-	return []byzcoin.StateChange{sc}, coins, nil
+	return nil, nil, xerrors.Errorf("spawn must be done via the project contract")
 }
 
 // Invoke implements byzcoin.Contract
 func (c QueryContract) Invoke(rst byzcoin.ReadOnlyStateTrie, inst byzcoin.Instruction,
 	coins []byzcoin.Coin) ([]byzcoin.StateChange, []byzcoin.Coin, error) {
 
-	if inst.Action() != QueryUpdateAction {
+	if inst.Invoke.Command != QueryUpdateAction {
 		return nil, nil, xerrors.Errorf("only the update action is allowed")
 	}
 

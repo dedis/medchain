@@ -1,113 +1,95 @@
-import { Message, Properties } from 'protobufjs/light'
-import { addJSON, EMPTY_BUFFER, registerMessage } from '@dedis/cothority/protobuf/index'
-import { InstanceID } from '@dedis/cothority/byzcoin/index'
+import { network } from '@dedis/cothority'
+import { addJSON, registerMessage } from '@dedis/cothority/protobuf'
+import { Message } from 'protobufjs/light'
 import models from './protobuf/models.json'
-import { Roster, ServerIdentity, ServiceIdentity } from '@dedis/cothority/network/index'
 
-/**
- * GetDeferredIDs message
- */
-export class GetDeferredIDs extends Message<GetDeferredIDs> {
+export class Query extends Message<Query> {
   static register () {
-    registerMessage('admin.GetDeferredIDs', GetDeferredIDs)
+    registerMessage('bypros.Query', Query)
+  }
+
+  query: string;
+}
+
+export class QueryReply extends Message<QueryReply> {
+  static register () {
+    registerMessage('bypros.QueryReply', QueryReply)
+  }
+
+  readonly result: Buffer;
+}
+
+export class Follow extends Message<Follow> {
+  static register () {
+    registerMessage('bypros.Follow', Follow)
+  }
+
+  scid: Buffer;
+  target: network.ServerIdentity;
+}
+
+export class EmptyReply extends Message<EmptyReply> {
+  static register () {
+    registerMessage('bypros.EmptyReply', EmptyReply)
   }
 }
 
-/**
- * Reply of GetDeferredIDs
- */
-export class GetDeferredIDsReply extends Message<GetDeferredIDsReply> {
+export class Unfollow extends Message<Unfollow> {
   static register () {
-    registerMessage('admin.GetDeferredIDsReply', GetDeferredIDsReply)
-  }
-
-    readonly ids: InstanceID[];
-
-    constructor (props?: Properties<GetDeferredIDsReply>) {
-      super(props)
-
-      this.ids = this.ids || []
-
-      /* Protobuf aliases */
-
-      Object.defineProperty(this, 'instanceids', {
-        get (): InstanceID[] {
-          return this.ids
-        },
-        set (value: InstanceID[]) {
-          this.ids = value
-        }
-      })
-    }
-}
-
-/**
- * ShareDeferredID message
- */
-export class ShareDeferredID extends Message<ShareDeferredID> {
-  static register () {
-    registerMessage('admin.ShareDeferredID', ShareDeferredID)
-  }
-
-  readonly instID: InstanceID;
-  readonly r: Roster;
-
-  constructor (props?: Properties<ShareDeferredID>) {
-    super(props)
-
-    this.instID = this.instID || EMPTY_BUFFER
-
-    /* Protobuf aliases */
-
-    Object.defineProperty(this, 'id', {
-      get (): InstanceID {
-        return this.instID
-      },
-      set (value: InstanceID) {
-        this.instID = value
-      }
-    })
-
-    Object.defineProperty(this, 'roster', {
-      get (): Roster {
-        return this.r
-      },
-      set (value: Roster) {
-        this.r = value
-      }
-    })
+    registerMessage('bypros.Unfollow', Unfollow)
   }
 }
 
-/**
- * Reply of ShareDeferredID
- */
-export class ShareDeferredIDReply extends Message<ShareDeferredIDReply> {
+export class CatchUpMsg extends Message<CatchUpMsg> {
   static register () {
-    registerMessage('admin.ShareDeferredIDReply', ShareDeferredIDReply)
+    registerMessage('bypros.CatchUpMsg', CatchUpMsg)
   }
 
-    readonly oK: boolean;
+  scid: Buffer;
+  target: network.ServerIdentity;
+  fromblock: Buffer;
+  updateevery: number;
+}
 
-    constructor (props?: Properties<ShareDeferredIDReply>) {
-      super(props)
+export class CatchUpStatus extends Message<CatchUpStatus> {
+  static register () {
+    registerMessage('bypros.CatchUpStatus', CatchUpStatus)
+  }
 
-      /* Protobuf aliases */
+  message: string;
+  blockindex: number;
+  blockhash: Buffer;
 
-      Object.defineProperty(this, 'ok', {
-        get (): boolean {
-          return this.oK
-        },
-        set (value: boolean) {
-          this.oK = value
-        }
-      })
-    }
+  toString (): string {
+    return `message: ${this.message}, block index: ${
+      this.blockindex
+    }, block hash: ${this.blockhash.toString('hex')}`
+  }
+}
+
+export class CatchUpResponse extends Message<CatchUpResponse> {
+  static register () {
+    registerMessage('bypros.CatchUpResponse', CatchUpResponse, CatchUpStatus)
+  }
+
+  status: CatchUpStatus;
+  done: boolean;
+  err: string;
+
+  toString (): string {
+    return `status: ${this.status.toString()}, done: ${this.done}, err: ${
+      this.err
+    }`
+  }
 }
 
 addJSON(models)
 
-GetDeferredIDs.register()
-GetDeferredIDsReply.register()
-ShareDeferredID.register()
-ShareDeferredIDReply.register()
+Query.register()
+QueryReply.register()
+Follow.register()
+EmptyReply.register()
+Unfollow.register()
+CatchUpMsg.register()
+CatchUpResponse.register()
+CatchUpStatus.register()

@@ -8,8 +8,67 @@ html {
   font-family: "Lato", sans-serif;
 }
 
+#result-output {
+  margin: 20px;
+  background-color: lightgoldenrodyellow;
+  font-weight: bold;
+
+  .log-entry {
+    padding: 3px 0;
+    overflow: auto;
+  }
+}
+
+h1 {
+  padding: 5px 5px 0 20px;
+}
+
+h2 {
+  padding: 20px 0 10px 0;
+}
+
 body {
+  .tiles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+  }
+
   .form {
-    padding: 30px 10px;
+    padding: 0 10px;
+
+    .field {
+      padding: 5px;
+
+      input, textarea {
+        padding: 3px;
+        display: block;
+        width: 300px;
+      }
+    }
+
+    button {
+      background-color: #4CAF50; /* Green */
+      border: none;
+      color: white;
+      padding: 12px 25px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 12px;
+      cursor: pointer;
+      margin: 15px 0;
+    
+      &:hover {
+        background-color: #29662B; /* Green */
+      }
+    }
+
+    .info {
+      max-width: 300px;
+      color: rgb(126, 126, 126);
+      font-size: 12px;
+      padding: 0 0 20px 0;
+    }
   }
 }
