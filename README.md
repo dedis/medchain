@@ -1,10 +1,9 @@
 # MedChain
 
-MedChain is an authorization and access management service is for medical
-queries. It uses a collective authority to manage authorization of queries,
-which provides full Auditability and distribution of power among participants.
-It is based on
-[Cothority](https://github.com/dedis/cothority/blob/master/README.md),
+MedChain is an authorization and access management service for medical queries.
+It uses a collective authority to manage authorization of queries, which
+provides full Auditability and distribution of power among participants. It is
+based on [Cothority](https://github.com/dedis/cothority/blob/master/README.md),
 [ByzCoin](https://github.com/dedis/cothority/blob/master/byzcoin/README.md), and
 [Darcs](https://github.com/dedis/cothority/blob/master/darc/README.md).
 
@@ -31,7 +30,7 @@ still creates the query but sets the status of the query to **rejected**.
 
 Instances of the project smart contract are controlled by the **DARC admin**,
 which uses threshold rules to guard the actions on the project instances, ie.
-creating new project instances, and update authorizations on projects.
+creating new project instances, and updating authorizations on projects.
 
 The DARC admin is itself managed by the genesis DARC, which is created at the
 creation of the chain.

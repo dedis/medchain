@@ -60,7 +60,8 @@ func (p *ProjectContract) VerifyInstruction(rst byzcoin.ReadOnlyStateTrie,
 
 	if inst.ContractID() == QueryContractID {
 		// We don't do any check there because the project's authorization is
-		// managed by the admin, and we perform that check in spawnQuery()
+		// managed by the admin, and we perform the authorization check in
+		// spawnQuery().
 		return nil
 	}
 
@@ -239,7 +240,7 @@ func (p *ProjectContract) removeAuth(userID, action string) {
 	entry.QueryTerms = append(entry.QueryTerms[:i], entry.QueryTerms[i+1:]...)
 }
 
-// Authorizations ...
+// Authorizations defines the list of authorizations.
 type Authorizations []*Authorization
 
 // Find search for an entry and return nil if not found.
@@ -253,6 +254,7 @@ func (e Authorizations) Find(userID string) *Authorization {
 	return nil
 }
 
+// String produces a text representation of Authorizations
 func (e Authorizations) String() string {
 	out := new(strings.Builder)
 
@@ -263,7 +265,7 @@ func (e Authorizations) String() string {
 	return out.String()
 }
 
-// Authorization ...
+// Authorization defines the query terms that a user is allowed to execute.
 type Authorization struct {
 	UserID     string
 	QueryTerms []string
@@ -283,6 +285,7 @@ func (e Authorization) IsAllowed(queryDefinition string) bool {
 	return false
 }
 
+// String produces a text representation of an Authorization.
 func (e Authorization) String() string {
 	out := new(strings.Builder)
 
