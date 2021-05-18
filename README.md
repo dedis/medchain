@@ -7,6 +7,9 @@ based on [Cothority](https://github.com/dedis/cothority/blob/master/README.md),
 [ByzCoin](https://github.com/dedis/cothority/blob/master/byzcoin/README.md), and
 [Darcs](https://github.com/dedis/cothority/blob/master/darc/README.md).
 
+[![Go test](https://github.com/ldsec/medchain/actions/workflows/go_test.yml/badge.svg)](https://github.com/ldsec/medchain/actions/workflows/go_test.yml)
+[![Go lint](https://github.com/ldsec/medchain/actions/workflows/go_lint.yml/badge.svg)](https://github.com/ldsec/medchain/actions/workflows/go_lint.yml)
+
 This repos contains the smart contracts (`/contracts`), deployment code
 (`/conode`, `/bypros`), and a javascript example that implements a simple GUI
 (`/gui`).
