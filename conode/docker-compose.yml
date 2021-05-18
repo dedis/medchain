@@ -1,0 +1,39 @@
+version: '3.3'
+
+networks:
+  basic:
+
+
+services:
+  medchain.node1:
+    container_name: medchain.node1
+    image: dedis/conode
+    build:  
+      dockerfile: Dockerfile
+    ports:
+      - "7770:7770"
+      - "7771:7771"
+    networks:
+      - basic
+
+  medchain.node2:
+    container_name: medchain.node2
+    image: dedis/conode
+    build:  
+      dockerfile: Dockerfile
+    ports:
+      - "7772:7772"
+      - "7773:7773"
+    networks:
+      - basic
+
+  medchain.node3:
+    container_name: medchain.node3
+    image: dedis/conode
+    build: 
+      dockerfile: Dockerfile
+    ports:
+      - "7774:7774"
+      - "7775:7775"
+    networks:
+      - basic

@@ -1,6 +1,10 @@
-.idea/
-medChainAdmin/medChainAdmin
-medChainServer/medChainServer
-signingService/data/*.db
-signingService/signingService
-*.out
+.vscode
+.idea
+.DS_Store
+
+gui/node_modules
+gui/dist
+
+conode/tmp
+conode/conode
+bypros/postgres
