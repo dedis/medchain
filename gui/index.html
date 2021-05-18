@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="stylesheet" href="stylesheets/style.css" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@100;300&display=swap"
+      rel="stylesheet"
+    />
+    <script src="dist/bundle.min.js?v=1" type="text/javascript"></script>
+  </head>
+  <body>
+    <h1>Medchain demo</h1>
+
+    <div id="result-output"></div>
+
+    <div class="tiles">
+      <div class="form">
+        <h2>Spawn a project instance</h2>
+
+        <div class="field">
+          <label for="project-name">Project name:</label>
+          <input type="text" id="project-name" />
+        </div>
+
+        <div class="field">
+          <label for="project-description">Project description:</label>
+          <input type="text" id="project-description" />
+        </div>
+
+        <div class="field">
+          <label for="byzcoin-id">Byzcoin ID</label>
+          <input type="text" id="byzcoin-id" />
+        </div>
+
+        <div class="field">
+          <label for="signer-private">Signer private:</label>
+          <input type="text" id="signer-private" />
+        </div>
+
+        <div class="field">
+          <label for="darc-id">DARC id:</label>
+          <input type="text" id="darc-id" />
+        </div>
+
+        <button id="spawn-project">Spawn project</button>
+      </div>
+
+      <div class="form">
+        <h2>Spawn a query instance</h2>
+
+        <div class="field">
+          <label>Project instance ID</label>
+          <input type="text" id="query-project-instance" />
+        </div>
+
+        <div class="field">
+          <label>Byzcoin ID</label>
+          <input type="text" id="query-byzcoin-id" />
+        </div>
+
+        <div class="field">
+          <label>User ID</label>
+          <input type="text" id="query-user-id" />
+        </div>
+
+        <div class="field">
+          <label>Description</label>
+          <input type="text" id="query-description" />
+        </div>
+
+        <div class="field">
+          <label>QueryID</label>
+          <input type="text" id="query-query-id" />
+        </div>
+
+        <div class="field">
+          <label>Query Definition</label>
+          <input type="text" id="query-query-definition" />
+        </div>
+
+        <button id="spawn-query">Spawn query</button>
+      </div>
+
+      <div class="form">
+        <h2>Query the Byzcoin proxy</h2>
+
+        <div class="field">
+          <label>Query:</label>
+          <textarea id="bypros-query-textarea">Select * from cothority.block limit 2;
+          </textarea>
+        </div>
+
+        <button id="bypros-query">Query</button>
+      </div>
+
+      <div class="form">
+        <h2>Follow the Byzcoin proxy</h2>
+
+        <p class="info">
+          The first time you start following, you won't be able to change the 
+          Skipchain ID. The service won't complain if you use a wrong Skipchain ID.
+          In case you want to change the Skipchain ID, you must restart the node.
+        </p>
+
+        <div class="field">
+          <label>SkipchainID</label>
+          <input id="bypros-follow-skipchain" type="text" />
+        </div>
+
+        <button id="bypros-follow">Start following</button>
+      </div>
+
+      <div class="form">
+        <h2>Unfollow the Byzcoin proxy</h2>
+
+        <button id="bypros-unfollow">Stop following</button>
+      </div>
+
+      <div class="form">
+        <h2>Proxy: catchup</h2>
+
+        <div class="field">
+          <label>SkipchainID:</label>
+          <input id="bypros-catchup-skipchain" type="text" />
+        </div>
+
+        <div class="field">
+          <label>Print update every N block:</label>
+          <input value="1" id="bypros-catchup-update-every" type="number" />
+        </div>
+
+        <div class="field">
+          <label>Fromblock:</label>
+          <input id="bypros-catchup-fromblock" type="text" />
+        </div>
+
+        <button id="bypros-catchup">Catch up</button>
+      </div>
+    </div>
+
+  </body>
+  <script>
+    jsapp.sayHi();
+  </script>
+</html>

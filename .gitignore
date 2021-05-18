@@ -1,10 +1,10 @@
 .vscode
 .idea
 .DS_Store
-build
-medchain-server
-medchain-cli-client
-build
-simulation
-!medchain-server/run_nodes.sh
-medchain-config/
+
+gui/node_modules
+gui/dist
+
+conode/tmp
+conode/conode
+bypros/postgres
