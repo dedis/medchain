@@ -1,0 +1,13 @@
+syntax = "proto2";
+package deferred;
+
+option java_package = "ch.epfl.dedis.lib.proto";
+option java_outer_classname = "deferred";
+
+message DeferredData {
+    required byzcoin.ClientTransaction proposedtransaction = 1;
+    required sint64 expireblockindex = 2;
+    repeated bytes instructionhashes = 3;
+    required sint64 maxnumexecution = 4;
+    repeated bytes execresult = 5;
+}
