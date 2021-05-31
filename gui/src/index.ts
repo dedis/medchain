@@ -4,6 +4,7 @@ import { getRosterStr } from './roster'
 import { Argument, ByzCoinRPC, ClientTransaction, Instance, Instruction } from '@dedis/cothority/byzcoin'
 import { SignerEd25519 } from '@dedis/cothority/darc'
 import { CatchUpMsg, CatchUpResponse, EmptyReply, Follow, Query, QueryReply, Unfollow } from './messages'
+import { DeferredData } from './deferred'
 
 let roster: Roster
 let logElement: HTMLElement
@@ -38,6 +39,8 @@ export function sayHi () {
   document.getElementById('bypros-follow').addEventListener('click', byprosFollow)
   document.getElementById('bypros-unfollow').addEventListener('click', byprosUnFollow)
   document.getElementById('bypros-catchup').addEventListener('click', byprosCatchup)
+
+  document.getElementById('get-deferred').addEventListener('click', getDeferred)
 }
 
 async function spawnProject () {
@@ -181,6 +184,21 @@ function byprosCatchup (e: Event) {
       appendLog('failed to catchup: ' + e)
     }
   })
+}
+
+async function getDeferred (e: Event) {
+  const byzcoinEl = document.getElementById('deferred-byzcoin-id') as HTMLFormElement
+  const instanceid = document.getElementById('deferred-instance') as HTMLFormElement
+
+  try {
+    const rpc = await ByzCoinRPC.fromByzcoin(roster, hex2Bytes(byzcoinEl.value))
+    const proof = await rpc.getProof(hex2Bytes(instanceid.value))
+
+    const deferred = DeferredData.decode(Buffer.from(proof.value))
+    appendLog(deferred.toString())
+  } catch (e) {
+    appendLog('error:' + e)
+  }
 }
 
 function hex2Bytes (hex: string): Buffer {

@@ -26,6 +26,7 @@ import (
 	_ "github.com/medchain/contracts"
 	"go.dedis.ch/cothority/v3"
 	_ "go.dedis.ch/cothority/v3/bypros"
+	_ "go.dedis.ch/cothority/v3/byzcoin"
 	_ "go.dedis.ch/cothority/v3/byzcoin/contracts"
 	_ "go.dedis.ch/cothority/v3/skipchain"
 	status "go.dedis.ch/cothority/v3/status/service"
