@@ -1,4 +1,4 @@
-module github.com/medchain
+module github.com/ldsec/medchain
 
 go 1.15
 

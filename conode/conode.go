@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"time"
 
-	_ "github.com/medchain/contracts"
+	_ "github.com/ldsec/medchain/contracts"
 	"go.dedis.ch/cothority/v3"
 	_ "go.dedis.ch/cothority/v3/bypros"
 	_ "go.dedis.ch/cothority/v3/byzcoin"
