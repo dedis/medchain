@@ -127,7 +127,11 @@ func (p ProjectContract) Invoke(rst byzcoin.ReadOnlyStateTrie,
 
 	switch inst.Invoke.Command {
 	case "add":
-		p.updateAuth(userID, queryTerm)
+		// queryTerm can be a coma separated list of terms: term1, term1, ...
+		for _, a := range strings.Split(queryTerm, ",") {
+			a = strings.TrimSpace(a)
+			p.updateAuth(userID, a)
+		}
 	case "remove":
 		p.removeAuth(userID, queryTerm)
 	default:
