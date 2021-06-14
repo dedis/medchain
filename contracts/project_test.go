@@ -145,7 +145,7 @@ func TestProject_Invoke_Add(t *testing.T) {
 	userID1 := "userID1"
 	userID2 := "userID2"
 	queryTerm1 := "q1"
-	queryTerm2 := "q2"
+	queryTerm2 := "q2,q3, q4" // can be a coma separated list of query term
 
 	ctx, err = cl.CreateTransaction(byzcoin.Instruction{
 		InstanceID: instID,
@@ -225,7 +225,7 @@ func TestProject_Invoke_Add(t *testing.T) {
 	expected := Authorizations{
 		&Authorization{
 			UserID:     userID1,
-			QueryTerms: []string{queryTerm1, queryTerm2},
+			QueryTerms: []string{queryTerm1, "q2", "q3", "q4"},
 		},
 		&Authorization{
 			UserID:     userID2,
