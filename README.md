@@ -116,3 +116,63 @@ nom run bundle
 You can now open `index.html`:
 
 ![demo](gui/gui.png)
+
+# Run a production node
+
+Those instructions follow closely the deployment of a cothority node. You can
+get more in-depth instruction from the repository documentation:
+https://github.com/dedis/cothority/blob/main/conode/README.md.
+
+In this setup we are using docker to configure and deploy a conode. First, build
+the docker image:
+
+```sh
+# from the root folder
+docker build -t medchain:latest .
+```
+
+Once the docker image is built, setup the conode with:
+
+```sh
+# store `conode_data` in a location of your choice
+# this will prompt a configuration setup. You can use the default options.
+docker run --rm -it -p 7770-7771:7770-7771 \
+    -v /absolute/path/to/conode_data:/conode_data medchain:latest \
+    ./conode setup
+```
+
+Finally, run the conode with the following command. Be sure you have started
+bypros before:
+
+```sh
+docker run --restart always -p 7770-7771:7770-7771 \
+    -e PROXY_DB_URL=postgres://bypros:docker@localhost:5432/bypros \
+    -e PROXY_DB_URL_RO=postgres://proxy:1234@localhost:5432/bypros \
+    -v /Users/nkocher/GitHub/medchain/conode_data:/conode_data \
+    medchain:latest
+```
+
+You will have a conode running locally on `127.0.0.1:7770`. It also exposes
+address `127.0.0.1:7771` for client requests. Those requests will come from the
+Medchain-frontend.
+
+You should reverse-proxy the client requests with a web-server. We recommend
+nginx:
+
+```
+location / {
+   server_name example.com;
+   # ...
+   ssl_certificate /etc/nginx/ssl/example.com.certificate.pem;
+   ssl_certificate_key /etc/nginx/ssl/example.com.key.pem;
+   # ...
+   location /conode/ {
+      proxy_http_version 1.1;
+
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+
+      proxy_pass "http://localhost:7771/";
+   }
+}
+```
