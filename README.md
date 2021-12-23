@@ -14,6 +14,13 @@ This repos contains the smart contracts (`/contracts`), deployment code
 (`/conode`, `/bypros`), and a javascript example that implements a simple GUI
 (`/gui`).
 
+MedChain is used in combination with
+[MedChain-front-end](https://github.com/dedis/medchain-frontend), a web-based
+GUI for administrators.
+
+Read the [End-of-project technical
+report](https://github.com/dedis/medchain/releases/download/v1.0/MedChain.Technical.report.pdf).
+
 # Smart contracts
 
 Access on resources are expressed by instances of the **query** smart contract.
